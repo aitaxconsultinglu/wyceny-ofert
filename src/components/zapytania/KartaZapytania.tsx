@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Copy, Plus, Save, Sparkles } from 'lucide-react'
+import { ArrowLeft, Copy, Plus, Save, Sparkles, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { dataGodzinaPL, zl } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { STATUSY_ZAPYTANIA, ZRODLA, etykietaRodzaju, type RodzajAparatu, type StatusZapytania, type ZakresWymiennika } from '@/lib/zapytania'
 import { ZmianaRodzaju, ZnacznikRodzaju } from './RodzajAparatu'
+import { doKosza } from '@/lib/kosz'
+import { useOdswiezPoHistorii, useZakresHistorii } from '@/lib/historia'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 import { ETYKIETY_STATUSU_WYCENY, KOLORY_STATUSU_WYCENY, type StatusWyceny } from '@/lib/wyceny'
 import { uprawnienia, type Profil } from '@/lib/types'
 import { Button } from '../ui/button'
@@ -81,6 +84,9 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     setCeny(c)
   }, [id])
   useEffect(() => { void wczytaj() }, [wczytaj])
+  // Usunięcia w karcie (dokumenty, odczyty, wersje wycen) - kroki do cofnięcia w zakresie tego zapytania.
+  useZakresHistorii(`zapytanie:${id}`)
+  useOdswiezPoHistorii(() => void wczytaj())
 
   useEffect(() => {
     if (zakladka !== 'historia') return
@@ -117,6 +123,15 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     otworzWycene(data as string)
   }
 
+  async function usunZapytanie() {
+    if (!z || !window.confirm(`Przenieść zapytanie ${z.numer} do kosza razem z dokumentami, odczytami, analizą, wycenami i ofertami? Można je przywrócić z kosza.`)) return
+    try { await doKosza('zapytanie', [z.id], 'zapytania', `usunięcie zapytania ${z.numer}`); zamknij() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
+  }
+  async function usunWersje(w: WersjaWyceny) {
+    if (!window.confirm(`Przenieść wycenę v${w.wersja} do kosza?`)) return
+    try { await doKosza('wycena', [w.id], `zapytanie:${id}`, `usunięcie wyceny v${w.wersja}`); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
+  }
+
   async function kopiuj(w: WersjaWyceny) {
     const { data, error } = await supabase.rpc('kopiuj_wycene', { p_wycena: w.id })
     if (error) { setBlad(komunikatPL(error.message)); return }
@@ -150,6 +165,34 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     )
   }
 
+  const kolumnyWycen: KolumnaTabeli<WersjaWyceny>[] = [
+    { id: 'wersja', naglowek: 'Wersja', typ: 'liczba', wartosc: (w) => w.wersja, className: 'font-medium text-left', komorka: (w) => <>v{w.wersja}{w.skopiowana_z && <span className="ml-1 text-xs text-slate-400">(kopia)</span>}</> },
+    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (w) => w.nazwa },
+    { id: 'status', naglowek: 'Status', typ: 'lista', wartosc: (w) => ETYKIETY_STATUSU_WYCENY[w.status], komorka: (w) => <span className={cn('znacznik', KOLORY_STATUSU_WYCENY[w.status])}>{ETYKIETY_STATUSU_WYCENY[w.status]}</span> },
+    { id: 'utworzono', naglowek: 'Utworzono', typ: 'data', wartosc: (w) => w.utworzono, komorka: (w) => dataGodzinaPL(w.utworzono), className: 'text-sm' },
+    { id: 'zatwierdzono', naglowek: 'Zatwierdzono', typ: 'data', wartosc: (w) => w.zatwierdzono, komorka: (w) => dataGodzinaPL(w.zatwierdzono), className: 'text-sm' },
+    { id: 'cena', naglowek: 'Cena końcowa', typ: 'liczba', wartosc: (w) => ceny[w.id] ?? null, komorka: (w) => (ceny[w.id] != null ? `${zl(ceny[w.id])} zł` : '') },
+    {
+      id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
+      komorka: (w) => (
+        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button rozmiar="maly" title="Skopiuj jako nową wersję" onClick={() => void kopiuj(w)}><Copy className="h-4 w-4" /> Kopiuj</Button>
+          <Button rozmiar="maly" wariant="cichy" title="Przenieś wersję do kosza" onClick={() => void usunWersje(w)}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ),
+    },
+  ]
+  type WpisHistorii = (typeof historia)[number]
+  const kolumnyHistorii: KolumnaTabeli<WpisHistorii>[] = [
+    { id: 'czas', naglowek: 'Kiedy', typ: 'data', wartosc: (h) => h.czas, komorka: (h) => dataGodzinaPL(h.czas), className: 'whitespace-nowrap text-sm' },
+    { id: 'kto', naglowek: 'Kto', typ: 'lista', wartosc: (h) => h.user_email ?? 'system', className: 'text-sm' },
+    { id: 'co', naglowek: 'Co', typ: 'lista', wartosc: (h) => `${h.tabela} - ${h.akcja}`, className: 'text-sm' },
+    {
+      id: 'zmiany', naglowek: 'Zmiany', typ: 'tekst', className: 'font-mono text-xs text-slate-600',
+      wartosc: (h) => (h.akcja === 'update' ? Object.entries(h.zmiany ?? {}).map(([k, v]) => `${k}: ${JSON.stringify((v as { z: unknown }).z)} → ${JSON.stringify((v as { na: unknown }).na)}`).join('; ').slice(0, 300) : ''),
+    },
+  ]
+
   const pole = 'pole'
   return (
     <div className="space-y-4">
@@ -160,6 +203,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
         <ZnacznikRodzaju rodzaj={z.rodzaj_aparatu} zakres={z.zakres_wymiennika} opis={z.zakres_opis} />
         <button className="text-xs text-slate-500 underline" onClick={() => setZmianaRodzaju(!zmianaRodzaju)}>zmień rodzaj</button>
         <span className="ml-auto" />
+        <Button rozmiar="maly" wariant="cichy" title="Przenieś zapytanie do kosza" onClick={() => void usunZapytanie()}><Trash2 className="h-4 w-4" /> Usuń</Button>
         {(
           <Button rozmiar="maly" wariant="akcent" onClick={() => setMaterialowa(true)}
             title="Lista materiałów i parametry z rysunków, ceny z kart dostawy Optimy i ofert do tego zapytania">
@@ -250,49 +294,12 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
       {zakladka === 'wyceny' && (
         <div className="space-y-3">
           <Button wariant="glowny" onClick={() => void nowaWycena()}><Plus className="h-4 w-4" /> Nowa wycena</Button>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full border-collapse">
-              <thead><tr>{['Wersja', 'Nazwa', 'Status', 'Utworzono', 'Zatwierdzono', 'Cena końcowa', ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-              <tbody>
-                {wersje.map((w) => (
-                  <tr key={w.id} className="cursor-pointer hover:bg-slate-50" onClick={() => otworzWycene(w.id)}>
-                    <td className="komorka font-medium">v{w.wersja}{w.skopiowana_z && <span className="ml-1 text-xs text-slate-400">(kopia)</span>}</td>
-                    <td className="komorka">{w.nazwa}</td>
-                    <td className="komorka"><span className={cn('znacznik', KOLORY_STATUSU_WYCENY[w.status])}>{ETYKIETY_STATUSU_WYCENY[w.status]}</span></td>
-                    <td className="komorka text-sm">{dataGodzinaPL(w.utworzono)}</td>
-                    <td className="komorka text-sm">{dataGodzinaPL(w.zatwierdzono)}</td>
-                    <td className="komorka liczba">{ceny[w.id] != null ? `${zl(ceny[w.id])} zł` : ''}</td>
-                    <td className="komorka" onClick={(e) => e.stopPropagation()}>
-                      <Button rozmiar="maly" title="Skopiuj jako nową wersję" onClick={() => void kopiuj(w)}><Copy className="h-4 w-4" /> Kopiuj</Button>
-                    </td>
-                  </tr>
-                ))}
-                {wersje.length === 0 && <tr><td colSpan={7} className="komorka text-center text-slate-500">Brak wycen - kliknij „Nowa wycena”.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <Tabela id="wersje-wycen" kolumny={kolumnyWycen} wiersze={wersje} klucz={(w) => w.id} onKlik={(w) => otworzWycene(w.id)} pusto="Brak wycen - kliknij „Nowa wycena”." />
           {!up.widziMarze && <p className="text-xs text-slate-500">Cenę końcową widać dopiero po zatwierdzeniu przez prezesa.</p>}
         </div>
       )}
       {zakladka === 'historia' && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full border-collapse">
-            <thead><tr>{['Kiedy', 'Kto', 'Co', 'Zmiany'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-            <tbody>
-              {historia.map((h) => (
-                <tr key={h.id}>
-                  <td className="komorka whitespace-nowrap text-sm">{dataGodzinaPL(h.czas)}</td>
-                  <td className="komorka text-sm">{h.user_email ?? 'system'}</td>
-                  <td className="komorka text-sm">{h.tabela} - {h.akcja}</td>
-                  <td className="komorka font-mono text-xs text-slate-600">
-                    {h.akcja === 'update' ? Object.entries(h.zmiany).map(([k, v]) => `${k}: ${JSON.stringify((v as { z: unknown }).z)} → ${JSON.stringify((v as { na: unknown }).na)}`).join('; ').slice(0, 300) : ''}
-                  </td>
-                </tr>
-              ))}
-              {historia.length === 0 && <tr><td colSpan={4} className="komorka text-center text-slate-500">Brak zmian.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <Tabela id="historia-zapytania" kolumny={kolumnyHistorii} wiersze={historia} klucz={(h) => h.id} pusto="Brak zmian." />
       )}
     </div>
   )

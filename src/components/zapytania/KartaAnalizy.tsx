@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, ClipboardCheck, FilePlus2, Save, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
@@ -8,6 +8,7 @@ import { postepKarty, pustaKarta, terminOfertyISO, uzupelnijKarte, zWynikuAnaliz
 import { dokumentyZapytania, przygotujAnalize, type PrzygotowanaAnaliza } from '@/lib/analizaZapytania'
 import { nowyAparat, wczytajWycene, zapiszWycene } from '@/lib/wyceny'
 import { uprawnienia, type Profil } from '@/lib/types'
+import { opisZmiany, roznica, useHistoriaStanu } from '@/lib/historia'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
@@ -53,7 +54,16 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
   }, [zapytanie.id])
   useEffect(() => { void wczytaj() }, [wczytaj])
 
-  const zmien = (k: Karta) => { setKarta(k); setZmieniona(true); setInfo(null) }
+  // Cofnij / Ponów: stos per karta analizy zapytania.
+  const kartaRef = useRef(karta)
+  kartaRef.current = karta
+  const ustawZHistorii = useCallback((f: (k: Karta) => Karta) => { const n = f(kartaRef.current); kartaRef.current = n; setKarta(n); setZmieniona(true) }, [])
+  const zapiszKrok = useHistoriaStanu<Karta>(`analiza:${zapytanie.id}`, ustawZHistorii)
+  const zmien = (k: Karta) => {
+    zapiszKrok(kartaRef.current, k, `karta analizy - ${opisZmiany(roznica(kartaRef.current, k))}`)
+    kartaRef.current = k
+    setKarta(k); setZmieniona(true); setInfo(null)
+  }
 
   async function zapisz(dodatkowe: Record<string, unknown> = {}, k: Karta = karta) {
     setBlad(null)

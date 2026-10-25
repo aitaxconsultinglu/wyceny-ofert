@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ArrowLeft, ArrowRight, ClipboardPaste, FileSpreadsheet, FileText, Maximize, Save, Sparkles, ZoomIn, ZoomOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +15,7 @@ import {
 } from '@/lib/rysunki'
 import { infoStrony, kafleObszaru, natywneDpi, otworzRysunek, renderujPodglad, tekstStrony, type InfoStrony } from '@/lib/rysunkiPdf'
 import { uprawnienia, type Profil } from '@/lib/types'
+import { useHistoriaStanu } from '@/lib/historia'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
@@ -78,7 +79,23 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
 
   // Odczyty poprawia każdy pracownik (RLS).
   const tylkoOdczyt = false
-  const zmien = (w: WynikRysunku) => { setWynik(w); setZmieniony(true); setKomunikat(null) }
+  // Cofnij / Ponów: siatka wyniku i zaznaczone obszary - stos per plik i strona.
+  type StanOdczytu = { wynik: WynikRysunku; obszary: Obszar[] }
+  const aktualny = useRef<StanOdczytu>({ wynik, obszary })
+  aktualny.current = { wynik, obszary }
+  const ustawZHistorii = useCallback((f: (s: StanOdczytu) => StanOdczytu) => {
+    const n = f(aktualny.current); aktualny.current = n; setWynik(n.wynik); setObszary(n.obszary); setZmieniony(true)
+  }, [])
+  const zapiszKrok = useHistoriaStanu<StanOdczytu>(`odczyt:${dokument.id}:${strona}`, ustawZHistorii)
+  const krok = (n: Partial<StanOdczytu>, opis: string) => {
+    const przed = aktualny.current
+    const po = { ...przed, ...n }
+    aktualny.current = po
+    zapiszKrok(przed, po, opis)
+    if (n.wynik) setWynik(n.wynik)
+    if (n.obszary) setObszary(n.obszary)
+  }
+  const zmien = (w: WynikRysunku) => { krok({ wynik: w }, 'zmiana w tabeli odczytu'); setZmieniony(true); setKomunikat(null) }
 
   // PDF z magazynu (oryginał może być już zarchiwizowany - wtedy zostaje sam wynik).
   useEffect(() => {
@@ -229,7 +246,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     const tok = k.reduce((sum, p) => sum + tokenyObrazu(p.w, p.h), 0)
     if (!window.confirm(`Cały arkusz to ${kafliOdmiana(k.length)} (~${Math.round(tok / 1000)} tys. tokenów wejścia) - zwykle kilka razy drożej niż zaznaczenie samej tabeli. Dodać obszar „${ETYKIETY_OBSZARU[rodzajNowego]}” na całą stronę?`)) return
     const o: Obszar = { id: crypto.randomUUID(), rodzaj: rodzajNowego, x: 0, y: 0, w: 1, h: 1 }
-    setObszary([...obszary, o]); setWybrany(o.id); setZmieniony(true)
+    krok({ obszary: [...obszary, o] }, 'obszar: cały arkusz'); setWybrany(o.id); setZmieniony(true)
   }
 
   function wklejTabele() {
@@ -313,8 +330,8 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
             <PodgladRysunku
               dataUrl={podglad.dataUrl} obszary={obszary} rodzajNowego={rodzajNowego} zoom={zoom} wybrany={wybrany}
               podswietlony={podswietlony} tylkoOdczyt={tylkoOdczyt} wybierz={setWybrany}
-              dodaj={(o) => { setObszary((l) => [...l, o]); setZmieniony(true) }}
-              usun={(x) => { setObszary((l) => l.filter((o) => o.id !== x)); setWybrany(null); setZmieniony(true) }}
+              dodaj={(o) => { krok({ obszary: [...aktualny.current.obszary, o] }, 'zaznaczenie obszaru'); setZmieniony(true) }}
+              usun={(x) => { krok({ obszary: aktualny.current.obszary.filter((o) => o.id !== x) }, 'usunięcie obszaru'); setWybrany(null); setZmieniony(true) }}
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">

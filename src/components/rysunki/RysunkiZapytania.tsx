@@ -9,6 +9,7 @@ import type { Profil } from '@/lib/types'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { OdczytRysunku, type DokumentRysunku, type OdczytZapisany } from './OdczytRysunku'
+import { doKosza } from '@/lib/kosz'
 
 type DokumentPdf = DokumentRysunku & { typ: TypDokumentu; stan: string }
 
@@ -37,9 +38,8 @@ export function RysunkiZapytania({ zapytanieId, numer, profil, otworzWycene }: {
   useEffect(() => { void wczytaj() }, [wczytaj])
 
   async function usun(o: OdczytZapisany) {
-    if (!window.confirm(`Usunąć odczyt ${o.nazwa_pliku}, str. ${o.strona}?`)) return
-    const { error } = await supabase.from('odczyty_rysunkow').delete().eq('id', o.id)
-    if (error) setBlad(komunikatPL(error.message)); else await wczytaj()
+    if (!window.confirm(`Przenieść odczyt ${o.nazwa_pliku}, str. ${o.strona} do kosza?`)) return
+    try { await doKosza('odczyt_rysunku', [o.id], `zapytanie:${zapytanieId}`); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
   if (otwarty) {

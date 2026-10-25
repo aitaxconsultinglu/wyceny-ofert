@@ -7,6 +7,7 @@ import { pdfjs } from './dokumenty'
 import { BUCKET, bezpiecznaNazwa } from './magazyn'
 import { kafle, type Prostokat } from './rysunki'
 import { infoStrony, kafleObszaru, natywneDpi, otworzRysunek, renderujPodglad, type Kafel } from './rysunkiPdf'
+import { doKosza } from './kosz'
 import {
   blok, blokiZArkusza, blokiZHtml, blokiZTekstuZwyklego, rodzajPliku, tekstyZDxf,
   type BlokDokumentu, type ElementZCzcionka, type RodzajPliku, type TrescPliku,
@@ -49,10 +50,9 @@ export async function dodajPlik(plik: File, limitMb: number): Promise<PlikEdytow
   return { ...(data as PlikEdytowalny), sciezka }
 }
 
+/** Usunięcie pliku = przeniesienie do kosza (plik w Storage zostaje do trwałego usunięcia). */
 export async function usunPlik(p: PlikEdytowalny) {
-  if (p.sciezka) await supabase.storage.from(BUCKET).remove([p.sciezka])
-  const { error } = await supabase.from('pliki_edytowalne').delete().eq('id', p.id)
-  if (error) throw new Error(komunikatPL(error.message))
+  await doKosza('plik_edytowalny', [p.id], 'edytowalne')
 }
 
 export async function zapiszTresc(id: string, tresc: TrescPliku, jezyk: string | null) {

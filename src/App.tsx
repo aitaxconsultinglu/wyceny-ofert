@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { BookOpen, KeyRound, LogOut, Settings, Users } from 'lucide-react'
+import { BookOpen, KeyRound, LogOut, Settings, Trash2, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { DostawcaSlownikow, useSlowniki } from '@/lib/slowniki'
 import { ETYKIETY_ROLI, uprawnienia, type Profil } from '@/lib/types'
@@ -20,11 +20,14 @@ import { KartaZapytania } from './components/zapytania/KartaZapytania'
 import { EdytorWyceny } from './components/wycena/EdytorWyceny'
 import { KolejkaZatwierdzania } from './components/wycena/KolejkaZatwierdzania'
 import { WersjeEdytowalne } from './components/edytowalne/WersjeEdytowalne'
+import { Kosz } from './components/kosz/Kosz'
 import { Button } from './components/ui/button'
+import { PasekHistorii } from './components/ui/PasekHistorii'
+import { ustawUzytkownikaTabel } from '@/lib/tabela'
 
-type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'zatwierdzanie' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
+type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'kosz' | 'zatwierdzanie' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
 
-const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'zatwierdzanie', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
+const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'kosz', 'zatwierdzanie', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
 
 /** Widok w adresie (#/zapytania/<id>, #/wyceny/<id>) - odświeżenie strony nie wyrzuca na start. */
 function useWidok(): [{ widok: Widok; id: string | null }, (w: Widok, id?: string | null) => void] {
@@ -124,6 +127,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
   const firma = ustawienia?.firma
   const [{ widok, id }, ustawWidok] = useWidok()
   const up = uprawnienia(profil)
+  ustawUzytkownikaTabel(profil.id)
 
   // Dwa moduły: proces od zapytania do wyceny i dane historyczne (cennik). Ustawienia, użytkownicy, instrukcja - osobno.
   const modul1: { id: Widok; etykieta: string }[] = [
@@ -140,6 +144,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
   const poza: { id: Widok; etykieta: string; ikona: typeof Settings }[] = [
     ...(up.ustawienia ? [{ id: 'ustawienia' as Widok, etykieta: 'Ustawienia', ikona: Settings }] : []),
     ...(up.uzytkownicy ? [{ id: 'uzytkownicy' as Widok, etykieta: 'Użytkownicy', ikona: Users }] : []),
+    { id: 'kosz', etykieta: 'Kosz', ikona: Trash2 },
     { id: 'instrukcja', etykieta: 'Instrukcja', ikona: BookOpen },
   ]
   // Widok niedostępny dla roli (np. technolog wpisał #/ustawienia) - pokazujemy start.
@@ -171,6 +176,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <PasekHistorii />
             {poza.map((z) => (
               <Button key={z.id} wariant="cichy" rozmiar="maly" title={z.etykieta} onClick={() => ustawWidok(z.id)}
                 className={cn(aktywny === z.id && 'bg-limonka-jasna')}><z.ikona className="h-4 w-4" /><span className="hidden xl:inline">{z.etykieta}</span></Button>
@@ -220,6 +226,8 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
         ) : aktywny === 'wyceny' && id ? (
           <EdytorWyceny key={id} id={id} profil={profil} otworzWycene={(w) => ustawWidok('wyceny', w)}
             zamknij={() => { window.history.length > 1 ? window.history.back() : ustawWidok('zapytania') }} />
+        ) : aktywny === 'kosz' ? (
+          <Kosz profil={profil} />
         ) : aktywny === 'edytowalne' ? (
           <WersjeEdytowalne profil={profil} id={id} otworz={(p) => ustawWidok('edytowalne', p)} />
         ) : aktywny === 'zatwierdzanie' ? (

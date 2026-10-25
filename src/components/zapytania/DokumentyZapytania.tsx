@@ -10,6 +10,7 @@ import { bezpiecznaNazwa, otworzDokument, pobierzBajty, zapiszDokument } from '@
 import type { Profil } from '@/lib/types'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
+import { doKosza } from '@/lib/kosz'
 
 export interface Dokument {
   id: string; nazwa_pliku: string; typ: TypDokumentu; mime: string | null; rozmiar: number | null; sciezka: string | null
@@ -72,11 +73,8 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
   }
 
   async function usun(d: Dokument) {
-    if (!window.confirm(`Usunąć dokument ${d.nazwa_pliku}${d.nadrzedny_id ? '' : ' (razem z załącznikami)'}?`)) return
-    const doUsuniecia = [d, ...dokumenty.filter((x) => x.nadrzedny_id === d.id)].filter((x) => x.sciezka)
-    if (doUsuniecia.length) await supabase.storage.from('dokumenty').remove(doUsuniecia.map((x) => x.sciezka!))
-    const { error } = await supabase.from('dokumenty').delete().eq('id', d.id)
-    if (error) setBlad(komunikatPL(error.message)); else await wczytaj()
+    if (!window.confirm(`Przenieść dokument ${d.nazwa_pliku}${d.nadrzedny_id ? '' : ' (razem z załącznikami)'} do kosza?`)) return
+    try { await doKosza('dokument', [d.id], `zapytanie:${zapytanieId}`); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
   /** ZIP z oryginałami, potem usunięcie plików ze Storage - zostają teksty i wyniki analiz. */

@@ -69,7 +69,7 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
     if (e.dataTransfer.files.length) void dodaj(e.dataTransfer.files)
   }
   async function usun(p: PlikEdytowalny) {
-    if (!window.confirm(`Usunąć plik „${p.nazwa_pliku}” i jego wersję edytowalną? Historia odczytów zostaje.`)) return
+    if (!window.confirm(`Przenieść plik „${p.nazwa_pliku}” z wersją edytowalną do kosza? Historia odczytów zostaje.`)) return
     try { await usunPlik(p); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 

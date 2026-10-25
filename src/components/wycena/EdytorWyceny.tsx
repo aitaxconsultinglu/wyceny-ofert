@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Copy, FileSpreadsheet, FileText, Plus, Save, Send, Trash2, Undo2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
@@ -11,6 +11,7 @@ import {
   type Aparat, type Marze, type PozycjaWyceny, type StanWyceny, type Wycena,
 } from '@/lib/wyceny'
 import { kursNaDzien } from '@/lib/oferty'
+import { opisZmiany, roznica, useHistoriaStanu } from '@/lib/historia'
 import { typAparatuZRodzaju } from '@/lib/zapytania'
 import { ZnacznikRodzaju } from '../zapytania/RodzajAparatu'
 import { uprawnienia, type Profil } from '@/lib/types'
@@ -40,6 +41,12 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
   const [zajety, setZajety] = useState(false)
   const [szukana, setSzukana] = useState<{ aparat: string; pozycja: PozycjaWyceny; uslugi: boolean } | null>(null)
   const [importOtwarty, setImportOtwarty] = useState(false)
+  // Cofnij / Ponów: każda zmiana stanu wyceny to krok (różnica), stos per wycena w IndexedDB.
+  const ustawZHistorii = useCallback((f: (s: StanWyceny) => StanWyceny) => { setStan((x) => (x ? f(x) : x)); setZmieniony(true) }, [])
+  const zapiszKrok = useHistoriaStanu<StanWyceny>(`wycena:${id}`, ustawZHistorii)
+  // Najnowszy stan także dla kilku zmian w jednym zdarzeniu (zanim React przerysuje).
+  const biezacy = useRef<StanWyceny | null>(null)
+  biezacy.current = stan
 
   const wczytaj = useCallback(async () => {
     try {
@@ -77,7 +84,13 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
   const tylkoOdczyt = w.status === 'zatwierdzona' || (w.status === 'do_zatwierdzenia' && !jestPrezesem)
   const aparat = stan.aparaty[Math.min(aktywny, stan.aparaty.length - 1)]
 
-  const ustStan = (f: (s: StanWyceny) => StanWyceny) => { setStan((x) => (x ? f(x) : x)); setZmieniony(true); setInfo(null) }
+  const ustStan = (f: (s: StanWyceny) => StanWyceny, opis?: string) => {
+    const przed = biezacy.current ?? stan
+    const nowy = f(przed)
+    biezacy.current = nowy
+    zapiszKrok(przed, nowy, opis ?? opisZmiany(roznica(przed, nowy)))
+    setStan(nowy); setZmieniony(true); setInfo(null)
+  }
   const ustWycene = (zm: Partial<Wycena>) => ustStan((x) => ({ ...x, wycena: { ...x.wycena, ...zm } }))
   const ustMarze = (zm: Partial<Marze>) => ustStan((x) => ({ ...x, marze: x.marze ? { ...x.marze, ...zm } : x.marze }))
   const ustAparat = (kl: string) => (f: (a: Aparat) => Aparat) => ustStan((x) => ({ ...x, aparaty: x.aparaty.map((a) => (a.klucz === kl ? f(a) : a)) }))

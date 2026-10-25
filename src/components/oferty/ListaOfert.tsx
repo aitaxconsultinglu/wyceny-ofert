@@ -10,6 +10,7 @@ import { otworzDokument } from '@/lib/magazyn'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { FormularzOferty } from './FormularzOferty'
+import { doKosza } from '@/lib/kosz'
 
 interface WierszOferty {
   id: string; data_oferty: string | null; numer_oferty: string | null; nr_zo: string | null; waluta: string; kurs: number
@@ -60,9 +61,8 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
   }
 
   async function usun(o: WierszOferty) {
-    if (!window.confirm(`Usunąć ofertę ${o.dostawcy?.nazwa ?? ''} z ${dataPL(o.data_oferty)}? Usunie to też jej dokumenty.`)) return
-    const { error } = await supabase.from('oferty_dostawcow').delete().eq('id', o.id)
-    if (error) setBlad(komunikatPL(error.message)); else await wczytaj()
+    if (!window.confirm(`Przenieść ofertę ${o.dostawcy?.nazwa ?? ''} z ${dataPL(o.data_oferty)} do kosza (razem z jej dokumentami)?`)) return
+    try { await doKosza('oferta_dostawcy', [o.id], 'oferty'); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
   if (edytowana) {

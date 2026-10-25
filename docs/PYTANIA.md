@@ -106,3 +106,29 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     *Założenie: jedna pozycja na aparat, cena z oferty albo ręcznie.*
 40. **Dawne oznaczenia gatunków** (Fe37, Fe360, St3S) dodano do słownika jako równoważniki S235JR. Czy na rysunkach
     zdarzają się inne stare oznaczenia, które trzeba dopisać?
+
+## Runda 2
+
+41. **Widoczność cennika roboczogodzin.** Stawki widzą prezes, administrator i konta z flagą „widzi narzuty i marże”;
+    pozostali widzą nazwy stanowisk, a w wycenie dostają migawkę stawek (koszt robocizny i tak jest widoczny).
+    *Założenie: tak - patrz docs/PLAN-runda2.md, decyzja 1.*
+42. **Kosz.** Usunięte zapytanie trafia do kosza w całości (dokumenty, odczyty, analiza, wyceny, oferty zebrane pod zapytanie);
+    trwałe usunięcie - prezes i administrator, po wpisaniu numeru ZO. Automatyczne czyszczenie po 30 dniach.
+    *Założenie: 30 dni, zmiana w Ustawieniach.*
+43. **Cofnij / Ponów w edytorach z przyciskiem Zapisz** (wycena, odczyt rysunku, karta analizy, oferta) cofa zmiany w edytorze;
+    do bazy trafiają po Zapisz. Ekrany zapisujące od razu (cennik, klasyfikacja zakupów, typy dokumentów, kosz) cofają w bazie.
+    *Założenie: tak - jak w programach biurowych.*
+44. **Język oferty** wybiera się w ofercie (PL/EN), domyślnie język interfejsu. Klauzule bez wersji angielskiej trafiają
+    do oferty EN po polsku, z ostrzeżeniem. *Założenie: tak.*
+45. **Rodzaj aparatu starych zapytań.** Migracja ustawia go z aparatów i przedmiotu (zbiornik / wymiennik / wkład rurowy);
+    zapytania, których nie da się przypisać (np. separator), dostają ekran wyboru przy pierwszym wejściu.
+46. **Przedziały czasu cennika** (7-15, 15-19, 19-7, dni wolne) - stawka „stała” dla stanowisk rozliczanych jedną stawką.
+    W wycenie domyślny przedział to 7-15. *Założenie: tak.*
+47. **Klasyfikacja zakupów.** Typ zamówienia ZM - materiał, ZJ - usługa dzielona słownikiem na kooperację i transport/badania/inne;
+    dopłaty z karty (atest, transport, kurier) - „Transport, badania i inne”; materiały pomocnicze (narzędzia, ścierniwa) -
+    „Materiały”, ale bez udziału w wyszukiwaniu cen (jak dziś). *Założenie: tak.*
+48. **Orientacyjna cena historyczna kooperacji** - domyślnie wyłączona; po włączeniu pokazuje się tylko jako dopisek przy pozycji.
+49. **Kompresja plików.** Zapisujemy tylko wersję zoptymalizowaną (oryginał zostaje na dysku pracownika); gdy test czytelności
+    nie przejdzie - oryginał. Limit 50 MB na plik (Ustawienia → Limity planu).
+50. **Prośby o oferty** nie wysyłają maili z serwera; dział handlowy widzi kolejkę z licznikiem w menu, a zapytania do kooperantów
+    generuje jak dotąd (mailto).

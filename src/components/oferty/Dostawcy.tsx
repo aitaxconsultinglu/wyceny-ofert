@@ -6,6 +6,7 @@ import { useSlowniki } from '@/lib/slowniki'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 interface Kontakt { osoba: string; email: string; telefon: string }
 interface Dostawca {
@@ -56,6 +57,24 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
 
   const widoczni = lista.filter((d) => !szukaj || `${d.nazwa} ${d.aliasy.join(' ')} ${d.kategorie.map(nazwaKategorii).join(' ')}`.toLowerCase().includes(szukaj.toLowerCase()))
 
+  const kolumny: KolumnaTabeli<Dostawca>[] = [
+    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (d) => d.nazwa, className: 'font-medium', komorka: (d) => <>{d.nazwa}{d.skrot && <span className="ml-1 text-xs text-slate-500">({d.skrot})</span>}</> },
+    { id: 'nip', naglowek: 'NIP', typ: 'tekst', wartosc: (d) => d.nip, className: 'text-sm' },
+    { id: 'kategorie', naglowek: 'Kategorie', typ: 'tekst', wartosc: (d) => d.kategorie.map(nazwaKategorii).join(', ') || null, className: 'text-xs' },
+    { id: 'kontakty', naglowek: 'Kontakty', typ: 'tekst', wartosc: (d) => d.kontakty.map((k) => [k.osoba, k.email].filter(Boolean).join(' ')).join('; ') || null, className: 'text-xs' },
+    { id: 'aliasy', naglowek: 'Aliasy', typ: 'tekst', wartosc: (d) => d.aliasy.join('; ') || null, className: 'text-xs text-slate-500' },
+    { id: 'aktywny', naglowek: 'Aktywny', typ: 'tak_nie', wartosc: (d) => d.aktywny },
+    {
+      id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
+      komorka: (d) => mozeEdytowac && (
+        <div className="flex justify-end gap-1">
+          <Button rozmiar="maly" onClick={() => setEdytowany({ ...d })}>Edytuj</Button>
+          <Button rozmiar="maly" wariant="ostrzezenie" onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -63,30 +82,8 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
         <label><span className="etykieta">Szukaj</span><input className="pole w-64" value={szukaj} onChange={(e) => setSzukaj(e.target.value)} /></label>
         {mozeEdytowac && <Button wariant="glowny" onClick={() => setEdytowany({ ...PUSTY })}><Plus className="h-4 w-4" /> Dodaj dostawcę</Button>}
       </div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead><tr>{['Nazwa', 'NIP', 'Kategorie', 'Kontakty', 'Aliasy', ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-          <tbody>
-            {widoczni.map((d) => (
-              <tr key={d.id} className={d.aktywny ? '' : 'text-slate-400'}>
-                <td className="komorka font-medium">{d.nazwa}{d.skrot && <span className="ml-1 text-xs text-slate-500">({d.skrot})</span>}</td>
-                <td className="komorka text-sm">{d.nip}</td>
-                <td className="komorka text-xs">{d.kategorie.map(nazwaKategorii).join(', ')}</td>
-                <td className="komorka text-xs">{d.kontakty.map((k) => [k.osoba, k.email].filter(Boolean).join(' ')).join('; ')}</td>
-                <td className="komorka text-xs text-slate-500">{d.aliasy.join('; ')}</td>
-                <td className="komorka">
-                  {mozeEdytowac && (
-                    <div className="flex justify-end gap-1">
-                      <Button rozmiar="maly" onClick={() => setEdytowany({ ...d })}>Edytuj</Button>
-                      <Button rozmiar="maly" wariant="ostrzezenie" onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></Button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id="dostawcy" kolumny={kolumny} wiersze={widoczni} klucz={(d) => d.id ?? d.nazwa} klasaWiersza={(d) => (d.aktywny ? undefined : 'text-slate-400')} pusto="Brak dostawców." />
+
 
       <Dialog open={!!edytowany} onOpenChange={(o) => !o && setEdytowany(null)}>
         <DialogContent className="max-w-2xl">

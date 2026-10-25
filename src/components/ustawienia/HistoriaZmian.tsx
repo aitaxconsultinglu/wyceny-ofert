@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { dataGodzinaPL } from '@/lib/format'
+import { filtryNaZapytanie, wczytajStan, zapiszStan, type StanTabeli } from '@/lib/tabela'
 import { Komunikat } from '../ui/komunikat'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 interface Wpis {
   id: number
@@ -14,7 +16,11 @@ interface Wpis {
   czas: string
 }
 
-const AKCJE: Record<string, string> = { insert: 'dodanie', update: 'zmiana', delete: 'usunięcie' }
+const AKCJE: Record<string, string> = {
+  insert: 'dodanie', update: 'zmiana', delete: 'usunięcie', do_kosza: 'do kosza', przywrocenie: 'przywrócenie z kosza',
+  usuniecie_trwale: 'usunięcie trwałe', usuniecie_automatyczne: 'czyszczenie kosza',
+}
+const NA_STRONIE = 100
 
 function opisZmian(w: Wpis) {
   if (!w.zmiany) return ''
@@ -28,45 +34,37 @@ function opisZmian(w: Wpis) {
     .slice(0, 300)
 }
 
-/** Ostatnie zmiany z audit_log (zapisywane triggerami - kto, kiedy, co). */
+const KOLUMNY: KolumnaTabeli<Wpis>[] = [
+  { id: 'czas', naglowek: 'Kiedy', typ: 'data', pole: 'czas', wartosc: (w) => w.czas, komorka: (w) => dataGodzinaPL(w.czas), className: 'whitespace-nowrap text-slate-600' },
+  { id: 'kto', naglowek: 'Kto', typ: 'tekst', pole: 'user_email', wartosc: (w) => w.user_email, komorka: (w) => w.user_email ?? <span className="text-slate-400">system</span> },
+  { id: 'tabela', naglowek: 'Tabela', typ: 'tekst', pole: 'tabela', wartosc: (w) => w.tabela },
+  { id: 'rekord', naglowek: 'Rekord', typ: 'tekst', pole: 'rekord_id', wartosc: (w) => w.rekord_id, className: 'text-slate-600' },
+  { id: 'akcja', naglowek: 'Akcja', typ: 'lista', pole: 'akcja', wartosc: (w) => w.akcja, komorka: (w) => AKCJE[w.akcja] ?? w.akcja, wartosciFiltra: Object.keys(AKCJE) },
+  { id: 'zmiany', naglowek: 'Zmiany', typ: 'tekst', wartosc: (w) => opisZmian(w), bezFiltra: true, bezSortu: true, className: 'font-mono text-xs text-slate-600' },
+]
+
+/** Zmiany z audit_log (zapisywane triggerami - kto, kiedy, co). Duży zbiór - filtry i sortowanie wykonuje baza. */
 export function HistoriaZmian() {
   const [wpisy, setWpisy] = useState<Wpis[]>([])
+  const [razem, setRazem] = useState(0)
+  const [stan, setStan] = useState<StanTabeli>(() => wczytajStan('audyt'))
+  const [strona, setStrona] = useState(0)
   const [blad, setBlad] = useState<string | null>(null)
 
   useEffect(() => {
-    void supabase.from('audit_log').select('id, tabela, rekord_id, akcja, user_email, zmiany, czas')
-      .order('czas', { ascending: false }).limit(200)
-      .then(({ data, error }) => {
-        if (error) setBlad(komunikatPL(error.message))
-        else setWpisy((data ?? []) as Wpis[])
-      })
-  }, [])
+    let q = supabase.from('audit_log').select('id, tabela, rekord_id, akcja, user_email, zmiany, czas', { count: 'exact' })
+    q = filtryNaZapytanie(q, KOLUMNY, stan.sort.length ? stan : { ...stan, sort: [{ kol: 'czas', kier: 'malejaco' }] })
+    void q.range(strona * NA_STRONIE, strona * NA_STRONIE + NA_STRONIE - 1).then(({ data, error, count }) => {
+      if (error) setBlad(komunikatPL(error.message))
+      else { setBlad(null); setWpisy((data ?? []) as Wpis[]); setRazem(count ?? 0) }
+    })
+  }, [stan, strona])
 
   return (
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead><tr>
-            <th className="komorka-naglowek">Kiedy</th><th className="komorka-naglowek">Kto</th>
-            <th className="komorka-naglowek">Tabela</th><th className="komorka-naglowek">Rekord</th>
-            <th className="komorka-naglowek">Akcja</th><th className="komorka-naglowek">Zmiany</th>
-          </tr></thead>
-          <tbody>
-            {wpisy.map((w) => (
-              <tr key={w.id}>
-                <td className="komorka whitespace-nowrap text-slate-600">{dataGodzinaPL(w.czas)}</td>
-                <td className="komorka">{w.user_email ?? <span className="text-slate-400">system</span>}</td>
-                <td className="komorka">{w.tabela}</td>
-                <td className="komorka text-slate-600">{w.rekord_id}</td>
-                <td className="komorka">{AKCJE[w.akcja] ?? w.akcja}</td>
-                <td className="komorka font-mono text-xs text-slate-600">{opisZmian(w)}</td>
-              </tr>
-            ))}
-            {wpisy.length === 0 && !blad && <tr><td colSpan={6} className="komorka text-center text-slate-500">Brak zmian.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id="audyt" kolumny={KOLUMNY} wiersze={wpisy} klucz={(w) => w.id} pusto="Brak zmian."
+        serwer={{ stan, zmien: (s) => { setStan(s); zapiszStan('audyt', s); setStrona(0) }, razem, strona, naStronie: NA_STRONIE, zmienStrone: setStrona }} />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { WykresCen } from './WykresCen'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 export type Miara = 'cena_pln_kg' | 'cena_pln_m' | 'cena_pln_szt' | 'cena_pln_odniesienia'
 export const MIARY: { id: Miara; etykieta: string }[] = [
@@ -31,6 +32,38 @@ export function KolumnaWymagan({ w }: { w: Record<string, unknown> }) {
   const potw = WYMAGANIA_SKROTY.filter(([k]) => w[k] === true).map(([, s]) => s)
   const temp = w.udarnosc_temp as number | null | undefined
   return <span className="text-xs text-slate-600">{[...potw, temp ? `KV ${temp}°C` : ''].filter(Boolean).join(', ')}</span>
+}
+
+const doplaty = (w: WierszCeny) => w.doplaty.map((d) => `${d.opis} ${liczba(d.kwota)} ${w.waluta}${d.za !== 'oferta' ? `/${d.za}` : ''}`).join('; ')
+
+/** Kolumny pozycji cen (porównywarka, oferty do zapytania) - wspólne dla tabel z filtrami w nagłówkach. */
+export function kolumnyCen(o: { miara?: Miara; najlepsza?: number | null; najtansza?: string | null; najszybsza?: string | null; bezZrodla?: boolean }): KolumnaTabeli<WierszCeny>[] {
+  const miara = o.miara ?? 'cena_pln_kg'
+  return [
+    ...(o.bezZrodla ? [] : [{ id: 'zrodlo', naglowek: 'Źródło', typ: 'lista' as const, wartosc: (w: WierszCeny) => (w.zrodlo === 'oferta' ? 'oferta' : 'zakup'), className: 'text-xs' }]),
+    { id: 'data', naglowek: 'Data', typ: 'data', wartosc: (w) => w.data, komorka: (w) => dataPL(w.data), className: 'whitespace-nowrap' },
+    { id: 'dostawca', naglowek: 'Dostawca', typ: 'lista', wartosc: (w) => w.dostawca, className: 'max-w-[12rem] truncate font-medium' },
+    { id: 'opis', naglowek: 'Opis', typ: 'tekst', wartosc: (w) => w.opis, className: 'max-w-[22rem] text-sm' },
+    { id: 'gatunek', naglowek: 'Gatunek', typ: 'lista', wartosc: (w) => w.gatunek, className: 'whitespace-nowrap' },
+    { id: 'wymiary', naglowek: 'Wymiary', typ: 'tekst', wartosc: (w) => opisWymiarow(w) || null, className: 'whitespace-nowrap text-xs' },
+    { id: 'ilosc', naglowek: 'Ilość', typ: 'liczba', wartosc: (w) => w.ilosc, komorka: (w) => `${liczba(w.ilosc)} ${w.jm ?? ''}`, className: 'whitespace-nowrap' },
+    { id: 'cena', naglowek: 'Cena oryg.', typ: 'liczba', wartosc: (w) => w.cena_jedn, komorka: (w) => `${liczba(w.cena_jedn, 2)} ${w.waluta}`, className: 'whitespace-nowrap' },
+    {
+      id: 'miara', naglowek: MIARY.find((m) => m.id === miara)!.etykieta, typ: 'liczba', wartosc: (w) => w[miara], className: 'whitespace-nowrap font-medium',
+      komorka: (w) => (
+        <span className={cn('px-1', ((o.najlepsza !== undefined && w[miara] !== null && w[miara] === o.najlepsza) || o.najtansza === w.klucz) && 'bg-limonka-jasna')}>
+          {w[miara] !== null ? liczba(w[miara]!, 2) : <span className="text-slate-300">-</span>}
+          {miara === 'cena_pln_odniesienia' && w.jednostka_odniesienia && <span className="ml-1 text-xs text-slate-500">/{w.jednostka_odniesienia}</span>}
+        </span>
+      ),
+    },
+    { id: 'termin', naglowek: 'Termin', typ: 'tekst', wartosc: (w) => w.termin, className: 'whitespace-nowrap text-xs', komorka: (w) => <span className={cn(o.najszybsza === w.klucz && 'bg-blekit-jasny px-1')}>{w.termin}{w.termin_dni ? ` (${w.termin_dni} dni)` : ''}</span> },
+    { id: 'waznosc', naglowek: 'Ważność', typ: 'data', wartosc: (w) => w.waznosc_do, komorka: (w) => (w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis), className: 'whitespace-nowrap text-xs' },
+    { id: 'warunki', naglowek: 'Warunki', typ: 'tekst', wartosc: (w) => w.warunki, className: 'text-xs' },
+    { id: 'wymagania', naglowek: 'Wymagania', typ: 'tekst', wartosc: (w) => Object.entries(w.wymagania ?? {}).filter(([, v]) => v === true).map(([k]) => k).join(' ') || null, komorka: (w) => <KolumnaWymagan w={w.wymagania} /> },
+    { id: 'doplaty', naglowek: 'Dopłaty', typ: 'tekst', wartosc: (w) => doplaty(w) || null, className: 'text-xs' },
+    { id: 'zo', naglowek: 'ZO', typ: 'lista', wartosc: (w) => w.nr_zo, className: 'whitespace-nowrap text-xs' },
+  ]
 }
 
 /** Wyszukiwarka i porównywarka cen: oferty + zakupy, sortowanie po cenie znormalizowanej. */
@@ -117,46 +150,9 @@ export function Porownywarka({ tylkoUslugi = false }: { tylkoUslugi?: boolean })
             <span className="ml-1 rounded bg-red-100 px-1">czerwone</span> - oferta po terminie ważności. Ceny w PLN wg kursu z dnia oferty.
           </p>
           {wynik.length > 1 && wynik.length <= 400 && <WykresCen wiersze={wynik} miara={miara} />}
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full min-w-[1300px] border-collapse">
-              <thead><tr>
-                {['Źródło', 'Data', 'Dostawca', 'Opis', 'Gatunek', 'Wymiary', 'Ilość', 'Cena oryg.', MIARY.find((m) => m.id === miara)!.etykieta, 'Termin', 'Ważność', 'Warunki', 'Wymagania', 'Dopłaty', 'ZO'].map((n) => (
-                  <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {wynik.map((w) => {
-                  const wiek = wiekMiesiecy(w.data)
-                  const stara = wiek !== null && wiek >= progMies
-                  const poTerminie = w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis
-                  const wartosc = w[miara]
-                  return (
-                    <tr key={w.klucz} className={cn(poTerminie ? 'bg-red-50' : stara && 'bg-amber-50')}>
-                      <td className="komorka text-xs">{w.zrodlo === 'oferta' ? 'oferta' : 'zakup'}</td>
-                      <td className="komorka whitespace-nowrap">{dataPL(w.data)}</td>
-                      <td className="komorka max-w-[12rem] truncate" title={w.dostawca}>{w.dostawca}</td>
-                      <td className="komorka max-w-[22rem]" title={w.uwagi ?? undefined}>{w.opis}</td>
-                      <td className="komorka whitespace-nowrap">{w.gatunek}</td>
-                      <td className="komorka whitespace-nowrap text-xs">{opisWymiarow(w)}</td>
-                      <td className="komorka liczba whitespace-nowrap">{liczba(w.ilosc)} {w.jm}</td>
-                      <td className="komorka liczba whitespace-nowrap">{liczba(w.cena_jedn, 2)} {w.waluta}</td>
-                      <td className={cn('komorka liczba whitespace-nowrap font-medium', wartosc !== null && wartosc === najlepsza && 'bg-limonka-jasna')}>
-                        {wartosc !== null ? liczba(wartosc, 2) : <span className="text-slate-300">-</span>}
-                        {miara === 'cena_pln_odniesienia' && w.jednostka_odniesienia && <span className="ml-1 text-xs text-slate-500">/{w.jednostka_odniesienia}</span>}
-                      </td>
-                      <td className="komorka whitespace-nowrap text-xs">{w.termin}</td>
-                      <td className="komorka whitespace-nowrap text-xs">{w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis}</td>
-                      <td className="komorka text-xs">{w.warunki}</td>
-                      <td className="komorka"><KolumnaWymagan w={w.wymagania} /></td>
-                      <td className="komorka text-xs">{w.doplaty.map((d) => `${d.opis} ${liczba(d.kwota)} ${w.waluta}${d.za !== 'oferta' ? `/${d.za}` : ''}`).join('; ')}</td>
-                      <td className="komorka whitespace-nowrap text-xs">{w.nr_zo}</td>
-                    </tr>
-                  )
-                })}
-                {wynik.length === 0 && <tr><td colSpan={15} className="komorka text-center text-slate-500">Brak pozycji spełniających kryteria.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <Tabela id={tylkoUslugi ? 'porownywarka-uslug' : 'porownywarka'} kolumny={kolumnyCen({ miara, najlepsza })} wiersze={wynik} klucz={(w) => w.klucz}
+            klasaWiersza={(w) => { const wiek = wiekMiesiecy(w.data); return w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis ? 'bg-red-50' : wiek !== null && wiek >= progMies ? 'bg-amber-50' : undefined }}
+            pusto="Brak pozycji spełniających kryteria." />
         </>
       )}
     </div>

@@ -7,6 +7,7 @@ import { ETYKIETY_ROLI, OPISY_ROLI, type Profil, type Rola } from '@/lib/types'
 import { Button } from './ui/button'
 import { Komunikat } from './ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog'
+import { Tabela, type KolumnaTabeli } from './ui/Tabela'
 
 interface WierszUzytkownika {
   id: string
@@ -88,6 +89,39 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
     await wczytaj()
   }
 
+  const kolumny: KolumnaTabeli<WierszUzytkownika>[] = [
+    { id: 'login', naglowek: 'Login', typ: 'tekst', wartosc: (u) => u.email, className: 'font-medium', komorka: (u) => <>{u.email}{u.id === profil.id && <span className="ml-2 text-xs text-slate-400">(Ty)</span>}</> },
+    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (u) => u.nazwa, className: 'text-slate-600' },
+    {
+      id: 'rola', naglowek: 'Rola', typ: 'lista', wartosc: (u) => ETYKIETY_ROLI[u.rola],
+      komorka: (u) => (u.chroniony ? (
+        <span title="Konto administratora aplikacji - nie można go usunąć ani zmienić mu roli" className="znacznik bg-limonka-jasna text-limonka-ciemna ring-limonka">
+          <ShieldCheck className="h-3 w-3" /> {ETYKIETY_ROLI[u.rola]}
+        </span>
+      ) : ETYKIETY_ROLI[u.rola]),
+    },
+    {
+      id: 'marze', naglowek: 'Marże', typ: 'lista', wartosc: (u) => (marzeZRoli(u.rola) ? 'z roli' : u.widzi_marze ? 'tak' : 'nie'), className: 'text-sm',
+      komorka: (u) => (marzeZRoli(u.rola) ? <span className="text-slate-500">z roli</span> : u.widzi_marze ? 'tak' : <span className="text-slate-400">nie</span>),
+    },
+    {
+      id: 'logowanie', naglowek: 'Ostatnie logowanie', typ: 'data', wartosc: (u) => u.ostatnie_logowanie, className: 'text-sm text-slate-600',
+      komorka: (u) => <>{u.ostatnie_logowanie ? dataGodzinaPL(u.ostatnie_logowanie) : <span className="text-amber-700">nigdy</span>}{u.wymaga_zmiany_hasla && <span className="ml-2 text-xs text-amber-700">(hasło tymczasowe)</span>}</>,
+    },
+    {
+      id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
+      komorka: (u) => (
+        <div className="flex justify-end gap-2">
+          <Button rozmiar="maly" title="Zmień rolę i uprawnienia" disabled={zajety} onClick={() => setDoEdycji({ ...u })}><Pencil className="h-4 w-4" /></Button>
+          <Button rozmiar="maly" wariant="akcent" title="Nadaj nowe hasło tymczasowe" disabled={zajety} onClick={() => setDoResetu(u)}><KeyRound className="h-4 w-4" /></Button>
+          <Button rozmiar="maly" wariant="ostrzezenie" disabled={u.id === profil.id || u.chroniony || zajety}
+            title={u.chroniony ? 'Konta administratora aplikacji nie można usunąć' : u.id === profil.id ? 'Nie możesz usunąć własnego konta' : 'Usuń konto'}
+            onClick={() => setDoUsuniecia(u)}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-5">
       <h2 className="text-lg font-semibold">Użytkownicy</h2>
@@ -126,61 +160,8 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
         </p>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className="komorka-naglowek">Login</th>
-              <th className="komorka-naglowek">Nazwa</th>
-              <th className="komorka-naglowek">Rola</th>
-              <th className="komorka-naglowek">Marże</th>
-              <th className="komorka-naglowek">Ostatnie logowanie</th>
-              <th className="komorka-naglowek" />
-            </tr>
-          </thead>
-          <tbody>
-            {uzytkownicy.map((u) => (
-              <tr key={u.id}>
-                <td className="komorka font-medium">
-                  {u.email}
-                  {u.id === profil.id && <span className="ml-2 text-xs text-slate-400">(Ty)</span>}
-                </td>
-                <td className="komorka text-slate-600">{u.nazwa}</td>
-                <td className="komorka">
-                  {u.chroniony ? (
-                    <span title="Konto administratora aplikacji - nie można go usunąć ani zmienić mu roli"
-                      className="znacznik bg-limonka-jasna text-limonka-ciemna ring-limonka">
-                      <ShieldCheck className="h-3 w-3" /> {ETYKIETY_ROLI[u.rola]}
-                    </span>
-                  ) : ETYKIETY_ROLI[u.rola]}
-                </td>
-                <td className="komorka text-sm">
-                  {marzeZRoli(u.rola) ? <span className="text-slate-500">z roli</span> : u.widzi_marze ? 'tak' : <span className="text-slate-400">nie</span>}
-                </td>
-                <td className="komorka text-sm text-slate-600">
-                  {u.ostatnie_logowanie ? dataGodzinaPL(u.ostatnie_logowanie) : <span className="text-amber-700">nigdy</span>}
-                  {u.wymaga_zmiany_hasla && <span className="ml-2 text-xs text-amber-700">(hasło tymczasowe)</span>}
-                </td>
-                <td className="komorka">
-                  <div className="flex justify-end gap-2">
-                    <Button rozmiar="maly" title="Zmień rolę i uprawnienia" disabled={zajety} onClick={() => setDoEdycji({ ...u })}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button rozmiar="maly" wariant="akcent" title="Nadaj nowe hasło tymczasowe" disabled={zajety} onClick={() => setDoResetu(u)}>
-                      <KeyRound className="h-4 w-4" />
-                    </Button>
-                    <Button rozmiar="maly" wariant="ostrzezenie" disabled={u.id === profil.id || u.chroniony || zajety}
-                      title={u.chroniony ? 'Konta administratora aplikacji nie można usunąć' : u.id === profil.id ? 'Nie możesz usunąć własnego konta' : 'Usuń konto'}
-                      onClick={() => setDoUsuniecia(u)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id="uzytkownicy" kolumny={kolumny} wiersze={uzytkownicy} klucz={(u) => u.id} pusto="Brak kont." />
+
 
       <Dialog open={!!hasloDoPrzekazania} onOpenChange={(o) => !o && setHasloDoPrzekazania(null)}>
         <DialogContent>

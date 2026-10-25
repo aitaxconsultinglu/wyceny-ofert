@@ -8,6 +8,7 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { zapiszUstawienia } from './zapiszUstawienie'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 type Poziom = 'tani' | 'standard' | 'najlepszy'
 interface Cennik { wejscie: number; wyjscie: number; cache_odczyt: number; cache_zapis: number }
@@ -27,6 +28,7 @@ interface Wywolanie { id: number; user_id: string | null; tryb: string; model: s
 const TRYBY: Record<string, string> = {
   klasyfikuj_mail: 'Klasyfikacja maili', normalizuj_pozycje: 'Normalizacja pozycji', wyciagnij_oferte: 'Odczyt ofert dostawców',
   wyciagnij_liste_z_rysunku: 'Listy z rysunków', analizuj_zapytanie: 'Analiza zapytania', zaproponuj_klauzule: 'Propozycja klauzul',
+  odczytaj_dokument: 'Wersje edytowalne - odczyt', przetlumacz_dokument: 'Wersje edytowalne - tłumaczenie',
 }
 const POZIOMY: Record<Poziom, string> = { tani: 'tani', standard: 'standardowy', najlepszy: 'najlepszy (na żądanie)' }
 const STATUSY: Record<string, string> = { ok: 'ok', blad: 'błąd', odmowa_budzetu: 'odmowa - budżet', odmowa_modelu: 'odmowa modelu' }
@@ -87,6 +89,18 @@ export function BudzetAi() {
     return acc
   }, {})).sort((a, b) => b[1].pln - a[1].pln)
   const modeleWCenniku = [...new Set([...Object.values(ai.modele), ...Object.keys(ai.ceny_usd_za_mln)])]
+
+  const kolumnyWywolan: KolumnaTabeli<Wywolanie>[] = [
+    { id: 'kiedy', naglowek: 'Kiedy', typ: 'data', wartosc: (w) => w.utworzono, komorka: (w) => dataGodzinaPL(w.utworzono), className: 'whitespace-nowrap text-xs' },
+    { id: 'kto', naglowek: 'Kto', typ: 'lista', wartosc: (w) => (w.user_id ? ludzie[w.user_id] ?? '-' : 'import (seed)'), className: 'text-xs' },
+    { id: 'funkcja', naglowek: 'Funkcja', typ: 'lista', wartosc: (w) => TRYBY[w.tryb] ?? w.tryb, className: 'text-xs' },
+    { id: 'model', naglowek: 'Model', typ: 'lista', wartosc: (w) => w.model, className: 'font-mono text-xs' },
+    { id: 'tokeny', naglowek: 'Tokeny we / wy', typ: 'liczba', wartosc: (w) => w.tokeny_wejscie, komorka: (w) => `${liczba(w.tokeny_wejscie, 0)} / ${liczba(w.tokeny_wyjscie, 0)}`, className: 'text-xs' },
+    { id: 'obrazy', naglowek: 'Obrazy', typ: 'liczba', wartosc: (w) => w.obrazow || null, className: 'text-xs' },
+    { id: 'koszt', naglowek: 'Koszt [zł]', typ: 'liczba', wartosc: (w) => Number(w.koszt_pln), komorka: (w) => liczba(w.koszt_pln, 2), className: 'text-xs' },
+    { id: 'czas', naglowek: 'Czas', typ: 'liczba', wartosc: (w) => w.czas_ms, komorka: (w) => (w.czas_ms ? `${liczba(w.czas_ms / 1000, 1)} s` : ''), className: 'text-xs' },
+    { id: 'status', naglowek: 'Status', typ: 'lista', wartosc: (w) => STATUSY[w.status] ?? w.status, className: 'text-xs' },
+  ]
 
   return (
     <div className="space-y-4">
@@ -188,27 +202,7 @@ export function BudzetAi() {
 
       <section className="sekcja space-y-2">
         <h3 className="font-semibold">Ostatnie wywołania (ten miesiąc)</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead><tr>{['Kiedy', 'Kto', 'Funkcja', 'Model', 'Tokeny we / wy', 'Obrazy', 'Koszt [zł]', 'Czas', 'Status'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-            <tbody>
-              {wywolania.slice(0, 50).map((w) => (
-                <tr key={w.id} className={cn(w.status !== 'ok' && 'text-amber-800')}>
-                  <td className="komorka whitespace-nowrap text-xs">{dataGodzinaPL(w.utworzono)}</td>
-                  <td className="komorka text-xs">{w.user_id ? ludzie[w.user_id] ?? '-' : 'import (seed)'}</td>
-                  <td className="komorka text-xs">{TRYBY[w.tryb] ?? w.tryb}</td>
-                  <td className="komorka font-mono text-xs">{w.model}</td>
-                  <td className="komorka liczba text-xs">{liczba(w.tokeny_wejscie, 0)} / {liczba(w.tokeny_wyjscie, 0)}</td>
-                  <td className="komorka liczba text-xs">{w.obrazow || ''}</td>
-                  <td className="komorka liczba text-xs">{liczba(w.koszt_pln, 2)}</td>
-                  <td className="komorka liczba text-xs">{w.czas_ms ? `${liczba(w.czas_ms / 1000, 1)} s` : ''}</td>
-                  <td className="komorka text-xs" title={w.komunikat ?? ''}>{STATUSY[w.status] ?? w.status}</td>
-                </tr>
-              ))}
-              {wywolania.length === 0 && <tr><td colSpan={9} className="komorka text-center text-slate-500">Brak wywołań w tym miesiącu.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <Tabela id="wywolania-ai" kolumny={kolumnyWywolan} wiersze={wywolania} klucz={(w) => w.id} klasaWiersza={(w) => (w.status !== 'ok' ? 'text-amber-800' : undefined)} pusto="Brak wywołań w tym miesiącu." />
       </section>
     </div>
   )

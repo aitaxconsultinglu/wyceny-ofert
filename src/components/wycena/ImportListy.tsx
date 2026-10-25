@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useSlowniki } from '@/lib/slowniki'
 import { liczba } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { wierszeZPliku } from '@/lib/arkuszLeniwie'
 import { pozycjeZListy, rozpoznajListe, type WierszListy } from '@/lib/importListy'
 import type { PozycjaWyceny } from '@/lib/wyceny'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 /** Import listy materiałowej z Excela: podgląd z klasyfikacją, niepewne wiersze wyróżnione. */
 export function ImportListy({ otwarty, zamknij, dodaj }: { otwarty: boolean; zamknij: () => void; dodaj: (p: PozycjaWyceny[]) => void }) {
@@ -30,6 +30,24 @@ export function ImportListy({ otwarty, zamknij, dodaj }: { otwarty: boolean; zam
     setWiersze([]); zamknij()
   }
 
+  type W = (typeof wiersze)[number]
+  const kolumny: KolumnaTabeli<W>[] = [
+    { id: 'lp', naglowek: 'Lp', typ: 'liczba', wartosc: (w) => w.lp, className: 'text-xs' },
+    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (w) => w.nazwa, className: 'text-sm' },
+    {
+      id: 'kategoria', naglowek: 'Kategoria', typ: 'lista', wartosc: (w) => s.kategorieMaterialow.find((k) => k.kod === w.sekcja)?.nazwa ?? w.sekcja,
+      komorka: (w) => (
+        <select className="pole-komorki text-sm" value={w.sekcja} onChange={(e) => setWiersze(wiersze.map((x) => (x === w ? { ...x, sekcja: e.target.value, pewnosc: 1 } : x)))}>
+          {s.kategorieMaterialow.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
+        </select>
+      ),
+    },
+    { id: 'gatunek', naglowek: 'Gatunek', typ: 'lista', wartosc: (w) => w.gatunek, className: 'text-xs' },
+    { id: 'wymiary', naglowek: 'Wymiary', typ: 'tekst', wartosc: (w) => [w.d_zew && `Ø${w.d_zew}`, w.d_wew && `/${w.d_wew}`, w.grubosc && `g${w.grubosc}`, w.szerokosc, w.dlugosc && `L${w.dlugosc}`, w.dn && `DN${w.dn}`].filter(Boolean).join(' ') || null, className: 'text-xs' },
+    { id: 'ilosc', naglowek: 'Ilość', typ: 'liczba', wartosc: (w) => w.ilosc, komorka: (w) => `${liczba(w.ilosc)} ${w.jm}`, className: 'text-sm' },
+    { id: 'masa', naglowek: 'Masa jedn.', typ: 'liczba', wartosc: (w) => w.masa_jedn, komorka: (w) => (w.masa_jedn !== null ? liczba(w.masa_jedn, 2) : ''), className: 'text-sm' },
+  ]
+
   return (
     <Dialog open={otwarty} onOpenChange={(o) => !o && zamknij()}>
       <DialogContent className="max-w-5xl">
@@ -43,26 +61,7 @@ export function ImportListy({ otwarty, zamknij, dodaj }: { otwarty: boolean; zam
         {wiersze.length > 0 && (
           <>
             <div className="mt-3 max-h-[55vh] overflow-auto rounded border border-slate-200">
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0"><tr>{['Lp', 'Nazwa', 'Kategoria', 'Gatunek', 'Wymiary', 'Ilość', 'Masa jedn.'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-                <tbody>
-                  {wiersze.map((w, i) => (
-                    <tr key={i} className={cn(w.pewnosc < 0.8 && 'bg-amber-50')}>
-                      <td className="komorka text-xs">{w.lp}</td>
-                      <td className="komorka text-sm">{w.nazwa}</td>
-                      <td className="komorka">
-                        <select className="pole-komorki text-sm" value={w.sekcja} onChange={(e) => setWiersze(wiersze.map((x, j) => (j === i ? { ...x, sekcja: e.target.value, pewnosc: 1 } : x)))}>
-                          {s.kategorieMaterialow.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
-                        </select>
-                      </td>
-                      <td className="komorka text-xs">{w.gatunek}</td>
-                      <td className="komorka text-xs">{[w.d_zew && `Ø${w.d_zew}`, w.d_wew && `/${w.d_wew}`, w.grubosc && `g${w.grubosc}`, w.szerokosc, w.dlugosc && `L${w.dlugosc}`, w.dn && `DN${w.dn}`].filter(Boolean).join(' ')}</td>
-                      <td className="komorka liczba text-sm">{liczba(w.ilosc)} {w.jm}</td>
-                      <td className="komorka liczba text-sm">{w.masa_jedn !== null ? liczba(w.masa_jedn, 2) : ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <Tabela id="import-listy" kolumny={kolumny} wiersze={wiersze} klucz={(_w, i) => i} klasaWiersza={(w) => (w.pewnosc < 0.8 ? 'bg-amber-50' : undefined)} />
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <Button onClick={zamknij}>Anuluj</Button>

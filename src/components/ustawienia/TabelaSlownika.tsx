@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, Save, Trash2, Undo2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
-import { cn } from '@/lib/utils'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 type Wiersz = Record<string, unknown>
 
@@ -110,55 +110,41 @@ export function TabelaSlownika({ tabela, klucz, kluczGenerowany, kolumny, wiersz
     await poZapisie()
   }
 
+  const typy = { tekst: 'tekst', liczba: 'liczba', bool: 'tak_nie', wybor: 'lista', data: 'data' } as const
+  const kolumnyTabeli: KolumnaTabeli<Edytowany>[] = [
+    ...kolumny.map((k): KolumnaTabeli<Edytowany> => ({
+      id: k.pole, naglowek: k.etykieta, title: k.podpowiedz, typ: typy[k.typ], naglowekClassName: k.szer,
+      className: k.typ === 'bool' ? 'text-center' : undefined,
+      wartosc: (e) => (k.typ === 'wybor' ? k.opcje?.find((o) => o.wartosc === String(e.dane[k.pole] ?? ''))?.etykieta ?? e.dane[k.pole] : e.dane[k.pole]),
+      komorka: (e) => {
+        const w = e.dane[k.pole]
+        const zablokowane = k.tylkoNowy && !e.nowy
+        return k.typ === 'bool' ? (
+          <input type="checkbox" checked={Boolean(w)} onChange={(x) => ustaw(e.tmp, k.pole, x.target.checked)} />
+        ) : k.typ === 'liczba' ? (
+          <PoleLiczby wartosc={(w as number | null) ?? null} puste={k.pusteNull} zmien={(n) => ustaw(e.tmp, k.pole, n)} disabled={zablokowane} />
+        ) : k.typ === 'wybor' ? (
+          <select className="pole-komorki" value={String(w ?? '')} disabled={zablokowane} onChange={(x) => ustaw(e.tmp, k.pole, x.target.value)}>
+            {k.pusteNull && <option value="">-</option>}
+            {k.opcje?.map((o) => <option key={o.wartosc} value={o.wartosc}>{o.etykieta}</option>)}
+          </select>
+        ) : (
+          <input className="pole-komorki" type={k.typ === 'data' ? 'date' : 'text'} value={String(w ?? '')} disabled={zablokowane} onChange={(x) => ustaw(e.tmp, k.pole, x.target.value)} />
+        )
+      },
+    })),
+    {
+      id: '_usun', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true, className: 'w-10 text-center',
+      komorka: (e) => <button className="text-slate-400 hover:text-red-600" title="Usuń" onClick={() => void usun(e)}><Trash2 className="h-4 w-4" /></button>,
+    },
+  ]
+
   return (
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              {kolumny.map((k) => (
-                <th key={k.pole} className={cn('komorka-naglowek', k.szer)} title={k.podpowiedz}>{k.etykieta}</th>
-              ))}
-              <th className="komorka-naglowek w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {edytowane.map((e) => (
-              <tr key={e.tmp} className={cn(e.nowy ? 'bg-limonka-jasna/40' : e.zmieniony && 'bg-amber-50')}>
-                {kolumny.map((k) => {
-                  const w = e.dane[k.pole]
-                  const zablokowane = k.tylkoNowy && !e.nowy
-                  return (
-                    <td key={k.pole} className={cn('komorka', k.typ === 'bool' && 'text-center')}>
-                      {k.typ === 'bool' ? (
-                        <input type="checkbox" checked={Boolean(w)} onChange={(x) => ustaw(e.tmp, k.pole, x.target.checked)} />
-                      ) : k.typ === 'liczba' ? (
-                        <PoleLiczby wartosc={(w as number | null) ?? null} puste={k.pusteNull} zmien={(n) => ustaw(e.tmp, k.pole, n)} disabled={zablokowane} />
-                      ) : k.typ === 'wybor' ? (
-                        <select className="pole-komorki" value={String(w ?? '')} disabled={zablokowane}
-                          onChange={(x) => ustaw(e.tmp, k.pole, x.target.value)}>
-                          {k.pusteNull && <option value="">-</option>}
-                          {k.opcje?.map((o) => <option key={o.wartosc} value={o.wartosc}>{o.etykieta}</option>)}
-                        </select>
-                      ) : (
-                        <input className="pole-komorki" type={k.typ === 'data' ? 'date' : 'text'} value={String(w ?? '')}
-                          disabled={zablokowane} onChange={(x) => ustaw(e.tmp, k.pole, x.target.value)} />
-                      )}
-                    </td>
-                  )
-                })}
-                <td className="komorka text-center">
-                  <button className="text-slate-400 hover:text-red-600" title="Usuń" onClick={() => void usun(e)}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id={`slownik-${tabela}`} kolumny={kolumnyTabeli} wiersze={edytowane} klucz={(e) => e.tmp}
+        klasaWiersza={(e) => (e.nowy ? 'bg-limonka-jasna/40' : e.zmieniony ? 'bg-amber-50' : undefined)} pusto="Brak wpisów." />
       <div className="flex flex-wrap gap-2">
         <Button rozmiar="maly" onClick={() => setEdytowane((l) => [...l, { dane: nowyWiersz(), nowy: true, zmieniony: false, tmp: tmpKlucz() }])}>
           <Plus className="h-4 w-4" /> Dodaj wiersz

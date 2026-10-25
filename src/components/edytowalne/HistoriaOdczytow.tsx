@@ -5,6 +5,7 @@ import { liczba } from '@/lib/format'
 import { NAZWY_JEZYKOW } from '@/lib/wersjeEdytowalne'
 import type { Profil } from '@/lib/types'
 import { Komunikat } from '../ui/komunikat'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 interface Odczyt {
   id: string; plik_id: string | null; nazwa_pliku: string; rodzaj: 'tekst' | 'ai' | 'tlumaczenie'; strony: number[]; obszarow: number
@@ -50,6 +51,29 @@ export function HistoriaOdczytow({ profil, ludzie }: { profil: Profil; ludzie: R
   const nazwa = (u: string | null) => (u ? ludzie[u] ?? 'konto usunięte' : 'konto usunięte')
   const razem = podsumowanie.reduce((s, x) => s + x.koszt, 0)
 
+  type Osoba = (typeof podsumowanie)[number]
+  const kolumnyOsob: KolumnaTabeli<Osoba>[] = [
+    { id: 'osoba', naglowek: 'Pracownik', typ: 'lista', wartosc: (x) => nazwa(x.u || null), className: 'font-medium' },
+    { id: 'tekst', naglowek: 'Bez AI', typ: 'liczba', wartosc: (x) => x.tekst },
+    { id: 'ai', naglowek: 'Odczyty AI', typ: 'liczba', wartosc: (x) => x.ai },
+    { id: 'tl', naglowek: 'Tłumaczenia', typ: 'liczba', wartosc: (x) => x.tlumaczenie },
+    { id: 'koszt', naglowek: 'Koszt AI', typ: 'liczba', wartosc: (x) => x.koszt, komorka: (x) => `${liczba(x.koszt, 2)} zł` },
+    {
+      id: 'rozliczenie', naglowek: profil.rola === 'administrator' ? 'Rozliczenie AI (z nieudanymi)' : 'Rozliczenie AI', typ: 'liczba', wartosc: (x) => x.rozliczenie, className: 'text-xs text-slate-600',
+      komorka: (x) => (x.rozliczenie === null ? '-' : `${liczba(x.rozliczenie, 2)} zł${x.nieudane ? ` (nieudanych: ${x.nieudane})` : ''}`),
+    },
+  ]
+  const kolumnyOdczytow: KolumnaTabeli<Odczyt>[] = [
+    { id: 'kiedy', naglowek: 'Kiedy', typ: 'data', wartosc: (o) => o.utworzono, komorka: (o) => new Date(o.utworzono).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }), className: 'whitespace-nowrap text-xs' },
+    { id: 'kto', naglowek: 'Kto', typ: 'lista', wartosc: (o) => nazwa(o.utworzyl), className: 'text-xs' },
+    { id: 'plik', naglowek: 'Plik', typ: 'tekst', wartosc: (o) => o.nazwa_pliku, komorka: (o) => <>{o.nazwa_pliku}{!o.plik_id && <span className="text-xs text-slate-400"> (usunięty)</span>}</> },
+    { id: 'co', naglowek: 'Co', typ: 'lista', wartosc: (o) => RODZAJ[o.rodzaj], komorka: (o) => `${RODZAJ[o.rodzaj]}${o.obszarow ? `, ${o.obszarow} zazn.` : ''}`, className: 'text-xs' },
+    { id: 'strony', naglowek: 'Strony', typ: 'tekst', wartosc: (o) => strony(o.strony), className: 'text-xs' },
+    { id: 'jezyk', naglowek: 'Język', typ: 'lista', wartosc: (o) => (o.jezyk ? NAZWY_JEZYKOW[o.jezyk] ?? o.jezyk : null), className: 'text-xs' },
+    { id: 'model', naglowek: 'Model', typ: 'lista', wartosc: (o) => o.model, className: 'text-xs text-slate-500' },
+    { id: 'koszt', naglowek: 'Koszt', typ: 'liczba', wartosc: (o) => Number(o.koszt_pln), komorka: (o) => (Number(o.koszt_pln) ? `${liczba(Number(o.koszt_pln), 2)} zł` : '0') },
+  ]
+
   return (
     <div className="space-y-4">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -59,44 +83,8 @@ export function HistoriaOdczytow({ profil, ludzie }: { profil: Profil; ludzie: R
         <span className="text-sm text-slate-600">Razem AI w module: <strong>{liczba(razem, 2)} zł</strong> · odczytów: {odczyty.length}</span>
       </div>
 
-      <section className="sekcja overflow-x-auto p-0">
-        <table className="w-full border-collapse text-sm">
-          <thead><tr>{['Pracownik', 'Bez AI', 'Odczyty AI', 'Tłumaczenia', 'Koszt AI', profil.rola === 'administrator' ? 'Rozliczenie AI (z nieudanymi)' : 'Rozliczenie AI'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-          <tbody>
-            {podsumowanie.map((x) => (
-              <tr key={x.u}>
-                <td className="komorka font-medium">{nazwa(x.u || null)}</td>
-                <td className="komorka liczba">{x.tekst}</td>
-                <td className="komorka liczba">{x.ai}</td>
-                <td className="komorka liczba">{x.tlumaczenie}</td>
-                <td className="komorka liczba">{liczba(x.koszt, 2)} zł</td>
-                <td className="komorka liczba text-xs text-slate-600">{x.rozliczenie === null ? '-' : `${liczba(x.rozliczenie, 2)} zł${x.nieudane ? ` (nieudanych: ${x.nieudane})` : ''}`}</td>
-              </tr>
-            ))}
-            {!podsumowanie.length && <tr><td className="komorka text-slate-500" colSpan={6}>Brak odczytów w tym miesiącu.</td></tr>}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="sekcja overflow-x-auto p-0">
-        <table className="w-full border-collapse text-sm">
-          <thead><tr>{['Kiedy', 'Kto', 'Plik', 'Co', 'Strony', 'Język', 'Model', 'Koszt'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-          <tbody>
-            {odczyty.map((o) => (
-              <tr key={o.id}>
-                <td className="komorka whitespace-nowrap text-xs">{new Date(o.utworzono).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                <td className="komorka text-xs">{nazwa(o.utworzyl)}</td>
-                <td className="komorka">{o.nazwa_pliku}{!o.plik_id && <span className="text-xs text-slate-400"> (usunięty)</span>}</td>
-                <td className="komorka text-xs">{RODZAJ[o.rodzaj]}{o.obszarow ? `, ${o.obszarow} zazn.` : ''}</td>
-                <td className="komorka text-xs">{strony(o.strony)}</td>
-                <td className="komorka text-xs">{o.jezyk ? NAZWY_JEZYKOW[o.jezyk] ?? o.jezyk : ''}</td>
-                <td className="komorka text-xs text-slate-500">{o.model ?? ''}</td>
-                <td className="komorka liczba">{Number(o.koszt_pln) ? `${liczba(Number(o.koszt_pln), 2)} zł` : '0'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <Tabela id="historia-odczytow-osoby" kolumny={kolumnyOsob} wiersze={podsumowanie} klucz={(x) => x.u || '-'} pusto="Brak odczytów w tym miesiącu." />
+      <Tabela id="historia-odczytow" kolumny={kolumnyOdczytow} wiersze={odczyty} klucz={(o) => o.id} pusto="Brak odczytów w tym miesiącu." />
     </div>
   )
 }

@@ -12,6 +12,7 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { PlikWersji } from './PlikWersji'
 import { HistoriaOdczytow } from './HistoriaOdczytow'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 const ETYKIETY_RODZAJU: Record<PlikEdytowalny['rodzaj'], string> = {
   pdf: 'PDF', obraz: 'zdjęcie / skan', docx: 'Word', arkusz: 'arkusz', tekst: 'tekst', cad: 'CAD', inny: 'inny',
@@ -78,6 +79,24 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
   const widoczne = pliki.filter((p) => !filtr || p.nazwa_pliku.toLowerCase().includes(filtr.toLowerCase()))
   const mozeUsunac = (p: PlikEdytowalny) => profil.rola === 'administrator' || p.utworzyl === profil.id
 
+  const kolumny: KolumnaTabeli<PlikEdytowalny>[] = [
+    { id: 'plik', naglowek: 'Plik', typ: 'tekst', wartosc: (p) => p.nazwa_pliku, className: 'font-medium text-slate-900' },
+    { id: 'rodzaj', naglowek: 'Rodzaj', typ: 'lista', wartosc: (p) => ETYKIETY_RODZAJU[p.rodzaj] },
+    { id: 'stron', naglowek: 'Stron', typ: 'liczba', wartosc: (p) => p.stron },
+    { id: 'jezyk', naglowek: 'Język', typ: 'lista', wartosc: (p) => (p.jezyk ? NAZWY_JEZYKOW[p.jezyk] ?? p.jezyk : null) },
+    {
+      id: 'wersja', naglowek: 'Wersja edytowalna', typ: 'liczba', wartosc: (p) => numeryStron(p.tresc?.strony ?? {}).length, className: 'text-xs text-left',
+      komorka: (p) => { const o = numeryStron(p.tresc?.strony ?? {}).length; const pl = numeryStron(p.tresc?.tlumaczenie ?? {}).length; return o ? `${o} str.${pl ? `, po polsku ${pl}` : ''}` : <span className="text-slate-400">brak</span> },
+    },
+    { id: 'koszt', naglowek: 'Koszt AI', typ: 'liczba', wartosc: (p) => koszty[p.id] ?? null, komorka: (p) => (koszty[p.id] ? `${liczba(koszty[p.id], 2)} zł` : '') },
+    { id: 'dodal', naglowek: 'Dodał', typ: 'lista', wartosc: (p) => (p.utworzyl ? ludzie[p.utworzyl] ?? null : null), className: 'text-xs' },
+    { id: 'dodano', naglowek: 'Dodano', typ: 'data', wartosc: (p) => p.utworzono, komorka: (p) => data(p.utworzono), className: 'text-xs' },
+    {
+      id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
+      komorka: (p) => mozeUsunac(p) && <button title="Przenieś do kosza" className="text-slate-400 hover:text-red-600" onClick={(e) => { e.stopPropagation(); void usun(p) }}><Trash2 className="h-4 w-4" /></button>,
+    },
+  ]
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -106,35 +125,8 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
             <input ref={wybor} type="file" multiple accept={AKCEPTOWANE} className="hidden" onChange={(e) => { if (e.target.files?.length) void dodaj(e.target.files); e.target.value = '' }} />
             <input className="pole ml-auto w-64" placeholder="Szukaj pliku..." value={filtr} onChange={(e) => setFiltr(e.target.value)} />
           </div>
-          <div className="sekcja overflow-x-auto p-0">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>{['Plik', 'Rodzaj', 'Stron', 'Język', 'Wersja edytowalna', 'Koszt AI', 'Dodał', 'Dodano', ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr>
-              </thead>
-              <tbody>
-                {widoczne.map((p) => {
-                  const odczytane = numeryStron(p.tresc?.strony ?? {}).length
-                  const pl = numeryStron(p.tresc?.tlumaczenie ?? {}).length
-                  return (
-                    <tr key={p.id} className="cursor-pointer hover:bg-slate-50" onClick={() => otworz(p.id)}>
-                      <td className="komorka font-medium text-slate-900">{p.nazwa_pliku}</td>
-                      <td className="komorka">{ETYKIETY_RODZAJU[p.rodzaj]}</td>
-                      <td className="komorka liczba">{p.stron ?? ''}</td>
-                      <td className="komorka">{p.jezyk ? NAZWY_JEZYKOW[p.jezyk] ?? p.jezyk : ''}</td>
-                      <td className="komorka text-xs">{odczytane ? `${odczytane} str.${pl ? `, po polsku ${pl}` : ''}` : <span className="text-slate-400">brak</span>}</td>
-                      <td className="komorka liczba">{koszty[p.id] ? `${liczba(koszty[p.id], 2)} zł` : ''}</td>
-                      <td className="komorka text-xs">{p.utworzyl ? ludzie[p.utworzyl] ?? '' : ''}</td>
-                      <td className="komorka text-xs">{data(p.utworzono)}</td>
-                      <td className="komorka" onClick={(e) => e.stopPropagation()}>
-                        {mozeUsunac(p) && <button title="Usuń plik" className="text-slate-400 hover:text-red-600" onClick={() => void usun(p)}><Trash2 className="h-4 w-4" /></button>}
-                      </td>
-                    </tr>
-                  )
-                })}
-                {!widoczne.length && <tr><td className="komorka text-slate-500" colSpan={9}>{pliki.length ? 'Brak plików pasujących do wyszukiwania.' : 'Nie dodano jeszcze żadnych plików.'}</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <Tabela id="pliki-edytowalne" kolumny={kolumny} wiersze={widoczne} klucz={(p) => p.id} onKlik={(p) => otworz(p.id)}
+            pusto={pliki.length ? 'Brak plików pasujących do wyszukiwania.' : 'Nie dodano jeszcze żadnych plików.'} />
         </>
       )}
     </div>

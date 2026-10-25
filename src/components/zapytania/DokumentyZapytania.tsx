@@ -11,6 +11,7 @@ import type { Profil } from '@/lib/types'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { doKosza } from '@/lib/kosz'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 export interface Dokument {
   id: string; nazwa_pliku: string; typ: TypDokumentu; mime: string | null; rozmiar: number | null; sciezka: string | null
@@ -109,36 +110,52 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
     await wczytaj()
   }
 
+  // Kolejność: dokument, pod nim jego załączniki (mail, ZIP) - z wcięciem.
   const glowne = dokumenty.filter((d) => !d.nadrzedny_id || !dokumenty.some((x) => x.id === d.nadrzedny_id))
-  const wiersz = (d: Dokument, zalacznik = false) => (
-    <tr key={d.id} className={cn(!d.istotny && 'text-slate-400')}>
-      <td className={cn('komorka', zalacznik && 'pl-8')}>
-        <div className="flex items-center gap-2">
-          {d.metadane?.temat !== undefined ? <Mail className="h-4 w-4 shrink-0" /> : zalacznik ? <Paperclip className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0" />}
-          {d.sciezka
-            ? <button className="text-left text-blekit-ciemny underline" onClick={() => void otworzDokument(d.sciezka!).catch((e) => setBlad(String(e.message)))}>{d.nazwa_pliku}</button>
-            : <span>{d.nazwa_pliku}</span>}
-        </div>
-        {typeof d.metadane?.temat === 'string' && <div className="ml-6 text-xs text-slate-500">{String(d.metadane.temat)} · {String(d.metadane.od ?? '')}</div>}
-      </td>
-      <td className="komorka w-44">
+  const uporzadkowane = glowne.flatMap((d) => [d, ...dokumenty.filter((x) => x.nadrzedny_id === d.id)])
+  const kolumny: KolumnaTabeli<Dokument>[] = [
+    {
+      id: 'nazwa', naglowek: 'Dokument', typ: 'tekst', wartosc: (d) => d.nazwa_pliku,
+      komorka: (d) => {
+        const zalacznik = !!d.nadrzedny_id && dokumenty.some((x) => x.id === d.nadrzedny_id)
+        return (
+          <div className={cn(zalacznik && 'pl-6', !d.istotny && 'text-slate-400')}>
+            <div className="flex items-center gap-2">
+              {d.metadane?.temat !== undefined ? <Mail className="h-4 w-4 shrink-0" /> : zalacznik ? <Paperclip className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0" />}
+              {d.sciezka
+                ? <button className="text-left text-blekit-ciemny underline" onClick={() => void otworzDokument(d.sciezka!).catch((e) => setBlad(String(e.message)))}>{d.nazwa_pliku}</button>
+                : <span>{d.nazwa_pliku}</span>}
+            </div>
+            {typeof d.metadane?.temat === 'string' && <div className="ml-6 text-xs text-slate-500">{String(d.metadane.temat)} · {String(d.metadane.od ?? '')}</div>}
+          </div>
+        )
+      },
+    },
+    {
+      id: 'typ', naglowek: 'Typ', typ: 'lista', wartosc: (d) => ETYKIETY_TYPU[d.typ], className: 'w-44',
+      komorka: (d) => (
         <select className="pole-komorki text-sm" value={d.typ} onChange={(e) => void zmien(d, { typ: e.target.value as TypDokumentu })}>
           {Object.entries(ETYKIETY_TYPU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-      </td>
-      <td className="komorka text-center">
-        <input type="checkbox" checked={d.istotny} title="Istotny dla wyceny (idzie do analizy AI)" onChange={(e) => void zmien(d, { istotny: e.target.checked })} />
-      </td>
-      <td className="komorka whitespace-nowrap text-xs">{rozmiar(d.rozmiar)}{d.metadane?.stron ? `, ${String(d.metadane.stron)} str.` : ''}{d.metadane?.skan ? ', skan' : ''}</td>
-      <td className="komorka text-xs text-amber-800">{STANY[d.stan]}</td>
-      <td className="komorka whitespace-nowrap text-xs text-slate-500">{dataGodzinaPL(d.utworzono)}</td>
-      <td className="komorka text-center">
-        {(profil.rola === 'administrator' || d.utworzyl === profil.id) && (
-          <button className="text-slate-400 hover:text-red-600" title="Usuń" onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></button>
-        )}
-      </td>
-    </tr>
-  )
+      ),
+    },
+    {
+      id: 'istotny', naglowek: 'Istotny', typ: 'tak_nie', wartosc: (d) => d.istotny, className: 'text-center',
+      komorka: (d) => <input type="checkbox" checked={d.istotny} title="Istotny dla wyceny (idzie do analizy AI)" onChange={(e) => void zmien(d, { istotny: e.target.checked })} />,
+    },
+    {
+      id: 'rozmiar', naglowek: 'Rozmiar', typ: 'liczba', wartosc: (d) => d.rozmiar, className: 'whitespace-nowrap text-xs text-left',
+      komorka: (d) => `${rozmiar(d.rozmiar)}${d.metadane?.stron ? `, ${String(d.metadane.stron)} str.` : ''}${d.metadane?.skan ? ', skan' : ''}`,
+    },
+    { id: 'stan', naglowek: 'Stan', typ: 'lista', wartosc: (d) => STANY[d.stan] ?? null, className: 'text-xs text-amber-800' },
+    { id: 'dodano', naglowek: 'Dodano', typ: 'data', wartosc: (d) => d.utworzono, komorka: (d) => dataGodzinaPL(d.utworzono), className: 'whitespace-nowrap text-xs text-slate-500' },
+    {
+      id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true, className: 'text-center',
+      komorka: (d) => (profil.rola === 'administrator' || d.utworzyl === profil.id) && (
+        <button className="text-slate-400 hover:text-red-600" title="Przenieś do kosza" onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></button>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-3">
@@ -155,15 +172,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
         <span className="text-sm">Przeciągnij pliki (PDF, DOCX, XLSX, maile .msg / .eml, ZIP) albo kliknij. Z maili wyciągamy załączniki jako osobne dokumenty, ZIP rozpakowujemy. Limit pliku: {s.ustawienia.limity_planu.plik_mb} MB.</span>
         <input type="file" multiple className="hidden" onChange={(e) => e.target.files && void dodaj(e.target.files)} />
       </label>
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead><tr>{['Dokument', 'Typ', 'Istotny', 'Rozmiar', 'Stan', 'Dodano', ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
-          <tbody>
-            {glowne.map((d) => [wiersz(d), ...dokumenty.filter((x) => x.nadrzedny_id === d.id).map((x) => wiersz(x, true))])}
-            {dokumenty.length === 0 && <tr><td colSpan={7} className="komorka text-center text-slate-500">Brak dokumentów.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id="dokumenty-zapytania" kolumny={kolumny} wiersze={uporzadkowane} klucz={(d) => d.id} pusto="Brak dokumentów." />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">„Istotny” = dokument idzie do analizy AI. Standardy klienta po kilkadziesiąt stron domyślnie są pomijane.</p>
         <Button rozmiar="maly" onClick={() => void archiwizuj()} disabled={!!zajety}><Archive className="h-4 w-4" /> Archiwizuj dokumenty zapytania (ZIP)</Button>

@@ -11,6 +11,7 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { FormularzOferty } from './FormularzOferty'
 import { doKosza } from '@/lib/kosz'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 interface WierszOferty {
   id: string; data_oferty: string | null; numer_oferty: string | null; nr_zo: string | null; waluta: string; kurs: number
@@ -72,6 +73,37 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
     )
   }
 
+  const wartoscOferty = (o: WierszOferty) => o.pozycje_ofert.reduce((s2, p) => s2 + Number(p.wartosc ?? p.ilosc * p.cena_jedn), 0)
+  const kolumny: KolumnaTabeli<WierszOferty>[] = [
+    { id: 'data', naglowek: 'Data', typ: 'data', wartosc: (o) => o.data_oferty, komorka: (o) => dataPL(o.data_oferty), className: 'whitespace-nowrap' },
+    { id: 'dostawca', naglowek: 'Dostawca', typ: 'lista', wartosc: (o) => o.dostawcy?.nazwa ?? null, className: 'font-medium' },
+    { id: 'numer', naglowek: 'Nr oferty', typ: 'tekst', wartosc: (o) => o.numer_oferty, className: 'text-sm' },
+    { id: 'zo', naglowek: 'ZO', typ: 'lista', wartosc: (o) => o.zapytania?.numer ?? o.nr_zo, className: 'whitespace-nowrap text-sm' },
+    { id: 'pozycji', naglowek: 'Pozycji', typ: 'liczba', wartosc: (o) => o.pozycje_ofert.length },
+    { id: 'wartosc', naglowek: 'Wartość', typ: 'liczba', wartosc: (o) => wartoscOferty(o), komorka: (o) => `${liczba(wartoscOferty(o), 2)} ${o.waluta}`, className: 'whitespace-nowrap' },
+    { id: 'termin', naglowek: 'Termin', typ: 'tekst', wartosc: (o) => o.termin_realizacji, className: 'text-xs' },
+    { id: 'waznosc', naglowek: 'Ważność', typ: 'data', wartosc: (o) => o.waznosc_do, komorka: (o) => (o.waznosc_do ? dataPL(o.waznosc_do) : o.waznosc_opis), className: 'whitespace-nowrap text-xs' },
+    { id: 'zrodlo', naglowek: 'Źródło', typ: 'lista', wartosc: (o) => `${o.zrodlo}${o.czy_zakupiono ? ', zakupiono' : ''}`, className: 'text-xs' },
+    {
+      id: 'status', naglowek: 'Status', typ: 'lista', wartosc: (o) => STATUSY[o.status] ?? o.status,
+      komorka: (o) => <span className={cn('znacznik', o.status === 'zatwierdzona' ? 'bg-limonka-jasna text-limonka-ciemna ring-limonka' : o.status === 'do_przejrzenia' ? 'bg-amber-50 text-amber-800 ring-amber-300' : 'bg-slate-100 text-slate-600 ring-slate-300')}>{STATUSY[o.status]}</span>,
+    },
+    {
+      id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
+      komorka: (o) => (
+        <div className="flex justify-end gap-1">
+          {o.dokumenty?.sciezka && (
+            <Button rozmiar="maly" title={`Otwórz ${o.dokumenty.nazwa_pliku}`} onClick={() => void otworzDokument(o.dokumenty!.sciezka!).catch((e) => setBlad(String(e.message ?? e)))}>
+              <FileText className="h-4 w-4" />
+            </Button>
+          )}
+          {mozeEdytowac && <Button rozmiar="maly" title="Popraw" onClick={() => void edytuj(o.id)}><Pencil className="h-4 w-4" /></Button>}
+          {mozeEdytowac && <Button rozmiar="maly" wariant="ostrzezenie" title="Przenieś do kosza" onClick={() => void usun(o)}><Trash2 className="h-4 w-4" /></Button>}
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -82,44 +114,7 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
             {Object.entries(STATUSY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select></label>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead><tr>
-            {['Data', 'Dostawca', 'Nr oferty', 'ZO', 'Pozycji', 'Wartość', 'Termin', 'Ważność', 'Źródło', 'Status', ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}
-          </tr></thead>
-          <tbody>
-            {oferty.map((o) => {
-              const wartosc = o.pozycje_ofert.reduce((s2, p) => s2 + Number(p.wartosc ?? p.ilosc * p.cena_jedn), 0)
-              return (
-                <tr key={o.id}>
-                  <td className="komorka whitespace-nowrap">{dataPL(o.data_oferty)}</td>
-                  <td className="komorka font-medium">{o.dostawcy?.nazwa}</td>
-                  <td className="komorka text-sm">{o.numer_oferty}</td>
-                  <td className="komorka whitespace-nowrap text-sm">{o.zapytania?.numer ?? o.nr_zo}</td>
-                  <td className="komorka liczba">{o.pozycje_ofert.length}</td>
-                  <td className="komorka liczba whitespace-nowrap">{liczba(wartosc, 2)} {o.waluta}</td>
-                  <td className="komorka text-xs">{o.termin_realizacji}</td>
-                  <td className="komorka whitespace-nowrap text-xs">{o.waznosc_do ? dataPL(o.waznosc_do) : o.waznosc_opis}</td>
-                  <td className="komorka text-xs">{o.zrodlo}{o.czy_zakupiono ? ', zakupiono' : ''}</td>
-                  <td className="komorka"><span className={cn('znacznik', o.status === 'zatwierdzona' ? 'bg-limonka-jasna text-limonka-ciemna ring-limonka' : o.status === 'do_przejrzenia' ? 'bg-amber-50 text-amber-800 ring-amber-300' : 'bg-slate-100 text-slate-600 ring-slate-300')}>{STATUSY[o.status]}</span></td>
-                  <td className="komorka">
-                    <div className="flex justify-end gap-1">
-                      {o.dokumenty?.sciezka && (
-                        <Button rozmiar="maly" title={`Otwórz ${o.dokumenty.nazwa_pliku}`} onClick={() => void otworzDokument(o.dokumenty!.sciezka!).catch((e) => setBlad(String(e.message ?? e)))}>
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {mozeEdytowac && <Button rozmiar="maly" title="Popraw" onClick={() => void edytuj(o.id)}><Pencil className="h-4 w-4" /></Button>}
-                      {mozeEdytowac && <Button rozmiar="maly" wariant="ostrzezenie" title="Usuń" onClick={() => void usun(o)}><Trash2 className="h-4 w-4" /></Button>}
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-            {oferty.length === 0 && <tr><td colSpan={11} className="komorka text-center text-slate-500">Brak ofert.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id="lista-ofert" kolumny={kolumny} wiersze={oferty} klucz={(o) => o.id} pusto="Brak ofert." />
     </div>
   )
 }

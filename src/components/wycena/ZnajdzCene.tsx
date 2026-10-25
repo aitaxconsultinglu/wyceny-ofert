@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { cenaZWiersza, cennikEtapu1, filtrujCeny, PUSTY_FILTR, wczytajCeny, wiekMiesiecy, type WierszCeny, type WybranaCena } from '@/lib/bazaCen'
 import type { PozycjaWyceny } from '@/lib/wyceny'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 import { KolumnaWymagan, opisWymiarow } from '../oferty/Porownywarka'
 
 export type { WybranaCena }
@@ -68,6 +69,22 @@ export function ZnajdzCene({ pozycja, uslugi, zamknij, wybierz, zapytanieId = nu
     wybierz(cenaZWiersza(w, pozycja?.jednostka_ceny ?? 'jm', uslugi))
   }
 
+  const kolumnyZnajdz: KolumnaTabeli<WierszCeny>[] = [
+    { id: 'zrodlo', naglowek: 'Źródło', typ: 'lista', wartosc: (w) => (w.zrodlo === 'zakup' ? 'Optima' : zapytanieId && w.zapytanie_id === zapytanieId ? 'oferta do ZO' : 'oferta'), className: 'text-xs' },
+    { id: 'data', naglowek: 'Data', typ: 'data', wartosc: (w) => w.data, komorka: (w) => dataPL(w.data), className: 'whitespace-nowrap text-xs' },
+    { id: 'dostawca', naglowek: 'Dostawca', typ: 'lista', wartosc: (w) => w.dostawca, className: 'max-w-[10rem] truncate text-xs' },
+    { id: 'opis', naglowek: 'Opis', typ: 'tekst', wartosc: (w) => w.opis, className: 'max-w-[20rem] text-xs' },
+    { id: 'gatunek', naglowek: 'Gatunek', typ: 'lista', wartosc: (w) => w.gatunek, className: 'whitespace-nowrap text-xs' },
+    { id: 'wymiary', naglowek: 'Wymiary', typ: 'tekst', wartosc: (w) => opisWymiarow(w) || null, className: 'whitespace-nowrap text-xs' },
+    ...(['cena_pln_kg', 'cena_pln_m', 'cena_pln_szt'] as const).map((k): KolumnaTabeli<WierszCeny> => ({
+      id: k, naglowek: k === 'cena_pln_kg' ? 'PLN/kg' : k === 'cena_pln_m' ? 'PLN/m' : 'PLN/szt', typ: 'liczba', wartosc: (w) => w[k],
+      komorka: (w) => (w[k] !== null ? liczba(w[k]!, 2) : ''), className: cn('text-xs', k === miara && 'font-semibold'),
+    })),
+    { id: 'termin', naglowek: 'Termin', typ: 'tekst', wartosc: (w) => w.termin, className: 'whitespace-nowrap text-xs' },
+    { id: 'waznosc', naglowek: 'Ważność', typ: 'data', wartosc: (w) => w.waznosc_do, komorka: (w) => (w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis), className: 'whitespace-nowrap text-xs' },
+    { id: 'wymagania', naglowek: 'Wymagania', typ: 'tekst', wartosc: () => null, bezFiltra: true, komorka: (w) => <KolumnaWymagan w={w.wymagania} /> },
+  ]
+
   return (
     <Dialog open={!!pozycja} onOpenChange={(o) => !o && zamknij()}>
       <DialogContent className="max-w-6xl">
@@ -90,32 +107,9 @@ export function ZnajdzCene({ pozycja, uslugi, zamknij, wybierz, zapytanieId = nu
           <span className="text-slate-500">{wynik.length} pozycji</span>
         </div>
         <div className="mt-2 max-h-[60vh] overflow-auto rounded border border-slate-200">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0"><tr>{['Źródło', 'Data', 'Dostawca', 'Opis', 'Gatunek', 'Wymiary', 'PLN/kg', 'PLN/m', 'PLN/szt', 'Termin', 'Ważność', 'Wymagania'].map((n) => <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>)}</tr></thead>
-            <tbody>
-              {wynik.map((w) => {
-                const stara = (wiekMiesiecy(w.data) ?? 0) >= s.ustawienia.wiek_ceny_ostrzezenie_mies
-                const po = w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis
-                return (
-                  <tr key={w.klucz} onClick={() => wez(w)} className={cn('cursor-pointer hover:bg-limonka-jasna', po ? 'bg-red-50' : stara && 'bg-amber-50')}>
-                    <td className="komorka text-xs">{w.zrodlo === 'zakup' ? 'Optima' : zapytanieId && w.zapytanie_id === zapytanieId ? <strong>oferta do ZO</strong> : 'oferta'}</td>
-                    <td className="komorka whitespace-nowrap text-xs">{dataPL(w.data)}</td>
-                    <td className="komorka max-w-[10rem] truncate text-xs">{w.dostawca}</td>
-                    <td className="komorka max-w-[20rem] text-xs">{w.opis}</td>
-                    <td className="komorka whitespace-nowrap text-xs">{w.gatunek}</td>
-                    <td className="komorka whitespace-nowrap text-xs">{opisWymiarow(w)}</td>
-                    {(['cena_pln_kg', 'cena_pln_m', 'cena_pln_szt'] as const).map((k) => (
-                      <td key={k} className={cn('komorka liczba text-xs', k === miara && 'font-semibold')}>{w[k] !== null ? liczba(w[k], 2) : ''}</td>
-                    ))}
-                    <td className="komorka whitespace-nowrap text-xs">{w.termin}</td>
-                    <td className="komorka whitespace-nowrap text-xs">{w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis}</td>
-                    <td className="komorka"><KolumnaWymagan w={w.wymagania} /></td>
-                  </tr>
-                )
-              })}
-              {wynik.length === 0 && <tr><td colSpan={12} className="komorka text-center text-slate-500">Brak dopasowanych cen - poszerz kryteria.</td></tr>}
-            </tbody>
-          </table>
+          <Tabela id="znajdz-cene" kolumny={kolumnyZnajdz} wiersze={wynik} klucz={(w) => w.klucz} onKlik={wez} bezPaska
+            klasaWiersza={(w) => (w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis ? 'bg-red-50' : (wiekMiesiecy(w.data) ?? 0) >= s.ustawienia.wiek_ceny_ostrzezenie_mies ? 'bg-amber-50' : 'hover:bg-limonka-jasna')}
+            pusto="Brak dopasowanych cen - poszerz kryteria." />
         </div>
       </DialogContent>
     </Dialog>

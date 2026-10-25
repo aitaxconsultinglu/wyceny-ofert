@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { dataPL, liczba, zl } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { grupujDoPorownania, wczytajCeny, type WierszCeny } from '@/lib/bazaCen'
 import { Komunikat } from '../ui/komunikat'
-import { KolumnaWymagan, opisWymiarow } from './Porownywarka'
+import { kolumnyCen } from './Porownywarka'
+import { Tabela } from '../ui/Tabela'
 
 interface ZapytanieListy { id: string; numer: string; przedmiot: string }
 
@@ -48,34 +47,8 @@ export function OfertyDoZapytania({ zapytanieId: poczatkowe }: { zapytanieId?: s
       {grupy.map((g) => (
         <section key={g.klucz} className="sekcja space-y-2">
           <h3 className="text-sm font-semibold">{g.nazwa}</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px] border-collapse">
-              <thead><tr>
-                {['Dostawca', 'Opis w ofercie', 'Wymiary', 'Ilość', 'Cena oryg.', 'Cena PLN / jm', 'PLN/kg', 'Wartość PLN', 'Termin', 'Ważność', 'Warunki', 'Wymagania', 'Dopłaty'].map((n) => (
-                  <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {g.wiersze.map((w) => (
-                  <tr key={w.klucz}>
-                    <td className="komorka font-medium">{w.dostawca}<div className="text-xs font-normal text-slate-500">{dataPL(w.data)}</div></td>
-                    <td className="komorka max-w-[18rem] text-sm">{w.opis}</td>
-                    <td className="komorka whitespace-nowrap text-xs">{opisWymiarow(w)}</td>
-                    <td className="komorka liczba whitespace-nowrap">{liczba(w.ilosc)} {w.jm}</td>
-                    <td className="komorka liczba whitespace-nowrap">{liczba(w.cena_jedn, 2)} {w.waluta}</td>
-                    <td className={cn('komorka liczba whitespace-nowrap font-semibold', g.najtansza === w.klucz && 'bg-limonka-jasna')}>{zl(w.cena_pln_jm)}</td>
-                    <td className={cn('komorka liczba whitespace-nowrap', g.miara === 'kg' && g.najtansza === w.klucz && 'bg-limonka-jasna')}>{w.cena_pln_kg !== null ? liczba(w.cena_pln_kg, 2) : ''}</td>
-                    <td className="komorka liczba whitespace-nowrap">{zl(w.wartosc_pln)}</td>
-                    <td className={cn('komorka whitespace-nowrap text-xs', g.najszybsza === w.klucz && 'bg-blekit-jasny')}>{w.termin}{w.termin_dni ? ` (${w.termin_dni} dni)` : ''}</td>
-                    <td className="komorka whitespace-nowrap text-xs">{w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis}</td>
-                    <td className="komorka text-xs">{w.warunki}</td>
-                    <td className="komorka"><KolumnaWymagan w={w.wymagania} /></td>
-                    <td className="komorka text-xs">{w.doplaty.map((d) => `${d.opis} ${liczba(d.kwota)} ${w.waluta}${d.za !== 'oferta' ? `/${d.za}` : ''}`).join('; ')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabela id="oferty-do-zapytania" kolumny={kolumnyCen({ miara: g.miara === 'kg' ? 'cena_pln_kg' : 'cena_pln_szt', najtansza: g.najtansza, najszybsza: g.najszybsza, bezZrodla: true })}
+            wiersze={g.wiersze} klucz={(w) => w.klucz} bezPaska />
         </section>
       ))}
       {wybrane && grupy.length === 0 && <p className="text-sm text-slate-500">Brak zatwierdzonych ofert powiązanych z tym zapytaniem.</p>}

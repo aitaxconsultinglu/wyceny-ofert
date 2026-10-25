@@ -8,6 +8,7 @@ import type { KursWaluty } from '@/lib/types'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
+import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 
 /** Kursy NBP (tabela A). Pobierane codziennie przez pg_cron; przy ofercie w EUR zapisuje się kurs z dnia oferty. */
 export function Kursy() {
@@ -48,6 +49,15 @@ export function Kursy() {
     await Promise.all([wczytaj(), odswiezSlowniki()])
   }
 
+  const kolumny: KolumnaTabeli<KursWaluty>[] = [
+    { id: 'data', naglowek: 'Data', typ: 'data', wartosc: (k) => k.data, komorka: (k) => dataPL(k.data) },
+    { id: 'waluta', naglowek: 'Waluta', typ: 'lista', wartosc: (k) => k.waluta, className: 'font-medium' },
+    { id: 'kurs', naglowek: 'Kurs', typ: 'liczba', wartosc: (k) => Number(k.kurs), komorka: (k) => liczba(k.kurs, 4) },
+    { id: 'tabela', naglowek: 'Tabela', typ: 'tekst', wartosc: (k) => k.tabela, className: 'text-slate-500' },
+    { id: 'zrodlo', naglowek: 'Źródło', typ: 'lista', wartosc: (k) => k.zrodlo },
+    { id: 'pobrano', naglowek: 'Pobrano', typ: 'data', wartosc: (k) => k.pobrano, komorka: (k) => dataGodzinaPL(k.pobrano), className: 'text-slate-500' },
+  ]
+
   return (
     <div className="space-y-4">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -69,28 +79,7 @@ export function Kursy() {
       <p className="text-xs text-slate-500">
         Kursy pobierają się automatycznie w dni robocze ok. 12:30 (tabela A NBP). W wycenie można zawsze wpisać kurs ręcznie.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full border-collapse">
-          <thead><tr>
-            <th className="komorka-naglowek">Data</th><th className="komorka-naglowek">Waluta</th>
-            <th className="komorka-naglowek text-right">Kurs</th><th className="komorka-naglowek">Tabela</th>
-            <th className="komorka-naglowek">Źródło</th><th className="komorka-naglowek">Pobrano</th>
-          </tr></thead>
-          <tbody>
-            {kursy.map((k) => (
-              <tr key={`${k.waluta}-${k.data}`}>
-                <td className="komorka">{dataPL(k.data)}</td>
-                <td className="komorka font-medium">{k.waluta}</td>
-                <td className="komorka liczba">{liczba(k.kurs, 4)}</td>
-                <td className="komorka text-slate-500">{k.tabela}</td>
-                <td className="komorka">{k.zrodlo}</td>
-                <td className="komorka text-slate-500">{dataGodzinaPL(k.pobrano)}</td>
-              </tr>
-            ))}
-            {kursy.length === 0 && <tr><td colSpan={6} className="komorka text-center text-slate-500">Brak kursów - kliknij „Pobierz z NBP teraz”.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <Tabela id="kursy" kolumny={kolumny} wiersze={kursy} klucz={(k) => `${k.waluta}-${k.data}`} pusto="Brak kursów - kliknij „Pobierz z NBP teraz”." />
     </div>
   )
 }

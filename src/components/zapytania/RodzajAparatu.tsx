@@ -3,6 +3,7 @@ import { Cylinder, Save, Thermometer } from 'lucide-react'
 import { Button } from '../ui/button'
 import { cn } from '@/lib/utils'
 import { RODZAJE_APARATU, ZAKRESY_WYMIENNIKA, etykietaRodzaju, type RodzajAparatu, type ZakresWymiennika } from '@/lib/zapytania'
+import { t } from '@/i18n'
 
 export const IkonaRodzaju = ({ rodzaj, className }: { rodzaj: RodzajAparatu | null | undefined; className?: string }) =>
   rodzaj === 'zbiornik' ? <Cylinder className={cn('h-4 w-4 text-blekit-ciemny', className)} />
@@ -34,7 +35,7 @@ export function PoleRodzajuAparatu({ wartosc, zmien, disabled }: { wartosc: Wybo
       </div>
       {wartosc.rodzaj === 'wymiennik' && (
         <div className="space-y-1 rounded-md border border-slate-200 bg-slate-50 p-2 text-sm">
-          <span className="etykieta">Zakres</span>
+          <span className="etykieta">{t('Zakres')}</span>
           {ZAKRESY_WYMIENNIKA.map((z) => (
             <label key={z.id} className="flex items-start gap-2">
               <input type="radio" className="mt-1" disabled={disabled} checked={(wartosc.zakres ?? 'kompletny') === z.id} onChange={() => zmien({ ...wartosc, zakres: z.id })} />
@@ -42,7 +43,7 @@ export function PoleRodzajuAparatu({ wartosc, zmien, disabled }: { wartosc: Wybo
             </label>
           ))}
           {wartosc.zakres === 'czesc' && (
-            <input className="pole" disabled={disabled} placeholder="jaka część (np. komora rozdzielcza, wężownica)" value={wartosc.opis} onChange={(e) => zmien({ ...wartosc, opis: e.target.value })} />
+            <input className="pole" disabled={disabled} placeholder={t('jaka część (np. komora rozdzielcza, wężownica)')} value={wartosc.opis} onChange={(e) => zmien({ ...wartosc, opis: e.target.value })} />
           )}
         </div>
       )}
@@ -56,7 +57,7 @@ export function ZmianaRodzaju({ poczatkowy, zapisz }: { poczatkowy: WyborRodzaju
   return (
     <div className="space-y-2">
       <PoleRodzajuAparatu wartosc={w} zmien={setW} />
-      <Button wariant="glowny" rozmiar="maly" disabled={!w.rodzaj} onClick={() => zapisz(w)}><Save className="h-3 w-3" /> Zapisz rodzaj</Button>
+      <Button wariant="glowny" rozmiar="maly" disabled={!w.rodzaj} onClick={() => zapisz(w)}><Save className="h-3 w-3" /> {t('Zapisz rodzaj')}</Button>
     </div>
   )
 }

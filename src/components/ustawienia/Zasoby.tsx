@@ -5,6 +5,7 @@ import { komunikatPL } from '@/lib/config'
 import { liczba, rozmiar } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Komunikat } from '../ui/komunikat'
+import { t } from '@/i18n'
 
 interface Zajetosc { baza_bajty: number; storage_bajty: number; storage_plikow: number }
 
@@ -50,23 +51,21 @@ export function Zasoby() {
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {przekroczone && (
         <Komunikat rodzaj="ostrzezenie">
-          Zajętość przekroczyła {limity.ostrzezenie_proc}% limitu planu. Zarchiwizuj dokumenty zakończonych zapytań
-          (ZIP z oryginałami, w aplikacji zostają teksty i wyniki analiz) albo przejdź na plan Pro.
+          {t('Zajętość przekroczyła')}{' '}{limity.ostrzezenie_proc}{t('% limitu planu. Zarchiwizuj dokumenty zakończonych zapytań (ZIP z oryginałami, w aplikacji zostają teksty i wyniki analiz) albo przejdź na plan Pro.')}
         </Komunikat>
       )}
       <section className="sekcja max-w-2xl space-y-5">
         {dane ? (
           <>
-            <Pasek etykieta="Baza danych" bajty={dane.baza_bajty} limitMb={limity.baza_mb} progProc={limity.ostrzezenie_proc}
+            <Pasek etykieta={t('Baza danych')} bajty={dane.baza_bajty} limitMb={limity.baza_mb} progProc={limity.ostrzezenie_proc}
               dopisek="Wliczają się tabele, indeksy i pliki systemowe Supabase (pusta baza zajmuje kilkadziesiąt MB)." />
-            <Pasek etykieta="Pliki (Storage)" bajty={dane.storage_bajty} limitMb={limity.storage_mb} progProc={limity.ostrzezenie_proc}
-              dopisek={`${dane.storage_plikow} plików. Limit jednego pliku: ${limity.plik_mb} MB.`} />
+            <Pasek etykieta={t('Pliki (Storage)')} bajty={dane.storage_bajty} limitMb={limity.storage_mb} progProc={limity.ostrzezenie_proc}
+              dopisek={t('{0} plików. Limit jednego pliku: {1} MB.', dane.storage_plikow, limity.plik_mb)} />
           </>
-        ) : !blad && <p className="text-sm text-slate-500">Wczytywanie...</p>}
+        ) : !blad && <p className="text-sm text-slate-500">{t('Wczytywanie...')}</p>}
       </section>
       <p className="text-xs text-slate-500">
-        Limity planu zmienisz w tabeli ustawień (klucz <code>limity_planu</code>) po przejściu na plan Pro. Plan Free usypia
-        projekt po tygodniu bez aktywności - wystarczy wtedy wznowić go w panelu Supabase.
+        {t('Limity planu zmienisz w tabeli ustawień (klucz')}{' '}<code>limity_planu</code>{t(') po przejściu na plan Pro. Plan Free usypia projekt po tygodniu bez aktywności - wystarczy wtedy wznowić go w panelu Supabase.')}
       </p>
     </div>
   )

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { dataPL, liczba } from '@/lib/format'
 import type { WierszCeny } from '@/lib/bazaCen'
 import type { Miara } from './Porownywarka'
+import { t } from '@/i18n'
 
 const SZER = 900
 const WYS = 220
@@ -24,10 +25,10 @@ export function WykresCen({ wiersze, miara }: { wiersze: WierszCeny[]; miara: Mi
   return (
     <figure className="sekcja">
       <figcaption className="mb-1 flex justify-between text-xs text-slate-500">
-        <span>Cena w czasie ({punkty.length} pkt). <span className="text-blekit-ciemny">●</span> oferty <span className="ml-2 text-slate-500">◆</span> zakupy</span>
-        {najechany && <span className="font-medium text-slate-700">{dataPL(najechany.data)} · {najechany.dostawca} · {liczba(najechany[miara] as number, 2)} PLN · {najechany.opis.slice(0, 60)}</span>}
+        <span>{t('Cena w czasie (')}{punkty.length} {t('pkt).')}{' '}<span className="text-blekit-ciemny">●</span> oferty <span className="ml-2 text-slate-500">◆</span> zakupy</span>
+        {najechany && <span className="font-medium text-slate-700">{dataPL(najechany.data)} · {najechany.dostawca} · {liczba(najechany[miara] as number, 2)} {t('PLN ·')}{' '}{najechany.opis.slice(0, 60)}</span>}
       </figcaption>
-      <svg viewBox={`0 0 ${SZER} ${WYS}`} className="h-56 w-full" role="img" aria-label="Wykres cen w czasie">
+      <svg viewBox={`0 0 ${SZER} ${WYS}`} className="h-56 w-full" role="img" aria-label={t('Wykres cen w czasie')}>
         {podzialki.map((c) => (
           <g key={c}>
             <line x1={M.l} x2={SZER - M.p} y1={y(c)} y2={y(c)} stroke="#e2e8f0" />

@@ -6,6 +6,7 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { zapiszUstawienia } from './zapiszUstawienie'
+import { t } from '@/i18n'
 
 function Pole({ etykieta, opis, children }: { etykieta: string; opis?: string; children: React.ReactNode }) {
   return (
@@ -41,7 +42,7 @@ export function Parametry() {
     const b = await zapiszUstawienia({ ...stan, oferta_domyslne: oferta })
     setZajety(false)
     if (b) { setBlad(b); return }
-    setKomunikat('Zapisano. Nowe wartości obowiązują w nowych wycenach - istniejące wyceny mają własne narzuty.')
+    setKomunikat(t('Zapisano. Nowe wartości obowiązują w nowych wycenach - istniejące wyceny mają własne narzuty.'))
     await odswiez()
   }
 
@@ -51,66 +52,66 @@ export function Parametry() {
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
 
       <section className="sekcja">
-        <h3 className="text-sm font-semibold">Narzuty domyślne</h3>
+        <h3 className="text-sm font-semibold">{t('Narzuty domyślne')}</h3>
         <div className="mt-3 flex flex-wrap gap-6">
-          <Pole etykieta="Narzut zakupowy na materiały [%]" opis="Zwykle 5% albo 10%. Dolicza się do kosztu materiałów.">
+          <Pole etykieta={t('Narzut zakupowy na materiały [%]')} opis={t('Zwykle 5% albo 10%. Dolicza się do kosztu materiałów.')}>
             <PoleLiczby wartosc={stan.narzut_zakupowy_proc} zmien={ustaw('narzut_zakupowy_proc')} />
           </Pole>
-          <Pole etykieta="Narzut na kooperację [%]">
+          <Pole etykieta={t('Narzut na kooperację [%]')}>
             <PoleLiczby wartosc={stan.narzut_kooperacja_proc} zmien={ustaw('narzut_kooperacja_proc')} />
           </Pole>
-          <Pole etykieta="Narzut / zysk końcowy [%]" opis="Zwykle 10% albo 15%. Widoczny tylko dla osób z uprawnieniem do marż.">
+          <Pole etykieta={t('Narzut / zysk końcowy [%]')} opis={t('Zwykle 10% albo 15%. Widoczny tylko dla osób z uprawnieniem do marż.')}>
             <PoleLiczby wartosc={stan.narzut_zysk_proc} zmien={ustaw('narzut_zysk_proc')} />
           </Pole>
           <label className="block">
-            <span className="etykieta">Zaokrąglenie ceny aparatu</span>
+            <span className="etykieta">{t('Zaokrąglenie ceny aparatu')}</span>
             <select className="pole w-40" value={stan.zaokraglenie_ceny}
               onChange={(e) => setStan({ ...stan, zaokraglenie_ceny: Number(e.target.value) })}>
-              <option value={0}>bez zaokrąglenia</option>
-              <option value={10}>do 10 zł</option>
-              <option value={100}>do 100 zł</option>
-              <option value={1000}>do 1000 zł</option>
+              <option value={0}>{t('bez zaokrąglenia')}</option>
+              <option value={10}>{t('do 10 zł')}</option>
+              <option value={100}>{t('do 100 zł')}</option>
+              <option value={1000}>{t('do 1000 zł')}</option>
             </select>
-            <span className="mt-1 block max-w-xs text-xs text-slate-500">Cena po narzucie zaokrąglana do najbliższej wielokrotności.</span>
+            <span className="mt-1 block max-w-xs text-xs text-slate-500">{t('Cena po narzucie zaokrąglana do najbliższej wielokrotności.')}</span>
           </label>
         </div>
       </section>
 
       <section className="sekcja">
-        <h3 className="text-sm font-semibold">Ilości i ostrzeżenia</h3>
+        <h3 className="text-sm font-semibold">{t('Ilości i ostrzeżenia')}</h3>
         <div className="mt-3 flex flex-wrap gap-6">
-          <Pole etykieta="Mnożnik masy materiału" opis="Wycena uproszczona: masa × 1,1 (naddatek na odpad).">
+          <Pole etykieta={t('Mnożnik masy materiału')} opis={t('Wycena uproszczona: masa × 1,1 (naddatek na odpad).')}>
             <PoleLiczby wartosc={stan.wspolczynnik_ilosci_materialu} zmien={ustaw('wspolczynnik_ilosci_materialu')} />
           </Pole>
-          <Pole etykieta="Cena nieaktualna po [mies.]" opis="Ceny starsze są oznaczane kolorem.">
+          <Pole etykieta={t('Cena nieaktualna po [mies.]')} opis={t('Ceny starsze są oznaczane kolorem.')}>
             <PoleLiczby wartosc={stan.wiek_ceny_ostrzezenie_mies} zmien={ustaw('wiek_ceny_ostrzezenie_mies')} />
           </Pole>
-          <Pole etykieta="Ryzyko cenowe: oferta dostawcy ważna krócej niż [dni]">
+          <Pole etykieta={t('Ryzyko cenowe: oferta dostawcy ważna krócej niż [dni]')}>
             <PoleLiczby wartosc={stan.waznosc_oferty_dostawcy_ryzyko_dni} zmien={ustaw('waznosc_oferty_dostawcy_ryzyko_dni')} />
           </Pole>
         </div>
       </section>
 
       <section className="sekcja">
-        <h3 className="text-sm font-semibold">Domyślne warunki oferty dla klienta</h3>
+        <h3 className="text-sm font-semibold">{t('Domyślne warunki oferty dla klienta')}</h3>
         <div className="mt-3 flex flex-wrap gap-6">
-          <Pole etykieta="Gwarancja [mies.]">
+          <Pole etykieta={t('Gwarancja [mies.]')}>
             <PoleLiczby wartosc={oferta.gwarancja_mies} zmien={(n) => setOferta({ ...oferta, gwarancja_mies: n ?? 0 })} />
           </Pole>
-          <Pole etykieta="Ważność oferty [dni]" opis="Zwykle 30 albo 60 dni.">
+          <Pole etykieta={t('Ważność oferty [dni]')} opis={t('Zwykle 30 albo 60 dni.')}>
             <PoleLiczby wartosc={oferta.waznosc_dni} zmien={(n) => setOferta({ ...oferta, waznosc_dni: n ?? 0 })} />
           </Pole>
           <label className="block">
-            <span className="etykieta">Płatność</span>
+            <span className="etykieta">{t('Płatność')}</span>
             <input className="pole w-40" value={oferta.platnosc} onChange={(e) => setOferta({ ...oferta, platnosc: e.target.value })} />
           </label>
-          <Pole etykieta="VAT [%]">
+          <Pole etykieta={t('VAT [%]')}>
             <PoleLiczby wartosc={oferta.vat_proc} zmien={(n) => setOferta({ ...oferta, vat_proc: n ?? 0 })} />
           </Pole>
         </div>
       </section>
 
-      <Button wariant="glowny" disabled={zajety} onClick={() => void zapisz()}><Save className="h-4 w-4" /> Zapisz parametry</Button>
+      <Button wariant="glowny" disabled={zajety} onClick={() => void zapisz()}><Save className="h-4 w-4" /> {t('Zapisz parametry')}</Button>
     </div>
   )
 }

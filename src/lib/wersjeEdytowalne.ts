@@ -4,6 +4,7 @@
 // Tu tylko logika bez przeglądarki (testowana); pliki i render: wersjeEdytowalnePliki.ts, Word: wersjeEdytowalneWord.ts.
 import { linieTekstu } from './odczytTekstowy'
 import { elementyWObszarze, ulozWTabele, type ElementTekstu, type Prostokat } from './rysunki'
+import { t } from '@/i18n'
 
 export type TypBloku = 'naglowek' | 'akapit' | 'lista' | 'tabela' | 'podpis'
 export type Wyrownanie = 'lewo' | 'srodek' | 'prawo' | 'wyjustowane'
@@ -32,7 +33,7 @@ export const PUSTA_TRESC: TrescPliku = { strony: {}, tlumaczenie: {} }
 
 export type RodzajPliku = 'pdf' | 'obraz' | 'docx' | 'arkusz' | 'tekst' | 'cad' | 'inny'
 export type RodzajObszaruTekstu = 'tekst' | 'tabela'
-export const ETYKIETY_OBSZARU_TEKSTU: Record<RodzajObszaruTekstu, string> = { tekst: 'Tekst', tabela: 'Tabela' }
+export const ETYKIETY_OBSZARU_TEKSTU: Record<RodzajObszaruTekstu, string> = { tekst: t('Tekst'), tabela: t('Tabela') }
 export const KOLORY_OBSZARU_TEKSTU: Record<RodzajObszaruTekstu, string> = { tekst: '#2563eb', tabela: '#16a34a' }
 export interface ObszarTekstu extends Prostokat { id: string; rodzaj: RodzajObszaruTekstu }
 
@@ -57,8 +58,8 @@ export function rodzajPliku(nazwa: string): RodzajPliku {
 // --- Język bez AI --------------------------------------------------------------------------------------
 
 export const NAZWY_JEZYKOW: Record<string, string> = {
-  pl: 'polski', en: 'angielski', de: 'niemiecki', fr: 'francuski', it: 'włoski', es: 'hiszpański', cs: 'czeski',
-  sk: 'słowacki', nl: 'niderlandzki', sv: 'szwedzki', ru: 'rosyjski', uk: 'ukraiński', pt: 'portugalski',
+  pl: t('polski'), en: t('angielski'), de: t('niemiecki'), fr: t('francuski'), it: t('włoski'), es: t('hiszpański'), cs: t('czeski'),
+  sk: t('słowacki'), nl: t('niderlandzki'), sv: t('szwedzki'), ru: t('rosyjski'), uk: t('ukraiński'), pt: t('portugalski'),
 }
 
 // Najczęstsze krótkie słowa języka - wystarczają do rozpoznania strony tekstu (rysunki i tabele mają ich mało).

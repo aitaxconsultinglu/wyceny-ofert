@@ -5,14 +5,15 @@ import { supabase } from './supabase'
 import { komunikatPL } from './config'
 import { BUCKET } from './magazyn'
 import { zapiszKrok } from './historia'
+import { t } from '@/i18n'
 
 export type RodzajKosza = 'zapytanie' | 'dokument' | 'odczyt_rysunku' | 'wycena' | 'oferta_dostawcy' | 'import_optima'
   | 'import_registo' | 'zapytanie_do_dostawcy' | 'plik_edytowalny'
 
 export const ETYKIETY_KOSZA: Record<RodzajKosza, string> = {
-  zapytanie: 'zapytanie ofertowe', dokument: 'dokument', odczyt_rysunku: 'odczyt rysunku', wycena: 'wersja wyceny',
-  oferta_dostawcy: 'oferta dostawcy', import_optima: 'import karty dostawy', import_registo: 'import Registo',
-  zapytanie_do_dostawcy: 'zapytanie do dostawców', plik_edytowalny: 'plik (wersje edytowalne)',
+  zapytanie: t('zapytanie ofertowe'), dokument: t('dokument'), odczyt_rysunku: t('odczyt rysunku'), wycena: t('wersja wyceny'),
+  oferta_dostawcy: t('oferta dostawcy'), import_optima: t('import karty dostawy'), import_registo: t('import Registo'),
+  zapytanie_do_dostawcy: t('zapytanie do dostawców'), plik_edytowalny: t('plik (wersje edytowalne)'),
 }
 
 export interface WpisKosza {
@@ -26,12 +27,12 @@ export async function doKosza(rodzaj: RodzajKosza, ids: string[], zakres: string
   for (const id of ids) {
     const { data, error } = await supabase.rpc('przenies_do_kosza', { p_rodzaj: rodzaj, p_id: id })
     if (error) {
-      if (kroki.length && zakres) zapiszKrok(zakres, { opis: opis ?? `usunięcie: ${ETYKIETY_KOSZA[rodzaj]}`, czas: Date.now(), kosz: kroki })
+      if (kroki.length && zakres) zapiszKrok(zakres, { opis: opis ?? t('usunięcie: {0}', ETYKIETY_KOSZA[rodzaj]), czas: Date.now(), kosz: kroki })
       throw new Error(komunikatPL(error.message))
     }
     kroki.push({ rodzaj, id, koszId: data as string })
   }
-  if (kroki.length && zakres) zapiszKrok(zakres, { opis: opis ?? `usunięcie: ${ETYKIETY_KOSZA[rodzaj]}${kroki.length > 1 ? ` (${kroki.length})` : ''}`, czas: Date.now(), kosz: kroki })
+  if (kroki.length && zakres) zapiszKrok(zakres, { opis: opis ?? t('usunięcie: {0}{1}', ETYKIETY_KOSZA[rodzaj], kroki.length > 1 ? ` (${kroki.length})` : ''), czas: Date.now(), kosz: kroki })
   return kroki.length
 }
 
@@ -47,7 +48,7 @@ export async function usunTrwale(koszId: string, potwierdzenie: string | null) {
   const pliki = (data as string[] | null) ?? []
   for (let i = 0; i < pliki.length; i += 100) {
     const { error: e } = await supabase.storage.from(BUCKET).remove(pliki.slice(i, i + 100))
-    if (e) throw new Error(`Wpis usunięty, ale nie wszystkie pliki: ${komunikatPL(e.message)}`)
+    if (e) throw new Error(t('Wpis usunięty, ale nie wszystkie pliki: {0}', komunikatPL(e.message)))
   }
   return pliki.length
 }

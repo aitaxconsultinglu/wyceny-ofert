@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { supabase } from './supabase'
 import { komunikatPL } from './config'
+import { t } from '@/i18n'
 
 // --- Różnice stanów ---------------------------------------------------------------------------------------
 
@@ -148,16 +149,16 @@ export function wyczyscHistorie(zakres: string) { ustawStos(zakres, { kroki: [],
 async function sprawdzKonflikt(k: KomendaBazy, oczekiwany: Record<string, unknown> | null): Promise<boolean> {
   const { data } = await supabase.from(k.tabela).select('*').eq(k.kolumna, k.id).maybeSingle()
   const biezacy = data as Record<string, unknown> | null
-  if (!oczekiwany) return !biezacy || window.confirm('Rekord, który ma zostać przywrócony, już istnieje (ktoś go dodał). Nadpisać?')
-  if (!biezacy) return window.confirm('Ktoś inny usunął ten rekord w międzyczasie. Odtworzyć go?')
+  if (!oczekiwany) return !biezacy || window.confirm(t('Rekord, który ma zostać przywrócony, już istnieje (ktoś go dodał). Nadpisać?'))
+  if (!biezacy) return window.confirm(t('Ktoś inny usunął ten rekord w międzyczasie. Odtworzyć go?'))
   const zmienione = Object.keys(oczekiwany).filter((p) => p !== 'zmodyfikowano' && JSON.stringify(biezacy[p]) !== JSON.stringify(oczekiwany[p]))
-  return !zmienione.length || window.confirm(`Ktoś inny zmienił ten rekord po Twojej zmianie (${zmienione.join(', ')}). Nadpisać jego zmianę?`)
+  return !zmienione.length || window.confirm(t('Ktoś inny zmienił ten rekord po Twojej zmianie ({0}). Nadpisać jego zmianę?', zmienione.join(', ')))
 }
 
 async function wykonajKomende(k: KomendaBazy, kierunek: 'wstecz' | 'naprzod') {
   const cel = kierunek === 'wstecz' ? k.przed : k.po
   const obecny = kierunek === 'wstecz' ? k.po : k.przed
-  if (!(await sprawdzKonflikt(k, obecny))) throw new Error('Anulowano.')
+  if (!(await sprawdzKonflikt(k, obecny))) throw new Error(t('Anulowano.'))
   const bezZnacznika = (r: Record<string, unknown>) => Object.fromEntries(Object.entries(r).filter(([p]) => p !== 'zmodyfikowano'))
   const { error } = !cel
     ? await supabase.from(k.tabela).delete().eq(k.kolumna, k.id)

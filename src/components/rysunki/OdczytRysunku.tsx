@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dia
 import { PodgladRysunku } from './PodgladRysunku'
 import { SiatkaOdczytu, type ZakladkaSiatki } from './SiatkaOdczytu'
 import { PrzeniesDoWyceny } from './PrzeniesDoWyceny'
+import { t } from '@/i18n'
 
 export interface DokumentRysunku { id: string; nazwa_pliku: string; sciezka: string | null; metadane: Record<string, unknown> }
 export interface OdczytZapisany {
@@ -95,13 +96,13 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     if (n.wynik) setWynik(n.wynik)
     if (n.obszary) setObszary(n.obszary)
   }
-  const zmien = (w: WynikRysunku) => { krok({ wynik: w }, 'zmiana w tabeli odczytu'); setZmieniony(true); setKomunikat(null) }
+  const zmien = (w: WynikRysunku) => { krok({ wynik: w }, t('zmiana w tabeli odczytu')); setZmieniony(true); setKomunikat(null) }
 
   // PDF z magazynu (oryginał może być już zarchiwizowany - wtedy zostaje sam wynik).
   useEffect(() => {
-    if (!bajty && !dokument.sciezka) { setBlad('Oryginał pliku został zarchiwizowany - podgląd niedostępny, wynik odczytu można dalej edytować.'); return }
+    if (!bajty && !dokument.sciezka) { setBlad(t('Oryginał pliku został zarchiwizowany - podgląd niedostępny, wynik odczytu można dalej edytować.')); return }
     let anuluj = false
-    setZajety('Wczytywanie rysunku...')
+    setZajety(t('Wczytywanie rysunku...'))
     ;(bajty ? Promise.resolve(bajty) : pobierzBajty(dokument.sciezka!)).then(otworzRysunek).then((d) => { if (!anuluj) setPdf(d) })
       .catch((e) => setBlad(e instanceof Error ? e.message : String(e)))
       .finally(() => setZajety(null))
@@ -111,7 +112,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
   useEffect(() => {
     if (!pdf) return
     let anuluj = false
-    setZajety(`Renderowanie strony ${strona}...`); setPodglad(null)
+    setZajety(t('Renderowanie strony {0}...', strona)); setPodglad(null)
     Promise.all([infoStrony(pdf, strona), renderujPodglad(pdf, strona), natywneDpi(pdf, strona)]).then(([i, p, n]) => {
       if (anuluj) return
       setInfo(i); setPodglad(p); setNatywne(n)
@@ -120,7 +121,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
   }, [pdf, strona])
 
   function zmienStrone(n: number) {
-    if (zmieniony && !window.confirm('Odczyt dotyczy jednej strony. Przejść na inną stronę bez zapisu zmian?')) return
+    if (zmieniony && !window.confirm(t('Odczyt dotyczy jednej strony. Przejść na inną stronę bez zapisu zmian?'))) return
     // Nowa strona = nowy odczyt.
     setStrona(n); setObszary([]); setWynik(PUSTY_WYNIK); setId(null); setZrodlo('recznie'); setEkstrakcjaAi(null); setModel(null); setKoszt(null)
     setSprawdzony(false); setZmieniony(false); setPodswietlony(null)
@@ -142,10 +143,10 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
   }
 
   const potwierdzZastapienie = () =>
-    !(wynik.pozycje.length + wynik.krocce.length + wynik.parametry.length) || window.confirm('Zastąpić bieżący wynik nowym odczytem?')
+    !(wynik.pozycje.length + wynik.krocce.length + wynik.parametry.length) || window.confirm(t('Zastąpić bieżący wynik nowym odczytem?'))
 
   async function odczytajTekst() {
-    if (!info || !obszary.length) { setBlad('Zaznacz na rysunku obszar tabeli (przeciągnij myszą).'); return }
+    if (!info || !obszary.length) { setBlad(t('Zaznacz na rysunku obszar tabeli (przeciągnij myszą).')); return }
     if (!potwierdzZastapienie()) return
     setBlad(null)
     const el = await elementyStrony()
@@ -156,14 +157,14 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     const w = polaczWyniki(...wyniki)
     const ile = w.pozycje.length + w.krocce.length + w.parametry.length
     zmien(w); setZrodlo('tekst')
-    setKomunikat(ile ? `Odczytano z warstwy tekstowej: ${podsumowanie(w)}. Sprawdź kolumny - układ tabel bywa nietypowy.` : 'W zaznaczonych obszarach nie rozpoznano tabeli. Użyj odczytu AI albo wklej tabelę.')
+    setKomunikat(ile ? t('Odczytano z warstwy tekstowej: {0}. Sprawdź kolumny - układ tabel bywa nietypowy.', podsumowanie(w)) : t('W zaznaczonych obszarach nie rozpoznano tabeli. Użyj odczytu AI albo wklej tabelę.'))
   }
 
   /** Przygotowanie wywołań AI: tekst z warstwy PDF, gdy jest (tanio), inaczej kafle ~300 DPI. */
   async function przygotujAi() {
     if (!pdf || !info) return
-    if (!obszary.length) { setBlad('Zaznacz na rysunku obszar tabeli albo użyj „Cały arkusz”.'); return }
-    setBlad(null); setZajety('Przygotowanie wycinków...')
+    if (!obszary.length) { setBlad(t('Zaznacz na rysunku obszar tabeli albo użyj „Cały arkusz”.')); return }
+    setBlad(null); setZajety(t('Przygotowanie wycinków...'))
     try {
       const el = await elementyStrony()
       const zadania: ZadanieAi[] = []
@@ -172,11 +173,11 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
         const metadane = { plik: dokument.nazwa_pliku, strona, obszar: ETYKIETY_OBSZARU[o.rodzaj] }
         const wspolne = { zapytanie_id: zapytanieId, dokument_id: dokument.id, metadane }
         if (elementy.length >= MIN_ELEMENTOW_TEKSTU) {
-          const t = ulozWTabele(elementy)
-          const tekst = `Obszar: ${ETYKIETY_OBSZARU[o.rodzaj]} (tekst z warstwy PDF)\n${t.wiersze.map((r) => r.join(' | ')).join('\n')}`
-          zadania.push({ obszar: o, dane: { ...wspolne, tekst }, kafleNaStronie: [], tokeny: Math.ceil(tekst.length / 3), opis: `${ETYKIETY_OBSZARU[o.rodzaj]}: tekst (${t.wiersze.length} wierszy)` })
+          const tab = ulozWTabele(elementy)
+          const tekst = t('Obszar: {0} (tekst z warstwy PDF) {1}', ETYKIETY_OBSZARU[o.rodzaj], tab.wiersze.map((r) => r.join(' | ')).join('\n'))
+          zadania.push({ obszar: o, dane: { ...wspolne, tekst }, kafleNaStronie: [], tokeny: Math.ceil(tekst.length / 3), opis: t('{0}: tekst ({1} wierszy)', ETYKIETY_OBSZARU[o.rodzaj], tab.wiersze.length) })
         } else {
-          setZajety(`Renderowanie wycinka „${ETYKIETY_OBSZARU[o.rodzaj]}” w ~300 DPI...`)
+          setZajety(t('Renderowanie wycinka „{0}” w ~300 DPI...', ETYKIETY_OBSZARU[o.rodzaj]))
           const k = await kafleObszaru(pdf, strona, o, { natywne })
           const prost = k.kafle.map((x) => x.prostokat)
           const obrazy = k.kafle.map((x, i) => ({ media_type: 'image/jpeg' as const, dane: x.base64, opis: opisKafla(i + 1, o.rodzaj, x.prostokat, prost) }))
@@ -189,19 +190,19 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
             zadania.push({
               obszar: o, dane: { ...wspolne, obrazy: paczka }, kafleNaStronie: naStronie,
               tokeny: prost.slice(od, od + KAFLE_NA_WYWOLANIE).reduce((sum, p) => sum + tokenyObrazu(p.w, p.h), 0),
-              opis: `${ETYKIETY_OBSZARU[o.rodzaj]}: ${kafliOdmiana(paczka.length)} (${k.dpi} DPI)${czesci > 1 ? `, część ${c + 1}/${czesci}` : ''}`,
+              opis: t('{0}: {1} ({2} DPI){3}', ETYKIETY_OBSZARU[o.rodzaj], kafliOdmiana(paczka.length), k.dpi, czesci > 1 ? `, część ${c + 1}/${czesci}` : ''),
             })
           }
         }
       }
       // Szacunek kosztu po stronie funkcji (liczenie tokenów, bez wywołania modelu).
-      setZajety('Szacowanie kosztu...')
+      setZajety(t('Szacowanie kosztu...'))
       let suma = 0
       let pozostalo: number | null = null
       let uwaga: string | null = null
       for (const z of zadania) {
         const { szacunek, blad: b } = await szacujAi('wyciagnij_liste_z_rysunku', z.dane)
-        if (b || !szacunek) { uwaga = b ?? 'Nie udało się oszacować kosztu.'; break }
+        if (b || !szacunek) { uwaga = b ?? t('Nie udało się oszacować kosztu.'); break }
         suma += szacunek.koszt_pln
         pozostalo = szacunek.pozostalo_miesiac_pln
       }
@@ -221,9 +222,9 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     let mod: string | null = null
     try {
       for (const [i, z] of plan.zadania.entries()) {
-        setZajety(`Odczyt AI ${i + 1}/${plan.zadania.length}: ${z.opis}...`)
+        setZajety(t('Odczyt AI {0}/{1}: {2}...', i + 1, plan.zadania.length, z.opis))
         const { odp, blad: b } = await wywolajAi<RysunekAi>('wyciagnij_liste_z_rysunku', z.dane)
-        if (b || !odp) throw new Error(b ?? 'Brak odpowiedzi.')
+        if (b || !odp) throw new Error(b ?? t('Brak odpowiedzi.'))
         suma += odp.koszt_pln; mod = odp.model
         surowe.push({ obszar: z.obszar.rodzaj, wynik: odp.wynik })
         wyniki.push(zWynikuAi(odp.wynik, z.kafleNaStronie, s.kategorieMaterialow.map((k) => k.kod)))
@@ -236,7 +237,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     // Wynik AI zapisujemy od razu - nie liczymy go ponownie bez decyzji użytkownika.
     await zapisz({ wynik: w, zrodlo: 'ai', ekstrakcja_ai: surowe, model: mod, koszt_pln: suma, sprawdzony: false })
     const niepewne = [...w.pozycje, ...w.krocce, ...w.parametry].filter((x) => x.pewnosc < 0.8).length
-    setKomunikat(`Odczyt AI zapisany (${liczba(suma, 2)} zł). ${niepewne ? `${niepewne} wierszy do sprawdzenia - są wyróżnione na żółto.` : ''}`)
+    setKomunikat(t('Odczyt AI zapisany ({0} zł). {1}', liczba(suma, 2), niepewne ? `${niepewne} wierszy do sprawdzenia - są wyróżnione na żółto.` : ''))
   }
 
   function calyArkusz() {
@@ -244,9 +245,9 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     const dpi = dpiObszaru(info.szerPt, info.wysPt, { natywne })
     const k = kafle(Math.round(info.szerPt * dpi / 72), Math.round(info.wysPt * dpi / 72))
     const tok = k.reduce((sum, p) => sum + tokenyObrazu(p.w, p.h), 0)
-    if (!window.confirm(`Cały arkusz to ${kafliOdmiana(k.length)} (~${Math.round(tok / 1000)} tys. tokenów wejścia) - zwykle kilka razy drożej niż zaznaczenie samej tabeli. Dodać obszar „${ETYKIETY_OBSZARU[rodzajNowego]}” na całą stronę?`)) return
+    if (!window.confirm(t('Cały arkusz to {0} (~{1} tys. tokenów wejścia) - zwykle kilka razy drożej niż zaznaczenie samej tabeli. Dodać obszar „{2}” na całą stronę?', kafliOdmiana(k.length), Math.round(tok / 1000), ETYKIETY_OBSZARU[rodzajNowego]))) return
     const o: Obszar = { id: crypto.randomUUID(), rodzaj: rodzajNowego, x: 0, y: 0, w: 1, h: 1 }
-    krok({ obszary: [...obszary, o] }, 'obszar: cały arkusz'); setWybrany(o.id); setZmieniony(true)
+    krok({ obszary: [...obszary, o] }, t('obszar: cały arkusz')); setWybrany(o.id); setZmieniony(true)
   }
 
   function wklejTabele() {
@@ -255,9 +256,9 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
     const rodzaj: RodzajObszaru = wklej.cel === 'krocce' ? 'krocce' : wklej.cel === 'parametry' ? 'parametry' : 'czesci'
     const nowy = zTabeli(rodzaj, wiersze)
     const ile = nowy.pozycje.length + nowy.krocce.length + nowy.parametry.length
-    if (!ile) { setBlad(rodzaj === 'czesci' ? 'Nie rozpoznano tabeli - pierwszy wiersz powinien mieć nagłówki (np. Poz., Nazwa, Ilość, Materiał).' : 'Nie rozpoznano wierszy tabeli.'); return }
+    if (!ile) { setBlad(rodzaj === 'czesci' ? t('Nie rozpoznano tabeli - pierwszy wiersz powinien mieć nagłówki (np. Poz., Nazwa, Ilość, Materiał).') : t('Nie rozpoznano wierszy tabeli.')); return }
     zmien(polaczWyniki(wynik, nowy)); setZakladka(wklej.cel); setWklej(null)
-    setKomunikat(`Wklejono ${odmiana(ile, ['wiersz', 'wiersze', 'wierszy'])}.`)
+    setKomunikat(t('Wklejono {0}.', odmiana(ile, ['wiersz', 'wiersze', 'wierszy'])))
   }
 
   async function zapisz(nadpisz: Partial<OdczytZapisany> = {}) {
@@ -271,7 +272,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
       : await supabase.from('odczyty_rysunkow').insert(dane).select('id').single()
     if (error) { setBlad(komunikatPL(error.message)); return false }
     setId(data.id as string); setZmieniony(false)
-    if (!nadpisz.wynik) setKomunikat('Zapisano odczyt.')
+    if (!nadpisz.wynik) setKomunikat(t('Zapisano odczyt.'))
     return true
   }
 
@@ -286,7 +287,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Button rozmiar="maly" wariant="cichy" onClick={() => { if (!zmieniony || window.confirm('Wyjść bez zapisu zmian?')) zamknij() }}><ArrowLeft className="h-4 w-4" /> Rysunki</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={() => { if (!zmieniony || window.confirm(t('Wyjść bez zapisu zmian?'))) zamknij() }}><ArrowLeft className="h-4 w-4" /> {t('Rysunki')}</Button>
         <h3 className="font-semibold">{dokument.nazwa_pliku}</h3>
         <div className="flex items-center gap-1 text-sm">
           <Button rozmiar="maly" disabled={strona <= 1} onClick={() => zmienStrone(strona - 1)}><ArrowLeft className="h-3 w-3" /></Button>
@@ -296,11 +297,11 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
         {info && (
           <span className="text-xs text-slate-500">
             {Math.round(info.szerPt / 72 * 25.4)}×{Math.round(info.wysPt / 72 * 25.4)} mm
-            {info.elementowTekstu ? ` · warstwa tekstowa (${info.elementowTekstu} elementów)` : ' · skan bez warstwy tekstowej'}
-            {natywne ? ` · skan ${natywne} DPI` : ''}
+            {info.elementowTekstu ? t(' · warstwa tekstowa ({0} elementów)', info.elementowTekstu) : t(' · skan bez warstwy tekstowej')}
+            {natywne ? t(' · skan {0} DPI', natywne) : ''}
           </span>
         )}
-        {zrodlo !== 'recznie' && <span className="znacznik bg-slate-100 text-slate-700">{zrodlo === 'ai' ? `AI${model ? ` (${model})` : ''}${koszt ? `, ${liczba(koszt, 2)} zł` : ''}` : 'warstwa tekstowa'}</span>}
+        {zrodlo !== 'recznie' && <span className="znacznik bg-slate-100 text-slate-700">{zrodlo === 'ai' ? `AI${model ? ` (${model})` : ''}${koszt ? `, ${liczba(koszt, 2)} zł` : ''}` : t('warstwa tekstowa')}</span>}
       </div>
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
@@ -309,7 +310,7 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
       {podglad && (
         <section className="sekcja space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="etykieta mb-0">Zaznacz:</span>
+            <span className="etykieta mb-0">{t('Zaznacz:')}</span>
             {RODZAJE.map((r) => (
               <button key={r} onClick={() => setRodzajNowego(r)}
                 className={cn('rounded-md border px-2 py-1 text-xs', rodzajNowego === r ? 'font-semibold text-white' : 'bg-white text-slate-700')}
@@ -317,32 +318,32 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
                 {ETYKIETY_OBSZARU[r]}
               </button>
             ))}
-            <Button rozmiar="maly" wariant="cichy" onClick={calyArkusz} title="Cały arkusz jako jeden obszar - drożej"><Maximize className="h-3 w-3" /> cały arkusz</Button>
+            <Button rozmiar="maly" wariant="cichy" onClick={calyArkusz} title={t('Cały arkusz jako jeden obszar - drożej')}><Maximize className="h-3 w-3" /> {t('cały arkusz')}</Button>
             <span className="mx-1 h-5 w-px bg-slate-200" />
-            <Button rozmiar="maly" onClick={() => setZoom((z) => Math.max(0.5, z / 1.25))} title="Pomniejsz"><ZoomOut className="h-3 w-3" /></Button>
+            <Button rozmiar="maly" onClick={() => setZoom((z) => Math.max(0.5, z / 1.25))} title={t('Pomniejsz')}><ZoomOut className="h-3 w-3" /></Button>
             <span className="w-12 text-center text-xs">{Math.round(zoom * 100)}%</span>
-            <Button rozmiar="maly" onClick={() => setZoom((z) => Math.min(6, z * 1.25))} title="Powiększ"><ZoomIn className="h-3 w-3" /></Button>
+            <Button rozmiar="maly" onClick={() => setZoom((z) => Math.min(6, z * 1.25))} title={t('Powiększ')}><ZoomIn className="h-3 w-3" /></Button>
             <span className="ml-auto text-xs text-slate-500">
-              Przeciągnij myszą, żeby zaznaczyć tabelę. Do AI idą tylko zaznaczone fragmenty (w ~300 DPI, pocięte na kafle).
+              {t('Przeciągnij myszą, żeby zaznaczyć tabelę. Do AI idą tylko zaznaczone fragmenty (w ~300 DPI, pocięte na kafle).')}
             </span>
           </div>
           <div className="max-h-[70vh] overflow-auto rounded border border-slate-200 bg-slate-100">
             <PodgladRysunku
               dataUrl={podglad.dataUrl} obszary={obszary} rodzajNowego={rodzajNowego} zoom={zoom} wybrany={wybrany}
               podswietlony={podswietlony} tylkoOdczyt={tylkoOdczyt} wybierz={setWybrany}
-              dodaj={(o) => { krok({ obszary: [...aktualny.current.obszary, o] }, 'zaznaczenie obszaru'); setZmieniony(true) }}
-              usun={(x) => { krok({ obszary: aktualny.current.obszary.filter((o) => o.id !== x) }, 'usunięcie obszaru'); setWybrany(null); setZmieniony(true) }}
+              dodaj={(o) => { krok({ obszary: [...aktualny.current.obszary, o] }, t('zaznaczenie obszaru')); setZmieniony(true) }}
+              usun={(x) => { krok({ obszary: aktualny.current.obszary.filter((o) => o.id !== x) }, t('usunięcie obszaru')); setWybrany(null); setZmieniony(true) }}
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-600">{obszary.length ? `Obszary: ${obszary.map((o) => ETYKIETY_OBSZARU[o.rodzaj]).join(', ')}` : 'Brak zaznaczonych obszarów.'}</span>
+            <span className="text-xs text-slate-600">{obszary.length ? t('Obszary: {0}', obszary.map((o) => ETYKIETY_OBSZARU[o.rodzaj]).join(', ')) : t('Brak zaznaczonych obszarów.')}</span>
             <span className="ml-auto" />
             <Button rozmiar="maly" disabled={!info?.elementowTekstu || !obszary.length || !!zajety} onClick={() => void odczytajTekst()}
-              title={info?.elementowTekstu ? 'Tabela z warstwy tekstowej PDF - bez kosztów' : 'Skan nie ma warstwy tekstowej'}>
-              <FileText className="h-3 w-3" /> Odczytaj z tekstu PDF (bez AI)
+              title={info?.elementowTekstu ? t('Tabela z warstwy tekstowej PDF - bez kosztów') : t('Skan nie ma warstwy tekstowej')}>
+              <FileText className="h-3 w-3" /> {t('Odczytaj z tekstu PDF (bez AI)')}
             </Button>
             <Button rozmiar="maly" wariant="akcent" disabled={!obszary.length || !!zajety} onClick={() => void przygotujAi()}>
-              <Sparkles className="h-3 w-3" /> Odczytaj przez AI
+              <Sparkles className="h-3 w-3" /> {t('Odczytaj przez AI')}
             </Button>
           </div>
         </section>
@@ -350,15 +351,15 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
 
       <section className="sekcja space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h4 className="text-sm font-semibold">Wynik odczytu</h4>
+          <h4 className="text-sm font-semibold">{t('Wynik odczytu')}</h4>
           <label className="flex items-center gap-1 text-xs">
-            <input type="checkbox" checked={sprawdzony} onChange={(e) => { setSprawdzony(e.target.checked); setZmieniony(true) }} /> sprawdzony z rysunkiem
+            <input type="checkbox" checked={sprawdzony} onChange={(e) => { setSprawdzony(e.target.checked); setZmieniony(true) }} /> {t('sprawdzony z rysunkiem')}
           </label>
           <span className="ml-auto" />
-          <Button rozmiar="maly" onClick={() => setWklej({ tekst: '', cel: zakladka === 'uwagi' ? 'pozycje' : zakladka })}><ClipboardPaste className="h-3 w-3" /> Wklej tabelę</Button>
-          <Button rozmiar="maly" onClick={() => void pobierzExcel()}><FileSpreadsheet className="h-3 w-3" /> Pobierz Excel</Button>
-          <Button rozmiar="maly" disabled={!wynik.pozycje.length} onClick={() => setPrzenies(true)}><ArrowRight className="h-3 w-3" /> Przenieś do wyceny</Button>
-          <Button rozmiar="maly" wariant="glowny" disabled={!zmieniony} onClick={() => void zapisz()}><Save className="h-3 w-3" /> Zapisz</Button>
+          <Button rozmiar="maly" onClick={() => setWklej({ tekst: '', cel: zakladka === 'uwagi' ? 'pozycje' : zakladka })}><ClipboardPaste className="h-3 w-3" /> {t('Wklej tabelę')}</Button>
+          <Button rozmiar="maly" onClick={() => void pobierzExcel()}><FileSpreadsheet className="h-3 w-3" /> {t('Pobierz Excel')}</Button>
+          <Button rozmiar="maly" disabled={!wynik.pozycje.length} onClick={() => setPrzenies(true)}><ArrowRight className="h-3 w-3" /> {t('Przenieś do wyceny')}</Button>
+          <Button rozmiar="maly" wariant="glowny" disabled={!zmieniony} onClick={() => void zapisz()}><Save className="h-3 w-3" /> {t('Zapisz')}</Button>
         </div>
         <SiatkaOdczytu
           wynik={wynik} zmien={zmien} kategorie={s.kategorieMaterialow} zakladka={zakladka} setZakladka={setZakladka}
@@ -369,19 +370,19 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
 
       <Dialog open={!!aiPlan} onOpenChange={(o) => !o && setAiPlan(null)}>
         <DialogContent className="max-w-lg">
-          <DialogTitle>Odczyt przez AI - potwierdzenie kosztu</DialogTitle>
-          <DialogDescription>Do Claude API trafią tylko poniższe wycinki rysunku (bez całego pliku).</DialogDescription>
+          <DialogTitle>{t('Odczyt przez AI - potwierdzenie kosztu')}</DialogTitle>
+          <DialogDescription>{t('Do Claude API trafią tylko poniższe wycinki rysunku (bez całego pliku).')}</DialogDescription>
           {aiPlan && (
             <div className="mt-3 space-y-3 text-sm">
               <ul className="list-disc pl-5">
-                {aiPlan.zadania.map((z, i) => <li key={i}>{z.opis} - ok. {liczba(z.tokeny / 1000, 1)} tys. tokenów</li>)}
+                {aiPlan.zadania.map((z, i) => <li key={i}>{z.opis} {t('- ok.')}{' '}{liczba(z.tokeny / 1000, 1)} {t('tys. tokenów')}</li>)}
               </ul>
               {aiPlan.uwaga
                 ? <Komunikat rodzaj="ostrzezenie">{aiPlan.uwaga}</Komunikat>
-                : <p>Szacowany koszt: <strong>{liczba(aiPlan.koszt_pln ?? 0, 2)} zł</strong>{aiPlan.pozostalo !== null && ` · w budżecie miesiąca zostało ${liczba(aiPlan.pozostalo, 2)} zł`}.</p>}
+                : <p>{t('Szacowany koszt:')}{' '}<strong>{liczba(aiPlan.koszt_pln ?? 0, 2)} {t('zł')}</strong>{aiPlan.pozostalo !== null && t(' · w budżecie miesiąca zostało {0} zł', liczba(aiPlan.pozostalo, 2))}.</p>}
               <div className="flex justify-end gap-2">
-                <Button onClick={() => setAiPlan(null)}>Anuluj</Button>
-                <Button wariant="akcent" disabled={!!aiPlan.uwaga} onClick={() => void wykonajAi()}><Sparkles className="h-4 w-4" /> Odczytaj</Button>
+                <Button onClick={() => setAiPlan(null)}>{t('Anuluj')}</Button>
+                <Button wariant="akcent" disabled={!!aiPlan.uwaga} onClick={() => void wykonajAi()}><Sparkles className="h-4 w-4" /> {t('Odczytaj')}</Button>
               </div>
             </div>
           )}
@@ -390,19 +391,19 @@ export function OdczytRysunku({ zapytanieId, numer, dokument, odczyt, profil, za
 
       <Dialog open={!!wklej} onOpenChange={(o) => !o && setWklej(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogTitle>Wklej tabelę</DialogTitle>
-          <DialogDescription>Skopiuj tabelę z Excela, Worda albo z innego programu (kolumny rozdzielone tabulatorem). Pierwszy wiersz - nagłówki.</DialogDescription>
+          <DialogTitle>{t('Wklej tabelę')}</DialogTitle>
+          <DialogDescription>{t('Skopiuj tabelę z Excela, Worda albo z innego programu (kolumny rozdzielone tabulatorem). Pierwszy wiersz - nagłówki.')}</DialogDescription>
           {wklej && (
             <div className="mt-3 space-y-3">
-              <label className="block"><span className="etykieta">Do zakładki</span>
+              <label className="block"><span className="etykieta">{t('Do zakładki')}</span>
                 <select className="pole" value={wklej.cel} onChange={(e) => setWklej({ ...wklej, cel: e.target.value as ZakladkaSiatki })}>
-                  <option value="pozycje">Wykaz części</option><option value="krocce">Króćce</option><option value="parametry">Dane projektowe</option>
+                  <option value="pozycje">{t('Wykaz części')}</option><option value="krocce">{t('Króćce')}</option><option value="parametry">{t('Dane projektowe')}</option>
                 </select>
               </label>
               <textarea className="pole h-48 font-mono text-xs" autoFocus value={wklej.tekst} onChange={(e) => setWklej({ ...wklej, tekst: e.target.value })} />
               <div className="flex justify-end gap-2">
-                <Button onClick={() => setWklej(null)}>Anuluj</Button>
-                <Button wariant="glowny" disabled={!wklej.tekst.trim()} onClick={wklejTabele}>Wklej</Button>
+                <Button onClick={() => setWklej(null)}>{t('Anuluj')}</Button>
+                <Button wariant="glowny" disabled={!wklej.tekst.trim()} onClick={wklejTabele}>{t('Wklej')}</Button>
               </div>
             </div>
           )}

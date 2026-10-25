@@ -6,6 +6,7 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 type Wiersz = Record<string, unknown>
 
@@ -64,7 +65,7 @@ export function TabelaSlownika({ tabela, klucz, kluczGenerowany, kolumny, wiersz
       for (const k of kolumny.filter((x) => x.wymagane)) {
         const w = e.dane[k.pole]
         if (w === null || w === undefined || String(w).trim() === '') {
-          setBlad(`Uzupełnij pole „${k.etykieta}” we wszystkich zmienionych wierszach.`)
+          setBlad(t('Uzupełnij pole „{0}” we wszystkich zmienionych wierszach.', k.etykieta))
           return
         }
       }
@@ -94,7 +95,7 @@ export function TabelaSlownika({ tabela, klucz, kluczGenerowany, kolumny, wiersz
       }
     }
     setZajety(false)
-    setKomunikat('Zapisano zmiany.')
+    setKomunikat(t('Zapisano zmiany.'))
     await poZapisie()
   }
 
@@ -102,7 +103,7 @@ export function TabelaSlownika({ tabela, klucz, kluczGenerowany, kolumny, wiersz
     if (e.nowy) { setEdytowane((l) => l.filter((x) => x.tmp !== e.tmp)); return }
     const zakaz = mozeUsunac?.(e.dane)
     if (zakaz) { setBlad(zakaz); return }
-    if (!window.confirm('Usunąć ten wpis ze słownika?')) return
+    if (!window.confirm(t('Usunąć ten wpis ze słownika?'))) return
     setBlad(null); setZajety(true)
     const { error } = await supabase.from(tabela).delete().eq(klucz, e.dane[klucz] as string)
     setZajety(false)
@@ -135,7 +136,7 @@ export function TabelaSlownika({ tabela, klucz, kluczGenerowany, kolumny, wiersz
     })),
     {
       id: '_usun', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true, className: 'w-10 text-center',
-      komorka: (e) => <button className="text-slate-400 hover:text-red-600" title="Usuń" onClick={() => void usun(e)}><Trash2 className="h-4 w-4" /></button>,
+      komorka: (e) => <button className="text-slate-400 hover:text-red-600" title={t('Usuń')} onClick={() => void usun(e)}><Trash2 className="h-4 w-4" /></button>,
     },
   ]
 
@@ -144,17 +145,17 @@ export function TabelaSlownika({ tabela, klucz, kluczGenerowany, kolumny, wiersz
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
       <Tabela id={`slownik-${tabela}`} kolumny={kolumnyTabeli} wiersze={edytowane} klucz={(e) => e.tmp}
-        klasaWiersza={(e) => (e.nowy ? 'bg-limonka-jasna/40' : e.zmieniony ? 'bg-amber-50' : undefined)} pusto="Brak wpisów." />
+        klasaWiersza={(e) => (e.nowy ? 'bg-limonka-jasna/40' : e.zmieniony ? 'bg-amber-50' : undefined)} pusto={t('Brak wpisów.')} />
       <div className="flex flex-wrap gap-2">
         <Button rozmiar="maly" onClick={() => setEdytowane((l) => [...l, { dane: nowyWiersz(), nowy: true, zmieniony: false, tmp: tmpKlucz() }])}>
-          <Plus className="h-4 w-4" /> Dodaj wiersz
+          <Plus className="h-4 w-4" /> {t('Dodaj wiersz')}
         </Button>
         <Button rozmiar="maly" wariant="glowny" disabled={zajety || zmiany === 0} onClick={() => void zapisz()}>
-          <Save className="h-4 w-4" /> Zapisz zmiany{zmiany ? ` (${zmiany})` : ''}
+          <Save className="h-4 w-4" /> {t('Zapisz zmiany')}{zmiany ? ` (${zmiany})` : ''}
         </Button>
         {zmiany > 0 && (
           <Button rozmiar="maly" wariant="cichy" onClick={() => setEdytowane(zWierszy)}>
-            <Undo2 className="h-4 w-4" /> Cofnij
+            <Undo2 className="h-4 w-4" /> {t('Cofnij')}
           </Button>
         )}
       </div>

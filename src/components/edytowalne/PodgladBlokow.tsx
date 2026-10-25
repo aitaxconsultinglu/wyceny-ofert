@@ -1,12 +1,13 @@
 import { cn } from '@/lib/utils'
 import type { BlokDokumentu } from '@/lib/wersjeEdytowalne'
+import { t } from '@/i18n'
 
 const WYR = { lewo: 'text-left', srodek: 'text-center', prawo: 'text-right', wyjustowane: 'text-justify' } as const
 const NAGL = ['text-xl', 'text-lg', 'text-base'] as const
 
 /** Wersja edytowalna w przeglądarce - tak jak trafi do Worda (nagłówki, akapity, listy, tabele). */
 export function PodgladBlokow({ bloki }: { bloki: BlokDokumentu[] }) {
-  if (!bloki.length) return <p className="text-sm text-slate-500">Brak treści.</p>
+  if (!bloki.length) return <p className="text-sm text-slate-500">{t('Brak treści.')}</p>
   return (
     <div className="space-y-2 text-sm leading-relaxed text-slate-800">
       {bloki.map((b, i) => {

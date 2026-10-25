@@ -9,12 +9,13 @@ import {
 } from '@/lib/analiza'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
+import { t } from '@/i18n'
 
 const KOLOR_STANU: Record<StanWymagania, string> = {
   wymagane: 'bg-sky-50 text-sky-900 border-sky-200', nie: 'bg-slate-50 text-slate-500 border-slate-200',
   do_wyjasnienia: 'bg-amber-50 text-amber-900 border-amber-300', brak_informacji: 'bg-white text-slate-400 border-slate-200',
 }
-const WPLYW: Record<Wplyw, string> = { wysoki: 'wysoki', sredni: 'średni', niski: 'niski' }
+const WPLYW: Record<Wplyw, string> = { wysoki: t('wysoki'), sredni: t('średni'), niski: t('niski') }
 
 export interface DokumentKarty { id: string; nazwa: string; typ: string; istotny: boolean }
 
@@ -32,7 +33,7 @@ function Sekcja({ tytul, liczba, children, akcje }: { tytul: string; liczba?: st
 }
 
 const usun = (f: () => void) => (
-  <button className="text-slate-400 hover:text-red-600" title="Usuń" onClick={f}><Trash2 className="h-3.5 w-3.5" /></button>
+  <button className="text-slate-400 hover:text-red-600" title={t('Usuń')} onClick={f}><Trash2 className="h-3.5 w-3.5" /></button>
 )
 
 /** Widok i edycja karty analizy (bez pobierania danych). */
@@ -64,35 +65,35 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
 
   return (
     <div className="space-y-4">
-      <Sekcja tytul="1. Podsumowanie przedmiotu" akcje={akcjePodsumowania}>
+      <Sekcja tytul={t('1. Podsumowanie przedmiotu')} akcje={akcjePodsumowania}>
         <div className="flex flex-wrap gap-3">
           {pole('przedmiot', 'Przedmiot', 'min-w-[20rem] flex-1')}
           {pole('klient', 'Zamawiający', 'w-56')}
           {pole('nr_zapytania_klienta', 'Nr zapytania klienta', 'w-44')}
-          <label className="w-28"><span className="etykieta">Ilość [szt.]</span><PoleLiczby className="pole text-sm" puste wartosc={p.ilosc_szt} zmien={(v) => ustP({ ilosc_szt: v })} /></label>
-          <label className="w-32"><span className="etykieta">Masa [kg]</span><PoleLiczby className="pole text-sm" puste wartosc={p.masa_kg} zmien={(v) => ustP({ masa_kg: v })} /></label>
+          <label className="w-28"><span className="etykieta">{t('Ilość [szt.]')}</span><PoleLiczby className="pole text-sm" puste wartosc={p.ilosc_szt} zmien={(v) => ustP({ ilosc_szt: v })} /></label>
+          <label className="w-32"><span className="etykieta">{t('Masa [kg]')}</span><PoleLiczby className="pole text-sm" puste wartosc={p.masa_kg} zmien={(v) => ustP({ masa_kg: v })} /></label>
         </div>
         <div className="flex flex-wrap gap-3">
           {pole('wymiary', 'Wymiary')}
           {pole('miejsce_dostawy', 'Miejsce dostawy')}
           {pole('warunki_dostawy', 'Warunki dostawy', 'w-40')}
-          {pole('termin_oferty', 'Termin złożenia oferty')}
-          <label className="w-40"><span className="etykieta">(data)</span>
+          {pole('termin_oferty', t('Termin złożenia oferty'))}
+          <label className="w-40"><span className="etykieta">{t('(data)')}</span>
             <input type="date" className="pole text-sm" value={p.termin_oferty_data ?? ''} onChange={(e) => ustP({ termin_oferty_data: e.target.value || null })} /></label>
         </div>
         <div className="flex flex-wrap gap-3">
           {pole('termin_realizacji', 'Termin realizacji')}
-          {pole('postoj', 'Postój remontowy', 'w-44')}
-          {pole('waznosc_oferty', 'Ważność oferty', 'w-36')}
+          {pole('postoj', t('Postój remontowy'), 'w-44')}
+          {pole('waznosc_oferty', t('Ważność oferty'), 'w-36')}
           {pole('gwarancja', 'Gwarancja', 'w-36')}
           {pole('platnosc', 'Płatność', 'w-36')}
         </div>
-        <label className="block"><span className="etykieta">Wymagane dokumenty oferty</span>
+        <label className="block"><span className="etykieta">{t('Wymagane dokumenty oferty')}</span>
           <input className="pole text-sm" value={p.dokumenty_oferty} onChange={(e) => ustP({ dokumenty_oferty: e.target.value })} /></label>
         <div>
-          <span className="etykieta">Aparaty</span>
+          <span className="etykieta">{t('Aparaty')}</span>
           <table className="w-full border-collapse text-sm">
-            <thead><tr>{['Nazwa / oznaczenie', 'Typ', 'Ilość', 'Masa 1 szt. [kg]', 'Ø [mm]', 'Długość [mm]', 'Wysokość [mm]', 'Materiał', ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
+            <thead><tr>{[t('Nazwa / oznaczenie'), t('Typ'), t('Ilość'), t('Masa 1 szt. [kg]'), t('Ø [mm]'), t('Długość [mm]'), t('Wysokość [mm]'), t('Materiał'), ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
             <tbody>
               {karta.aparaty.map((a, i) => (
                 <tr key={i}>
@@ -115,10 +116,10 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
         </div>
       </Sekcja>
 
-      <Sekcja tytul="2. Wymagania kosztotwórcze" liczba={`${karta.wymagania.filter((w) => w.stan !== 'brak_informacji').length} z ${karta.wymagania.length} ocenionych`}>
+      <Sekcja tytul={t('2. Wymagania kosztotwórcze')} liczba={`${karta.wymagania.filter((w) => w.stan !== 'brak_informacji').length} z ${karta.wymagania.length} ocenionych`}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
-            <thead><tr>{['Wymaganie', 'Stan', 'Wpływ na cenę', 'Opis (konkret)', 'Źródło', ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
+            <thead><tr>{[t('Wymaganie'), t('Stan'), t('Wpływ na cenę'), t('Opis (konkret)'), t('Źródło'), ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
             <tbody>
               {karta.wymagania.flatMap((w, i) => {
                 const zListy = CHECKLISTA.find((c) => c.kod === w.kod)
@@ -140,9 +141,9 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
                       </select>
                     </td>
                     <td className="komorka"><input className="pole-komorki w-full" placeholder={zListy?.podpowiedz} value={w.opis} onChange={(e) => ustW(i, { opis: e.target.value })} /></td>
-                    <td className="komorka w-48"><input className="pole-komorki w-full text-xs" value={w.zrodlo} placeholder="plik, str." onChange={(e) => ustW(i, { zrodlo: e.target.value })} /></td>
+                    <td className="komorka w-48"><input className="pole-komorki w-full text-xs" value={w.zrodlo} placeholder={t('plik, str.')} onChange={(e) => ustW(i, { zrodlo: e.target.value })} /></td>
                     <td className="komorka w-16 whitespace-nowrap">
-                      <button title={w.cytat ? 'Cytat z dokumentu' : 'Dodaj cytat'} className={cn('mr-1', w.cytat ? 'text-blekit-ciemny' : 'text-slate-300 hover:text-slate-600')}
+                      <button title={w.cytat ? t('Cytat z dokumentu') : t('Dodaj cytat')} className={cn('mr-1', w.cytat ? 'text-blekit-ciemny' : 'text-slate-300 hover:text-slate-600')}
                         onClick={() => setCytaty((x) => { const n = new Set(x); if (n.has(i)) n.delete(i); else n.add(i); return n })}>
                         <Quote className="inline h-3.5 w-3.5" />{otwarty ? <ChevronDown className="inline h-3 w-3" /> : <ChevronRight className="inline h-3 w-3" />}
                       </button>
@@ -151,7 +152,7 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
                   </tr>,
                   ...(otwarty ? [
                     <tr key={`${w.kod}-c`}><td colSpan={6} className="komorka bg-slate-50">
-                      <textarea className="pole h-16 text-xs italic" placeholder="Dosłowny fragment dokumentu" value={w.cytat} onChange={(e) => ustW(i, { cytat: e.target.value })} />
+                      <textarea className="pole h-16 text-xs italic" placeholder={t('Dosłowny fragment dokumentu')} value={w.cytat} onChange={(e) => ustW(i, { cytat: e.target.value })} />
                     </td></tr>,
                   ] : []),
                 ]
@@ -160,18 +161,18 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
           </table>
         </div>
         <Button rozmiar="maly" wariant="cichy" onClick={() => zmien({ ...karta, wymagania: [...karta.wymagania, { kod: `wlasne-${Date.now().toString(36)}`, nazwa: '', stan: 'wymagane', wplyw: null, opis: '', cytat: '', zrodlo: '' }] })}>
-          <Plus className="h-3 w-3" /> wymaganie spoza listy
+          <Plus className="h-3 w-3" /> {t('wymaganie spoza listy')}
         </Button>
       </Sekcja>
 
-      <Sekcja tytul="3. Usługi do zapytań (kooperanci)" liczba={`${karta.uslugi.length}`} akcje={akcjeUslug}>
+      <Sekcja tytul={t('3. Usługi do zapytań (kooperanci)')} liczba={`${karta.uslugi.length}`} akcje={akcjeUslug}>
         <table className="w-full border-collapse text-sm">
-          <thead><tr>{['Kategoria', 'Usługa (zakres)', 'Ilość', 'J.m.', 'Uwagi', ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
+          <thead><tr>{[t('Kategoria'), t('Usługa (zakres)'), t('Ilość'), t('J.m.'), t('Uwagi'), ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
           <tbody>
             {karta.uslugi.map((u, i) => (
               <tr key={i}>
                 <td className="komorka w-48"><select className="pole-komorki w-full text-xs" value={u.kategoria ?? ''} onChange={(e) => lista('uslugi', i, { kategoria: e.target.value || null })}>
-                  <option value="">- inne -</option>{s.kategorieUslug.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
+                  <option value="">{t('- inne -')}</option>{s.kategorieUslug.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
                   {u.kategoria && !s.kategorieUslug.some((k) => k.kod === u.kategoria) && <option value={u.kategoria}>{u.kategoria}</option>}</select></td>
                 <td className="komorka"><input className="pole-komorki w-full" value={u.opis} onChange={(e) => lista('uslugi', i, { opis: e.target.value })} /></td>
                 <td className="komorka w-20"><PoleLiczby className="pole-komorki w-16 text-right" puste wartosc={u.ilosc} zmien={(v) => lista('uslugi', i, { ilosc: v })} /></td>
@@ -180,28 +181,27 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
                 <td className="komorka w-8">{usun(() => zmien({ ...karta, uslugi: karta.uslugi.filter((_, j) => j !== i) }))}</td>
               </tr>
             ))}
-            {!karta.uslugi.length && <tr><td colSpan={6} className="komorka text-center text-slate-500">Brak - dodaj usługi, o które trzeba zapytać kooperantów (malowanie, izolacja, PWHT, NDT, transport...).</td></tr>}
+            {!karta.uslugi.length && <tr><td colSpan={6} className="komorka text-center text-slate-500">{t('Brak - dodaj usługi, o które trzeba zapytać kooperantów (malowanie, izolacja, PWHT, NDT, transport...).')}</td></tr>}
           </tbody>
         </table>
-        <Button rozmiar="maly" wariant="cichy" onClick={() => zmien({ ...karta, uslugi: [...karta.uslugi, { kategoria: null, opis: '', ilosc: null, jm: '', uwagi: '' }] })}><Plus className="h-3 w-3" /> usługa</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={() => zmien({ ...karta, uslugi: [...karta.uslugi, { kategoria: null, opis: '', ilosc: null, jm: '', uwagi: '' }] })}><Plus className="h-3 w-3" /> {t('usługa')}</Button>
       </Sekcja>
 
-      <Sekcja tytul="4. Wstępna lista materiałowa" akcje={otworzRysunki && <Button rozmiar="maly" onClick={otworzRysunki}>Rysunki i listy</Button>}>
+      <Sekcja tytul={t('4. Wstępna lista materiałowa')} akcje={otworzRysunki && <Button rozmiar="maly" onClick={otworzRysunki}>{t('Rysunki i listy')}</Button>}>
         <p className="text-sm text-slate-600">
-          {liczbaOdczytow ? `Zapisane odczyty list z rysunków: ${liczbaOdczytow}.` : 'Brak odczytów list z rysunków.'} Wykaz części odczytuje się z rysunku
-          w zakładce „Rysunki i listy” i przenosi do wyceny.
+          {liczbaOdczytow ? t('Zapisane odczyty list z rysunków: {0}.', liczbaOdczytow) : t('Brak odczytów list z rysunków.')} {t('Wykaz części odczytuje się z rysunku w zakładce „Rysunki i listy” i przenosi do wyceny.')}
         </p>
       </Sekcja>
 
-      <Sekcja tytul="5. Pytania do klienta i niespójności" liczba={`${karta.pytania.length} pytań, ${karta.niespojnosci.length} niespójności`}>
+      <Sekcja tytul={t('5. Pytania do klienta i niespójności')} liczba={`${karta.pytania.length} pytań, ${karta.niespojnosci.length} niespójności`}>
         <table className="w-full border-collapse text-sm">
-          <thead><tr>{['Pytanie do klienta', 'Źródło', 'Odpowiedź', ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
+          <thead><tr>{[t('Pytanie do klienta'), t('Źródło'), t('Odpowiedź'), ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
           <tbody>
             {karta.pytania.map((q, i) => (
               <tr key={i} className={cn(!q.odpowiedz.trim() && 'bg-amber-50/60')}>
                 <td className="komorka"><input className="pole-komorki w-full" value={q.tresc} onChange={(e) => lista('pytania', i, { tresc: e.target.value })} /></td>
                 <td className="komorka w-48"><input className="pole-komorki w-full text-xs" value={q.zrodlo} onChange={(e) => lista('pytania', i, { zrodlo: e.target.value })} /></td>
-                <td className="komorka"><input className="pole-komorki w-full" placeholder="odpowiedź klienta" value={q.odpowiedz} onChange={(e) => lista('pytania', i, { odpowiedz: e.target.value })} /></td>
+                <td className="komorka"><input className="pole-komorki w-full" placeholder={t('odpowiedź klienta')} value={q.odpowiedz} onChange={(e) => lista('pytania', i, { odpowiedz: e.target.value })} /></td>
                 <td className="komorka w-8">{usun(() => zmien({ ...karta, pytania: karta.pytania.filter((_, j) => j !== i) }))}</td>
               </tr>
             ))}
@@ -209,7 +209,7 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
         </table>
         <Button rozmiar="maly" wariant="cichy" onClick={() => zmien({ ...karta, pytania: [...karta.pytania, { tresc: '', zrodlo: '', odpowiedz: '' }] })}><Plus className="h-3 w-3" /> pytanie</Button>
         <table className="w-full border-collapse text-sm">
-          <thead><tr>{['Niespójność między dokumentami', 'Gdzie', ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
+          <thead><tr>{[t('Niespójność między dokumentami'), t('Gdzie'), ''].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
           <tbody>
             {karta.niespojnosci.map((n, i) => (
               <tr key={i} className="bg-red-50/40">
@@ -220,73 +220,73 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
             ))}
           </tbody>
         </table>
-        <Button rozmiar="maly" wariant="cichy" onClick={() => zmien({ ...karta, niespojnosci: [...karta.niespojnosci, { opis: '', zrodla: '' }] })}><Plus className="h-3 w-3" /> niespójność</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={() => zmien({ ...karta, niespojnosci: [...karta.niespojnosci, { opis: '', zrodla: '' }] })}><Plus className="h-3 w-3" /> {t('niespójność')}</Button>
       </Sekcja>
 
-      <Sekcja tytul="6. Dokumenty - co jest potrzebne" liczba={`istotnych ${dokumenty.filter((d) => d.istotny).length} z ${dokumenty.length}`}
+      <Sekcja tytul={t('6. Dokumenty - co jest potrzebne')} liczba={`istotnych ${dokumenty.filter((d) => d.istotny).length} z ${dokumenty.length}`}
         akcje={roznice.length > 0 && (
-          <Button rozmiar="maly" onClick={() => ustawIstotny(roznice.map((d) => ({ id: d.id, istotny: !d.istotny })))}>Zastosuj propozycję AI ({roznice.length})</Button>
+          <Button rozmiar="maly" onClick={() => ustawIstotny(roznice.map((d) => ({ id: d.id, istotny: !d.istotny })))}>{t('Zastosuj propozycję AI (')}{roznice.length})</Button>
         )}>
         <table className="w-full border-collapse text-sm">
-          <thead><tr>{['Dokument', 'Istotny', 'Propozycja analizy'].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
+          <thead><tr>{[t('Dokument'), t('Istotny'), t('Propozycja analizy')].map((n) => <th key={n} className="komorka-naglowek text-xs">{n}</th>)}</tr></thead>
           <tbody>
             {dokumenty.map((d) => {
               const a = propozycje.find((x) => x.nazwa === d.nazwa)
               return (
                 <tr key={d.id} className={cn(!d.istotny && 'text-slate-400')}>
                   <td className="komorka">{d.nazwa}</td>
-                  <td className="komorka w-20 text-center"><input type="checkbox" checked={d.istotny} onChange={(e) => ustawIstotny([{ id: d.id, istotny: e.target.checked }])} aria-label={`Istotny: ${d.nazwa}`} /></td>
+                  <td className="komorka w-20 text-center"><input type="checkbox" checked={d.istotny} onChange={(e) => ustawIstotny([{ id: d.id, istotny: e.target.checked }])} aria-label={t('Istotny: {0}', d.nazwa)} /></td>
                   <td className={cn('komorka text-xs', a && a.istotny !== d.istotny && 'font-medium text-amber-800')}>{a ? `${a.istotny ? 'potrzebny' : 'do pominięcia'} - ${a.uzasadnienie}` : ''}</td>
                 </tr>
               )
             })}
-            {!dokumenty.length && <tr><td colSpan={3} className="komorka text-center text-slate-500">Brak dokumentów.</td></tr>}
+            {!dokumenty.length && <tr><td colSpan={3} className="komorka text-center text-slate-500">{t('Brak dokumentów.')}</td></tr>}
           </tbody>
         </table>
-        <p className="text-xs text-slate-500">Do analizy AI idą tylko dokumenty istotne. Zmiana tutaj zmienia znacznik w zakładce Dokumenty.</p>
+        <p className="text-xs text-slate-500">{t('Do analizy AI idą tylko dokumenty istotne. Zmiana tutaj zmienia znacznik w zakładce Dokumenty.')}</p>
       </Sekcja>
 
-      <Sekcja tytul="7. Ocena działów (opinia o zapytaniu)">
+      <Sekcja tytul={t('7. Ocena działów (opinia o zapytaniu)')}>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2 text-sm">
-            <span className="etykieta">Kompletność dokumentacji do zakupu materiałów</span>
-            {([['arkusz_danych', 'arkusz danych'], ['dokumentacja_wykonawcza', 'dokumentacja wykonawcza'], ['dokumentacja_koncesyjna', 'dokumentacja koncesyjna'], ['szkic', 'szkic / rysunek założeniowy']] as const).map(([k, et]) => (
+            <span className="etykieta">{t('Kompletność dokumentacji do zakupu materiałów')}</span>
+            {([['arkusz_danych', t('arkusz danych')], ['dokumentacja_wykonawcza', t('dokumentacja wykonawcza')], ['dokumentacja_koncesyjna', t('dokumentacja koncesyjna')], ['szkic', t('szkic / rysunek założeniowy')]] as const).map(([k, et]) => (
               <label key={k} className="mr-4 inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.kompletnosc[k]} onChange={(e) => ustO({ kompletnosc: { ...karta.ocena.kompletnosc, [k]: e.target.checked } })} /> {et}</label>
             ))}
             <div>
-              <span className="etykieta">Ocena technologiczna</span>
+              <span className="etykieta">{t('Ocena technologiczna')}</span>
               {(['pozytywna', 'negatywna'] as const).map((o) => (
                 <label key={o} className="mr-4 inline-flex items-center gap-1"><input type="radio" name="ocena-techn" checked={karta.ocena.technologiczna === o} onChange={() => ustO({ technologiczna: o })} /> {o}</label>
               ))}
-              <input className="pole mt-1 text-sm" placeholder="uwagi technologiczne" value={karta.ocena.uwagi_technologiczne} onChange={(e) => ustO({ uwagi_technologiczne: e.target.value })} />
+              <input className="pole mt-1 text-sm" placeholder={t('uwagi technologiczne')} value={karta.ocena.uwagi_technologiczne} onChange={(e) => ustO({ uwagi_technologiczne: e.target.value })} />
             </div>
-            <label className="block"><span className="etykieta">Ocena spawalnicza (WPS, dodatkowe uprawnienia)</span>
+            <label className="block"><span className="etykieta">{t('Ocena spawalnicza (WPS, dodatkowe uprawnienia)')}</span>
               <input className="pole text-sm" value={karta.ocena.spawalnicza} onChange={(e) => ustO({ spawalnicza: e.target.value })} /></label>
             <div className="flex gap-4">
-              <label className="inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.plan_jakosci} onChange={(e) => ustO({ plan_jakosci: e.target.checked })} /> plan jakości</label>
-              <label className="inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.zmiana_terminu} onChange={(e) => ustO({ zmiana_terminu: e.target.checked })} /> proponujemy zmianę terminu</label>
+              <label className="inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.plan_jakosci} onChange={(e) => ustO({ plan_jakosci: e.target.checked })} /> {t('plan jakości')}</label>
+              <label className="inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.zmiana_terminu} onChange={(e) => ustO({ zmiana_terminu: e.target.checked })} /> {t('proponujemy zmianę terminu')}</label>
             </div>
           </div>
           <div className="space-y-2 text-sm">
-            <span className="etykieta">Terminy zakupu materiałów</span>
+            <span className="etykieta">{t('Terminy zakupu materiałów')}</span>
             <table className="w-full border-collapse">
               <tbody>
-                {karta.ocena.terminy_materialow.map((t, i) => (
-                  <tr key={t.grupa}>
-                    <td className="komorka w-48 text-xs">{t.grupa}</td>
-                    <td className="komorka"><input className="pole-komorki w-full" placeholder="np. 8-10 tyg." value={t.termin}
+                {karta.ocena.terminy_materialow.map((tm, i) => (
+                  <tr key={tm.grupa}>
+                    <td className="komorka w-48 text-xs">{tm.grupa}</td>
+                    <td className="komorka"><input className="pole-komorki w-full" placeholder={t('np. 8-10 tyg.')} value={tm.termin}
                       onChange={(e) => ustO({ terminy_materialow: karta.ocena.terminy_materialow.map((x, j) => (j === i ? { ...x, termin: e.target.value } : x)) })} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <label className="block"><span className="etykieta">Uwagi do przygotowania oferty</span>
+            <label className="block"><span className="etykieta">{t('Uwagi do przygotowania oferty')}</span>
               <textarea className="pole h-16 text-sm" value={karta.ocena.uwagi} onChange={(e) => ustO({ uwagi: e.target.value })} /></label>
           </div>
         </div>
       </Sekcja>
 
-      <Sekcja tytul="Najważniejsze ryzyka i uwagi">
+      <Sekcja tytul={t('Najważniejsze ryzyka i uwagi')}>
         <textarea className="pole h-20 text-sm" value={karta.uwagi} onChange={(e) => zmien({ ...karta, uwagi: e.target.value })} />
       </Sekcja>
     </div>

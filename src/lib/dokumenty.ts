@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 // Odczyt plików w przeglądarce: maile (.msg, .eml) z załącznikami, PDF (tekst + render stron),
 // DOCX, XLS/XLSX, ZIP. Ciężkie biblioteki ładowane dopiero przy pierwszym użyciu.
 // Zasady planu Free: mail zapisujemy jako tekst, a załączniki osobno; obrazki ze stopek
@@ -8,9 +9,9 @@ export type TypDokumentu =
   | 'korespondencja' | 'oferta_dostawcy' | 'karta_dostawy' | 'raport_registo' | 'inne'
 
 export const ETYKIETY_TYPU: Record<TypDokumentu, string> = {
-  rysunek: 'rysunek', karta_danych: 'karta danych', specyfikacja: 'specyfikacja', formularz_wymagan: 'formularz wymagań',
-  standard_klienta: 'standard klienta', obliczenia: 'obliczenia', korespondencja: 'korespondencja',
-  oferta_dostawcy: 'oferta dostawcy', karta_dostawy: 'karta dostawy', raport_registo: 'raport Registo', inne: 'inne',
+  rysunek: t('rysunek'), karta_danych: t('karta danych'), specyfikacja: t('specyfikacja'), formularz_wymagan: t('formularz wymagań'),
+  standard_klienta: t('standard klienta'), obliczenia: t('obliczenia'), korespondencja: t('korespondencja'),
+  oferta_dostawcy: t('oferta dostawcy'), karta_dostawy: t('karta dostawy'), raport_registo: t('raport Registo'), inne: t('inne'),
 }
 
 export interface WczytanyPlik {

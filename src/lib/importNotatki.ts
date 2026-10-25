@@ -2,6 +2,7 @@
 // do nowej metody. Część parsująca linie jest czysta (testy w repo na tekście fikcyjnym).
 import type { AparatKalk, PozycjaKalk, Zakladka } from './kalkulacja'
 import { zaokraglij } from './kalkulacja'
+import { t } from '@/i18n'
 
 export interface NotatkaWyceny {
   nazwa: string
@@ -110,7 +111,7 @@ export function parsujNotatke(liniePliku: string[]): NotatkaWyceny {
     const n = p.nazwa.toLowerCase()
     if (opcje.some((o) => n.includes(o) || n.includes(o.replace('demont', 'montaż')))) { p.opcjonalna = true; p.wariant = 'bez pozycji opcjonalnych' }
   }
-  if (razem === null || lacznie === null) throw new Error('Nie rozpoznano układu notatki (brak "Razem"/"Całkowita kwota" albo "Łącznie").')
+  if (razem === null || lacznie === null) throw new Error(t('Nie rozpoznano układu notatki (brak "Razem"/"Całkowita kwota" albo "Łącznie").'))
   // Zaokrąglenie ceny, które daje "Łącznie" z notatki.
   const surowa = razem * (1 + zysk / 100)
   const zaokr = [0, 10, 100, 1000].find((k) => Math.abs(zaokraglij(surowa, k) - lacznie!) < 0.01) ?? 0

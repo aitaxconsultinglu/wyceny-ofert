@@ -15,6 +15,7 @@ import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
 import { NoweZMaila } from './NoweZMaila'
 import { NoweZapytanie } from './NoweZapytanie'
 import { ZnacznikRodzaju } from './RodzajAparatu'
+import { t } from '@/i18n'
 
 interface Wiersz {
   id: string; numer: string; przedmiot: string; status: StatusZapytania; zrodlo: string; termin_oferty: string | null
@@ -58,38 +59,38 @@ export function ListaZapytan({ otworz }: { otworz: (id: string) => void }) {
   async function usunZaznaczone() {
     const ids = [...zaznaczone].map(String)
     const numery = lista.filter((z) => ids.includes(z.id)).map((z) => z.numer)
-    if (!window.confirm(`Przenieść do kosza ${ids.length === 1 ? `zapytanie ${numery[0]}` : `${ids.length} zapytań`} razem z dokumentami, odczytami, analizą, wycenami i ofertami? Można je przywrócić z kosza.`)) return
+    if (!window.confirm(t('Przenieść do kosza {0} razem z dokumentami, odczytami, analizą, wycenami i ofertami? Można je przywrócić z kosza.', ids.length === 1 ? `zapytanie ${numery[0]}` : `${ids.length} zapytań`))) return
     setBlad(null); setInfo(null)
     try {
-      const ile = await doKosza('zapytanie', ids, 'zapytania', ids.length === 1 ? `usunięcie zapytania ${numery[0]}` : `usunięcie ${ids.length} zapytań`)
-      setInfo(`Przeniesiono do kosza: ${ile}. Cofnij (Ctrl+Z) albo Kosz - przywrócenie.`)
+      const ile = await doKosza('zapytanie', ids, 'zapytania', ids.length === 1 ? t('usunięcie zapytania {0}', numery[0]) : t('usunięcie {0} zapytań', ids.length))
+      setInfo(t('Przeniesiono do kosza: {0}. Cofnij (Ctrl+Z) albo Kosz - przywrócenie.', ile))
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
     setZaznaczone(new Set()); await wczytaj()
   }
 
   const kolumny: KolumnaTabeli<Wiersz>[] = [
-    { id: 'numer', naglowek: 'Numer', typ: 'tekst', wartosc: (z) => z.numer, className: 'whitespace-nowrap font-medium' },
-    { id: 'rodzaj', naglowek: 'Rodzaj', typ: 'lista', wartosc: (z) => etykietaRodzaju(z.rodzaj_aparatu, z.zakres_wymiennika, z.zakres_opis), komorka: (z) => <ZnacznikRodzaju rodzaj={z.rodzaj_aparatu} zakres={z.zakres_wymiennika} opis={z.zakres_opis} /> },
-    { id: 'klient', naglowek: 'Klient', typ: 'lista', wartosc: (z) => z.klienci?.nazwa ?? null, className: 'whitespace-nowrap' },
-    { id: 'przedmiot', naglowek: 'Przedmiot', typ: 'tekst', wartosc: (z) => z.przedmiot },
-    { id: 'nr_klienta', naglowek: 'Nr klienta', typ: 'tekst', wartosc: (z) => [z.nr_zapytania_klienta, z.nr_zapotrzebowania].filter(Boolean).join(' / ') || null, className: 'whitespace-nowrap text-xs' },
-    { id: 'zrodlo', naglowek: 'Źródło', typ: 'lista', wartosc: (z) => ZRODLA[z.zrodlo] ?? z.zrodlo, className: 'text-xs' },
+    { id: 'numer', naglowek: t('Numer'), typ: 'tekst', wartosc: (z) => z.numer, className: 'whitespace-nowrap font-medium' },
+    { id: 'rodzaj', naglowek: t('Rodzaj'), typ: 'lista', wartosc: (z) => etykietaRodzaju(z.rodzaj_aparatu, z.zakres_wymiennika, z.zakres_opis), komorka: (z) => <ZnacznikRodzaju rodzaj={z.rodzaj_aparatu} zakres={z.zakres_wymiennika} opis={z.zakres_opis} /> },
+    { id: 'klient', naglowek: t('Klient'), typ: 'lista', wartosc: (z) => z.klienci?.nazwa ?? null, className: 'whitespace-nowrap' },
+    { id: 'przedmiot', naglowek: t('Przedmiot'), typ: 'tekst', wartosc: (z) => z.przedmiot },
+    { id: 'nr_klienta', naglowek: t('Nr klienta'), typ: 'tekst', wartosc: (z) => [z.nr_zapytania_klienta, z.nr_zapotrzebowania].filter(Boolean).join(' / ') || null, className: 'whitespace-nowrap text-xs' },
+    { id: 'zrodlo', naglowek: t('Źródło'), typ: 'lista', wartosc: (z) => ZRODLA[z.zrodlo] ?? z.zrodlo, className: 'text-xs' },
     {
-      id: 'termin', naglowek: 'Termin oferty', typ: 'data', wartosc: (z) => z.termin_oferty,
+      id: 'termin', naglowek: t('Termin oferty'), typ: 'data', wartosc: (z) => z.termin_oferty,
       komorka: (z) => {
         const dni = dniDoTerminu(z.termin_oferty)
         return (
           <span className={cn('whitespace-nowrap rounded px-1 text-sm', kolorTerminu(dni, z.status))}>
             {z.termin_oferty ? dataGodzinaPL(z.termin_oferty) : ''}
-            {dni !== null && W_TOKU.includes(z.status) && <span className="ml-1 text-xs">({dni < 0 ? `${-dni} dni po` : `za ${dni} dni`})</span>}
+            {dni !== null && W_TOKU.includes(z.status) && <span className="ml-1 text-xs">({dni < 0 ? t('{0} dni po', -dni) : t('za {0} dni', dni)})</span>}
           </span>
         )
       },
     },
-    { id: 'status', naglowek: 'Status', typ: 'lista', wartosc: (z) => statusZapytania(z.status).etykieta, komorka: (z) => <span className={cn('znacznik whitespace-nowrap', statusZapytania(z.status).kolor)}>{statusZapytania(z.status).etykieta}</span> },
-    { id: 'dok', naglowek: 'Dok.', typ: 'liczba', wartosc: (z) => z.dokumenty[0]?.count ?? 0 },
+    { id: 'status', naglowek: t('Status'), typ: 'lista', wartosc: (z) => statusZapytania(z.status).etykieta, komorka: (z) => <span className={cn('znacznik whitespace-nowrap', statusZapytania(z.status).kolor)}>{statusZapytania(z.status).etykieta}</span> },
+    { id: 'dok', naglowek: t('Dok.'), typ: 'liczba', wartosc: (z) => z.dokumenty[0]?.count ?? 0 },
     {
-      id: 'wycena', naglowek: 'Wycena', typ: 'lista', className: 'whitespace-nowrap text-xs',
+      id: 'wycena', naglowek: t('Wycena'), typ: 'lista', className: 'whitespace-nowrap text-xs',
       wartosc: (z) => { const ost = [...z.wyceny].sort((a, b) => b.wersja - a.wersja)[0]; return ost ? `v${ost.wersja} ${ETYKIETY_STATUSU_WYCENY[ost.status]}` : null },
     },
   ]
@@ -97,11 +98,11 @@ export function ListaZapytan({ otworz }: { otworz: (id: string) => void }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold">Zapytania ofertowe</h2>
+        <h2 className="text-lg font-semibold">{t('Zapytania ofertowe')}</h2>
         <div className="flex gap-2">
-          {zaznaczone.size > 0 && <Button wariant="ostrzezenie" onClick={() => void usunZaznaczone()}><Trash2 className="h-4 w-4" /> Usuń zaznaczone ({zaznaczone.size})</Button>}
-          {FUNKCJE.importMailaJakoZapytania && <Button wariant="akcent" onClick={() => setZMaila(true)}><Mail className="h-4 w-4" /> Nowe z maila</Button>}
-          <Button wariant="glowny" onClick={() => setNowe(true)}><Plus className="h-4 w-4" /> Nowe zapytanie</Button>
+          {zaznaczone.size > 0 && <Button wariant="ostrzezenie" onClick={() => void usunZaznaczone()}><Trash2 className="h-4 w-4" /> {t('Usuń zaznaczone (')}{zaznaczone.size})</Button>}
+          {FUNKCJE.importMailaJakoZapytania && <Button wariant="akcent" onClick={() => setZMaila(true)}><Mail className="h-4 w-4" /> {t('Nowe z maila')}</Button>}
+          <Button wariant="glowny" onClick={() => setNowe(true)}><Plus className="h-4 w-4" /> {t('Nowe zapytanie')}</Button>
         </div>
         {FUNKCJE.importMailaJakoZapytania && <NoweZMaila otwarty={zMaila} zamknij={() => setZMaila(false)} utworzone={otworz} />}
         <NoweZapytanie otwarty={nowe} zamknij={() => setNowe(false)} utworzone={otworz} />
@@ -109,13 +110,13 @@ export function ListaZapytan({ otworz }: { otworz: (id: string) => void }) {
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {info && <Komunikat rodzaj="sukces">{info}</Komunikat>}
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={tylkoWToku} onChange={(e) => setTylkoWToku(e.target.checked)} /> tylko w toku</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={tylkoWToku} onChange={(e) => setTylkoWToku(e.target.checked)} /> {t('tylko w toku')}</label>
         <p className="text-xs text-slate-500">
-          Filtry i sortowanie - ikony w nagłówkach kolumn. Termin oferty: <span className="rounded bg-red-100 px-1">po terminie</span> <span className="rounded bg-amber-100 px-1">≤ 3 dni</span> <span className="rounded bg-yellow-50 px-1">≤ 7 dni</span>
+          {t('Filtry i sortowanie - ikony w nagłówkach kolumn. Termin oferty:')}{' '}<span className="rounded bg-red-100 px-1">{t('po terminie')}</span> <span className="rounded bg-amber-100 px-1">{t('≤ 3 dni')}</span> <span className="rounded bg-yellow-50 px-1">{t('≤ 7 dni')}</span>
         </p>
       </div>
       <Tabela id="zapytania" kolumny={kolumny} wiersze={widoczne} klucz={(z) => z.id} onKlik={(z) => otworz(z.id)}
-        zaznaczanie={{ zaznaczone, zmien: setZaznaczone }} pusto="Brak zapytań." />
+        zaznaczanie={{ zaznaczone, zmien: setZaznaczone }} pusto={t('Brak zapytań.')} />
     </div>
   )
 }

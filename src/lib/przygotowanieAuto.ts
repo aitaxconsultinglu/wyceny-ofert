@@ -18,6 +18,7 @@ import { aparatyZKarty, dopasujAparat, ujednolicJednostkeUslugi, klauzuleZAnaliz
 import type { Gatunek, KategoriaMaterialu, KategoriaUslugi, RodzajStali, StawkaRobocizny, Ustawienia } from './types'
 import { dataPL, dzisiajISO } from './format'
 import { typAparatuZRodzaju } from './zapytania'
+import { t } from '@/i18n'
 
 export const MAKS_STRON_RYSUNKOW = 8
 const STRON_NA_RYSUNEK = 3
@@ -57,9 +58,9 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
   const zadania: ZadanieAi[] = []
   const pominiete: string[] = []
   if (opcje.analiza) {
-    postep('Dokumenty do analizy...')
+    postep(t('Dokumenty do analizy...'))
     const a = await przygotujAnalize({ id: z.id, numer: z.numer, przedmiot: z.przedmiot, klient: z.klient }, db)
-    if (a.znakow || a.dane.obrazy?.length) zadania.push({ rodzaj: 'analiza', opis: `Analiza zapytania: ${a.dokumentow} dok., ${Math.round(a.znakow / 1000)} tys. znaków${a.skany.length ? `, ${a.skany.length} skan.` : ''}`, tryb: 'analizuj_zapytanie', dane: a.dane, koszt_pln: null })
+    if (a.znakow || a.dane.obrazy?.length) zadania.push({ rodzaj: 'analiza', opis: t('Analiza zapytania: {0} dok., {1} tys. znaków{2}', a.dokumentow, Math.round(a.znakow / 1000), a.skany.length ? `, ${a.skany.length} skan.` : ''), tryb: 'analizuj_zapytanie', dane: a.dane, koszt_pln: null })
     else pominiete.push('Analiza: brak dokumentów istotnych z treścią')
     pominiete.push(...a.pominiete.map((p) => `Analiza: pominięty ${p}`))
   }
@@ -69,7 +70,7 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
     const juzCzytane = new Map<string, string>()
     for (const d of rysunki) {
       if (stron >= MAKS_STRON_RYSUNKOW) { pominiete.push(`Rysunek ${d.nazwa_pliku}: limit ${MAKS_STRON_RYSUNKOW} stron na przygotowanie`); continue }
-      postep(`Rysunek ${d.nazwa_pliku}...`)
+      postep(t('Rysunek {0}...', d.nazwa_pliku))
       const { data: plik, error } = await db.storage.from(BUCKET).download(d.sciezka!)
       if (error || !plik) { pominiete.push(`Rysunek ${d.nazwa_pliku}: nie udało się pobrać`); continue }
       const pdf = await otworzRysunek(new Uint8Array(await plik.arrayBuffer()))
@@ -79,14 +80,14 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
         const wspolne = { zapytanie_id: z.id, dokument_id: d.id, metadane: meta }
         if (info.elementowTekstu >= MIN_ELEMENTOW_TEKSTU) {
           // Rysunek z CAD: cała warstwa tekstowa (tanio) - model sam znajduje tabele.
-          const t = ulozWTabele(await tekstStrony(pdf, nr))
-          const wiersze = t.wiersze.map((r) => r.filter(Boolean).join(' | ')).join('\n')
+          const tab = ulozWTabele(await tekstStrony(pdf, nr))
+          const wiersze = tab.wiersze.map((r) => r.filter(Boolean).join(' | ')).join('\n')
           // Ten sam rysunek w kilku plikach (np. z zaznaczoną antykorozją / izolacją) - lista raz, inaczej pozycje by się powieliły.
           const ten = juzCzytane.get(wiersze)
           if (ten) { pominiete.push(`Rysunek ${d.nazwa_pliku}, str. ${nr}: ta sama treść co ${ten} - lista materiałów raz`); continue }
           juzCzytane.set(wiersze, `${d.nazwa_pliku}, str. ${nr}`)
           const tekst = `Rysunek ${d.nazwa_pliku}, strona ${nr} - cała warstwa tekstowa (komórki rozdzielone " | ")\n${wiersze}`.slice(0, 60_000)
-          zadania.push({ rodzaj: 'rysunek', opis: `${d.nazwa_pliku}, str. ${nr}: tekst PDF`, tryb: 'wyciagnij_liste_z_rysunku', dane: { ...wspolne, tekst }, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: [] })
+          zadania.push({ rodzaj: 'rysunek', opis: t('{0}, str. {1}: tekst PDF', d.nazwa_pliku, nr), tryb: 'wyciagnij_liste_z_rysunku', dane: { ...wspolne, tekst }, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: [] })
         } else {
           const obszar = { x: 0, y: 0, w: 1, h: 1 }
           const k = await kafleObszaru(pdf, nr, obszar, { natywne: await natywneDpi(pdf, nr) })
@@ -95,7 +96,7 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
           const naStronie = prost.map((p) => kafelNaStronie(p, obszar, k.szer, k.wys, nr))
           for (let od = 0; od < obrazy.length; od += KAFLE_NA_WYWOLANIE) {
             const paczka = obrazy.slice(od, od + KAFLE_NA_WYWOLANIE)
-            zadania.push({ rodzaj: 'rysunek', opis: `${d.nazwa_pliku}, str. ${nr}: ${kafliOdmiana(paczka.length)} (${k.dpi} DPI)`, tryb: 'wyciagnij_liste_z_rysunku', dane: { ...wspolne, obrazy: paczka }, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: naStronie })
+            zadania.push({ rodzaj: 'rysunek', opis: t('{0}, str. {1}: {2} ({3} DPI)', d.nazwa_pliku, nr, kafliOdmiana(paczka.length), k.dpi), tryb: 'wyciagnij_liste_z_rysunku', dane: { ...wspolne, obrazy: paczka }, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: naStronie })
           }
         }
       }
@@ -104,15 +105,15 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
   let aiDostepne = zadania.length > 0
   let uwaga: string | null = null
   let koszt = 0
-  for (const [i, t] of zadania.entries()) {
-    postep(`Szacowanie kosztu ${i + 1}/${zadania.length}...`)
-    const { szacunek, blad } = await szacujAi(t.tryb, t.dane)
+  for (const [i, zad] of zadania.entries()) {
+    postep(t('Szacowanie kosztu {0}/{1}...', i + 1, zadania.length))
+    const { szacunek, blad } = await szacujAi(zad.tryb, zad.dane)
     if (blad || !szacunek) {
       aiDostepne = false
       uwaga = blad && BRAK_KLUCZA.test(blad) ? 'Klucz Claude API nie jest ustawiony - kroki AI zostaną pominięte. Wycena powstanie z karty analizy i zapisanych odczytów rysunków.' : (blad ?? 'Nie udało się oszacować kosztu.')
       break
     }
-    t.koszt_pln = szacunek.koszt_pln
+    zad.koszt_pln = szacunek.koszt_pln
     koszt += szacunek.koszt_pln
   }
   return { zadania, koszt_pln: koszt, aiDostepne, uwaga, pominiete }
@@ -158,16 +159,16 @@ export async function wykonajPrzygotowanie(
   // 1. Analiza zapytania.
   const analiza = plan.zadania.find((t) => t.rodzaj === 'analiza')
   if (analiza && plan.aiDostepne) {
-    postep('Analiza zapytania przez AI (do 2 minut)...')
+    postep(t('Analiza zapytania przez AI (do 2 minut)...'))
     const { odp, blad } = await wywolajAi<AnalizaAi>('analizuj_zapytanie', analiza.dane)
     if (odp) {
       koszt += odp.koszt_pln
       karta = zWynikuAnalizyAi(odp.wynik, karta)
       await zapiszKarte(z, karta, { ekstrakcja_ai: odp.wynik, model: odp.model, koszt_pln: odp.koszt_pln, przeanalizowano: new Date().toISOString() }, db)
       const pola = await uzupelnijZapytanie(z, karta, db)
-      kroki.push({ nazwa: 'Analiza zapytania', stan: 'ok', opis: `wymagań ${karta.wymagania.filter((w) => w.stan === 'wymagane').length}, usług ${karta.uslugi.length}, pytań ${karta.pytania.length}${pola.length ? `; uzupełniono kartę zapytania (${pola.length} pól)` : ''}` })
-    } else kroki.push({ nazwa: 'Analiza zapytania', stan: 'blad', opis: blad ?? 'brak odpowiedzi' })
-  } else kroki.push({ nazwa: 'Analiza zapytania', stan: 'pominiety', opis: plan.aiDostepne ? 'brak dokumentów do analizy' : 'AI niedostępne - użyto karty analizy w obecnej postaci' })
+      kroki.push({ nazwa: 'Analiza zapytania', stan: 'ok', opis: t('wymagań {0}, usług {1}, pytań {2}{3}', karta.wymagania.filter((w) => w.stan === 'wymagane').length, karta.uslugi.length, karta.pytania.length, pola.length ? `; uzupełniono kartę zapytania (${pola.length} pól)` : '') })
+    } else kroki.push({ nazwa: 'Analiza zapytania', stan: 'blad', opis: blad ?? t('brak odpowiedzi') })
+  } else kroki.push({ nazwa: 'Analiza zapytania', stan: 'pominiety', opis: plan.aiDostepne ? t('brak dokumentów do analizy') : t('AI niedostępne - użyto karty analizy w obecnej postaci') })
 
   // 2. Listy materiałów z rysunków (wyniki kafli jednej strony łączone w jeden odczyt).
   const rysunki = plan.zadania.filter((t) => t.rodzaj === 'rysunek')
@@ -179,13 +180,13 @@ export async function wykonajPrzygotowanie(
     for (const [, zad] of strony) {
       const wyniki: WynikRysunku[] = []
       const surowe: RysunekAi[] = []
-      for (const t of zad) {
-        postep(`Odczyt rysunku: ${t.opis}...`)
-        const { odp } = await wywolajAi<RysunekAi>('wyciagnij_liste_z_rysunku', t.dane)
+      for (const zr of zad) {
+        postep(t('Odczyt rysunku: {0}...', zr.opis))
+        const { odp } = await wywolajAi<RysunekAi>('wyciagnij_liste_z_rysunku', zr.dane)
         if (!odp) { bledy++; continue }
         koszt += odp.koszt_pln
         surowe.push(odp.wynik)
-        wyniki.push(zWynikuAi(odp.wynik, t.kafleNaStronie ?? [], s.kategorieMaterialow.map((k) => k.kod)))
+        wyniki.push(zWynikuAi(odp.wynik, zr.kafleNaStronie ?? [], s.kategorieMaterialow.map((k) => k.kod)))
       }
       const w = polaczWyniki(...wyniki)
       if (w.pozycje.length + w.krocce.length + w.parametry.length) {
@@ -197,15 +198,15 @@ export async function wykonajPrzygotowanie(
         pozycji += w.pozycje.length
       }
     }
-    kroki.push({ nazwa: 'Listy materiałów z rysunków', stan: bledy && !pozycji ? 'blad' : 'ok', opis: `${strony.size} str., ${pozycji} pozycji${bledy ? `, błędów: ${bledy}` : ''}` })
-  } else kroki.push({ nazwa: 'Listy materiałów z rysunków', stan: 'pominiety', opis: rysunki.length ? 'AI niedostępne - użyto zapisanych odczytów' : 'brak rysunków PDF oznaczonych jako istotne' })
+    kroki.push({ nazwa: 'Listy materiałów z rysunków', stan: bledy && !pozycji ? 'blad' : 'ok', opis: t('{0} str., {1} pozycji{2}', strony.size, pozycji, bledy ? `, błędów: ${bledy}` : '') })
+  } else kroki.push({ nazwa: 'Listy materiałów z rysunków', stan: 'pominiety', opis: rysunki.length ? t('AI niedostępne - użyto zapisanych odczytów') : t('brak rysunków PDF oznaczonych jako istotne') })
 
   // 3. Wstępna wycena.
   let wycenaId: string | null = null
   let wersja: number | null = null
   let weryfikacja: RaportPrzygotowania['weryfikacja'] = []
   if (opcje.wycena) {
-    postep('Wstępna wycena: aparaty, materiały i ceny z bazy...')
+    postep(t('Wstępna wycena: aparaty, materiały i ceny z bazy...'))
     const { data: wid, error } = await db.rpc('nowa_wycena', { p_zapytanie: z.id, p_nazwa: 'Wstępna - przygotowana automatycznie' })
     if (error) throw new Error(komunikatPL(error.message))
     const st = await wczytajWycene(wid as string, db)
@@ -257,7 +258,7 @@ export async function wykonajPrzygotowanie(
     }
 
     // Ceny z bazy ofert i zakupów (kopia ze źródłem i datą).
-    postep('Dobór cen z bazy ofert i zakupów...')
+    postep(t('Dobór cen z bazy ofert i zakupów...'))
     const { wiersze } = await wczytajCeny({ zakupy: true }, db)
     let zCena = 0
     let wszystkich = 0
@@ -303,10 +304,10 @@ export async function wykonajPrzygotowanie(
     }
     st.wycena.uwagi = `Wstępna wycena przygotowana automatycznie ${dataPL(dzisiajISO())} - do weryfikacji (raport w karcie analizy).`
     await zapiszWycene(st, widziMarze, db)
-    kroki.push({ nazwa: 'Wstępna wycena', stan: 'ok', opis: `v${wersja}: ${st.aparaty.length} apar., ${wszystkich} poz., z ceną z bazy ${zCena}` })
-    if (opcje.oferta) kroki.push({ nazwa: 'Projekt oferty', stan: 'ok', opis: `klauzul: ${(st.wycena.oferta.obejmuje as string[]).length + (st.wycena.oferta.nie_obejmuje as string[]).length + (st.wycena.oferta.uwagi as string[]).length}` })
+    kroki.push({ nazwa: 'Wstępna wycena', stan: 'ok', opis: t('v{0}: {1} apar., {2} poz., z ceną z bazy {3}', wersja, st.aparaty.length, wszystkich, zCena) })
+    if (opcje.oferta) kroki.push({ nazwa: 'Projekt oferty', stan: 'ok', opis: t('klauzul: {0}', (st.wycena.oferta.obejmuje as string[]).length + (st.wycena.oferta.nie_obejmuje as string[]).length + (st.wycena.oferta.uwagi as string[]).length) })
     weryfikacja = [
-      ...bezAparatu.map((p): RaportPrzygotowania['weryfikacja'][number] => ({ rodzaj: 'odczyt', gdzie: 'wycena', opis: `Lista z rysunku ${p} trafiła do pierwszego aparatu - nie wiadomo, którego dotyczy. Przenieś pozycje, jeśli to inny aparat (albo wskaż rysunek przy aparacie w karcie analizy).` })),
+      ...bezAparatu.map((p): RaportPrzygotowania['weryfikacja'][number] => ({ rodzaj: 'odczyt', gdzie: 'wycena', opis: t('Lista z rysunku {0} trafiła do pierwszego aparatu - nie wiadomo, którego dotyczy. Przenieś pozycje, jeśli to inny aparat (albo wskaż rysunek przy aparacie w karcie analizy).', p) })),
       ...punktyWeryfikacji(st, parametry(st.wycena, st.marze, s), karta, Number(s.ustawienia.wiek_ceny_ostrzezenie_mies) || 6),
     ]
     if (['nowe', 'w_analizie', 'zapytania_do_dostawcow'].includes(z.status)) await db.from('zapytania').update({ status: 'kalkulacja' }).eq('id', z.id)

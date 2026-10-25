@@ -8,6 +8,7 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { ZrodloCeny } from './ZrodloCeny'
 import { SzablonIParametry } from './SzablonIParametry'
+import { t } from '@/i18n'
 
 interface Props {
   aparat: Aparat
@@ -53,14 +54,14 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
         {!tylkoOdczyt && (
           <>
             <select className="pole w-64" value="" onChange={(e) => e.target.value && dodaj(e.target.value)}>
-              <option value="">+ dodaj sekcję materiałów...</option>
+              <option value="">{t('+ dodaj sekcję materiałów...')}</option>
               {wolne.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
             </select>
-            <Button rozmiar="maly" onClick={importuj}>Import listy materiałowej (Excel)</Button>
+            <Button rozmiar="maly" onClick={importuj}>{t('Import listy materiałowej (Excel)')}</Button>
           </>
         )}
         <span className="text-xs text-slate-500">
-          Masa liczona z wymiarów (kursywa) albo wpisana. Koszt = masa × zł/kg, metry × zł/m albo ilość × cena; wpisanie kosztu zastępuje obliczenie.
+          {t('Masa liczona z wymiarów (kursywa) albo wpisana. Koszt = masa × zł/kg, metry × zł/m albo ilość × cena; wpisanie kosztu zastępuje obliczenie.')}
         </span>
       </div>
 
@@ -74,7 +75,7 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1500px] border-collapse">
                 <thead><tr>
-                  {['Lp', 'Przeznaczenie', 'Rodzaj', 'Gatunek', 'φ zew', 'φ wew', 'g', 'b', 'l', 'DN', 'PN', 'Ilość', 'J.m.', 'Masa jedn. kg', 'Masa całk. kg', 'Cena', 'za', 'Koszt PLN', 'Źródło ceny', 'Opcj.', 'Uwagi', ''].map((n) => (
+                  {[t('Lp'), t('Przeznaczenie'), t('Rodzaj'), t('Gatunek'), t('φ zew'), t('φ wew'), 'g', 'b', 'l', 'DN', 'PN', t('Ilość'), t('J.m.'), t('Masa jedn. kg'), t('Masa całk. kg'), t('Cena'), 'za', t('Koszt PLN'), t('Źródło ceny'), t('Opcj.'), t('Uwagi'), ''].map((n) => (
                     <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>
                   ))}
                 </tr></thead>
@@ -99,7 +100,7 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
                           </select>
                         </td>
                         <td className={cn('komorka w-20', w.masa_z_wymiarow && !p.masa_reczna && 'italic text-slate-500', kplBezMasy && 'bg-amber-100')}
-                          title={w.masa_z_wymiarow ? 'Z wymiarów - wpisz, aby nadpisać' : p.masa_reczna ? 'Wpisana ręcznie - wyczyść, aby liczyć z wymiarów' : undefined}>
+                          title={w.masa_z_wymiarow ? t('Z wymiarów - wpisz, aby nadpisać') : p.masa_reczna ? t('Wpisana ręcznie - wyczyść, aby liczyć z wymiarów') : undefined}>
                           <PoleLiczby wartosc={p.masa_reczna ? p.masa_jedn ?? null : w.masa_jedn !== null ? Math.round(w.masa_jedn * 1000) / 1000 : null} puste disabled={tylkoOdczyt || p.jm === 'kg'}
                             zmien={(n) => ustPoz(p.klucz, n === null ? { masa_reczna: false, masa_jedn: null } : { masa_reczna: true, masa_jedn: n })} />
                         </td>
@@ -107,17 +108,17 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
                         <td className="komorka w-20"><PoleLiczby wartosc={p.cena_jedn} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { cena_jedn: n ?? 0, zrodlo_ceny: 'recznie', zrodlo_data: null, zrodlo_waznosc_do: null, zrodlo_dostawca: null, zrodlo_opis: null, zrodlo_id: null, zrodlo_termin_dni: null })} /></td>
                         <td className="komorka w-16">
                           <select className="pole-komorki text-xs" disabled={tylkoOdczyt} value={p.jednostka_ceny} onChange={(e) => ustPoz(p.klucz, { jednostka_ceny: e.target.value as PozycjaWyceny['jednostka_ceny'] })}>
-                            <option value="kg">zł/kg</option><option value="m">zł/m</option><option value="jm">zł/{p.jm}</option>
+                            <option value="kg">{t('zł/kg')}</option><option value="m">{t('zł/m')}</option><option value="jm">{t('zł/')}{p.jm}</option>
                           </select>
                         </td>
-                        <td className={cn('komorka w-24', (p.wartosc_reczna === null || p.wartosc_reczna === undefined) && 'italic')} title="Wpisz, aby zastąpić obliczenie; wyczyść, aby liczyć">
+                        <td className={cn('komorka w-24', (p.wartosc_reczna === null || p.wartosc_reczna === undefined) && 'italic')} title={t('Wpisz, aby zastąpić obliczenie; wyczyść, aby liczyć')}>
                           <PoleLiczby wartosc={p.wartosc_reczna ?? Math.round(w.koszt * 100) / 100} puste disabled={tylkoOdczyt}
                             zmien={(n) => ustPoz(p.klucz, { wartosc_reczna: n })} />
                         </td>
                         <td className="komorka w-40"><ZrodloCeny p={p} wiekMies={s.ustawienia.wiek_ceny_ostrzezenie_mies} tylkoOdczyt={tylkoOdczyt} onZnajdz={() => znajdz(p)} /></td>
                         <td className="komorka w-14 text-center text-xs">
-                          <label title="Pozycja opcjonalna (wariant oferty bez niej)"><input type="checkbox" disabled={tylkoOdczyt} checked={!!p.opcjonalna} onChange={(e) => ustPoz(p.klucz, { opcjonalna: e.target.checked, wariant: e.target.checked ? p.wariant ?? 'wariant' : null })} /></label>
-                          {p.jm === 'kpl' && <label className="ml-1" title="Cena za komplet - bez masy"><input type="checkbox" disabled={tylkoOdczyt} checked={!!p.cena_za_komplet} onChange={(e) => ustPoz(p.klucz, { cena_za_komplet: e.target.checked })} /> kpl</label>}
+                          <label title={t('Pozycja opcjonalna (wariant oferty bez niej)')}><input type="checkbox" disabled={tylkoOdczyt} checked={!!p.opcjonalna} onChange={(e) => ustPoz(p.klucz, { opcjonalna: e.target.checked, wariant: e.target.checked ? p.wariant ?? 'wariant' : null })} /></label>
+                          {p.jm === 'kpl' && <label className="ml-1" title={t('Cena za komplet - bez masy')}><input type="checkbox" disabled={tylkoOdczyt} checked={!!p.cena_za_komplet} onChange={(e) => ustPoz(p.klucz, { cena_za_komplet: e.target.checked })} /> kpl</label>}
                         </td>
                         <td className="komorka min-w-[8rem]"><input className="pole-komorki" disabled={tylkoOdczyt} value={p.uwagi ?? ''} onChange={(e) => ustPoz(p.klucz, { uwagi: e.target.value || null })} /></td>
                         <td className="komorka w-8 text-center">{!tylkoOdczyt && <button className="text-slate-400 hover:text-red-600" onClick={() => usun(p.klucz)}><Trash2 className="h-4 w-4" /></button>}</td>
@@ -131,12 +132,12 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
               {!tylkoOdczyt ? <Button rozmiar="maly" wariant="cichy" onClick={() => dodaj(sekcja)}><Plus className="h-3 w-3" /> wiersz</Button> : <span />}
               {podsum && (
                 <div className="flex flex-wrap items-center gap-4">
-                  <span>Suma: <strong>{zl(podsum.koszt)}</strong></span>
+                  <span>{t('Suma:')}{' '}<strong>{zl(podsum.koszt)}</strong></span>
                   <span className="flex items-center gap-1">naddatek
                     <span className="w-14 rounded border border-slate-300 px-1"><PoleLiczby wartosc={podsum.naddatek_proc} disabled={tylkoOdczyt}
                       zmien={(n) => zmien((a) => ({ ...a, naddatki: { ...a.naddatki, [sekcja]: n ?? 0 } }))} /></span>% = {zl(podsum.naddatek)}
                   </span>
-                  <span>Razem: <strong>{zl(podsum.razem)}</strong></span>
+                  <span>{t('Razem:')}{' '}<strong>{zl(podsum.razem)}</strong></span>
                   <span className="text-slate-500">masa {liczba(podsum.masa, 1)} kg</span>
                 </div>
               )}
@@ -147,10 +148,10 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
       <datalist id="gatunki-wyceny">{s.gatunki.map((g) => <option key={g.kod} value={g.kod} />)}</datalist>
 
       <section className="sekcja flex flex-wrap gap-6 text-sm">
-        <span>Koszt materiałów (z naddatkami): <strong>{zl(koszty.materialy.koszt)} PLN</strong></span>
-        <span>Masa brutto: <strong>{liczba(koszty.materialy.masa_brutto, 1)} kg</strong> ({liczba(koszty.materialy.masa_brutto / 1000, 3)} t)</span>
-        <span>Narzut zakupowy {liczba(par.narzut_zakupowy_proc)}%: <strong>{zl(koszty.materialy.narzut_zakupowy)}</strong></span>
-        <span>Materiały z narzutem: <strong>{zl(koszty.materialy.razem)} PLN</strong> (1 szt.)</span>
+        <span>{t('Koszt materiałów (z naddatkami):')}{' '}<strong>{zl(koszty.materialy.koszt)} PLN</strong></span>
+        <span>{t('Masa brutto:')}{' '}<strong>{liczba(koszty.materialy.masa_brutto, 1)} kg</strong> ({liczba(koszty.materialy.masa_brutto / 1000, 3)} {t('t)')}</span>
+        <span>{t('Narzut zakupowy')}{' '}{liczba(par.narzut_zakupowy_proc)}%: <strong>{zl(koszty.materialy.narzut_zakupowy)}</strong></span>
+        <span>{t('Materiały z narzutem:')}{' '}<strong>{zl(koszty.materialy.razem)} PLN</strong> {t('(1 szt.)')}</span>
       </section>
     </div>
   )

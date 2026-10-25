@@ -11,6 +11,7 @@ import { uprawnienia, type Profil } from '@/lib/types'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
+import { t } from '@/i18n'
 
 interface Zakup {
   id: number; numer_karty: string; nr_zamowienia: string; dostawca_nazwa: string | null; nazwa: string
@@ -23,11 +24,11 @@ interface ImportOptimy {
   liczba_pozycji: number | null; nowych: number | null; zaktualizowanych: number | null; usunietych: number | null; utworzono: string
 }
 
-const RODZAJE: Record<string, string> = { material: 'materiał', usluga: 'usługa', doplata: 'dopłata', pomocnicze: 'pomocnicze' }
+const RODZAJE: Record<string, string> = { material: t('materiał'), usluga: t('usługa'), doplata: t('dopłata'), pomocnicze: t('pomocnicze') }
 
 /** Kolejka "uzupełnij masę": materiały bez masy, dla których porównanie zł/kg ma sens. */
 export const wymagaMasy = (z: Pick<Zakup, 'rodzaj' | 'masa_kg' | 'jm' | 'kategoria'>) =>
-  z.rodzaj === 'material' && z.masa_kg === null && (['kpl', 'usł'].includes(String(z.jm).toLowerCase()) || ['blachy', 'odkuwki'].includes(z.kategoria ?? ''))
+  z.rodzaj === 'material' && z.masa_kg === null && (['kpl', t('usł')].includes(String(z.jm).toLowerCase()) || ['blachy', 'odkuwki'].includes(z.kategoria ?? ''))
 
 export function Zakupy({ profil }: { profil: Profil }) {
   const s = useSlowniki()
@@ -59,7 +60,7 @@ export function Zakupy({ profil }: { profil: Profil }) {
     try {
       const karta = parsujKarteDostawy(await wierszeZPliku(new Uint8Array(await p.arrayBuffer())))
       setPodglad({ ...karta, plik: p.name })
-    } catch (e) { setBlad(`Nie udało się odczytać pliku: ${e instanceof Error ? e.message : String(e)}`) }
+    } catch (e) { setBlad(t('Nie udało się odczytać pliku: {0}', e instanceof Error ? e.message : String(e))) }
   }
 
   async function zapiszImport() {
@@ -73,7 +74,7 @@ export function Zakupy({ profil }: { profil: Profil }) {
     setZajety(false)
     if (error) { setBlad(komunikatPL(error.message)); return }
     const { data: ost } = await supabase.from('importy_optima').select('*').eq('numer_karty', podglad.numer_karty).order('utworzono', { ascending: false }).limit(1).single()
-    setKomunikat(`Zaimportowano kartę ${podglad.numer_karty}: nowych ${ost?.nowych ?? '?'}, zaktualizowanych ${ost?.zaktualizowanych ?? '?'}, usuniętych ${ost?.usunietych ?? '?'}. Projekt utworzony / zaktualizowany w „Projektach zrealizowanych”.`)
+    setKomunikat(t('Zaimportowano kartę {0}: nowych {1}, zaktualizowanych {2}, usuniętych {3}. Projekt utworzony / zaktualizowany w „Projektach zrealizowanych”.', podglad.numer_karty, ost?.nowych ?? '?', ost?.zaktualizowanych ?? '?', ost?.usunietych ?? '?'))
     setPodglad(null); setWidok('pozycje')
     await wczytaj()
   }
@@ -105,19 +106,19 @@ export function Zakupy({ profil }: { profil: Profil }) {
 
   const opcjeKategorii = (
     <>
-      <optgroup label="Materiały">{s.kategorieMaterialow.map((k) => <option key={k.kod} value={`m:${k.kod}`}>{k.nazwa}</option>)}</optgroup>
-      <optgroup label="Usługi">{s.kategorieUslug.map((k) => <option key={k.kod} value={`u:${k.kod}`}>{k.nazwa}</option>)}</optgroup>
-      <option value="doplata:">dopłata (atest, transport)</option>
+      <optgroup label={t('Materiały')}>{s.kategorieMaterialow.map((k) => <option key={k.kod} value={`m:${k.kod}`}>{k.nazwa}</option>)}</optgroup>
+      <optgroup label={t('Usługi')}>{s.kategorieUslug.map((k) => <option key={k.kod} value={`u:${k.kod}`}>{k.nazwa}</option>)}</optgroup>
+      <option value="doplata:">{t('dopłata (atest, transport)')}</option>
     </>
   )
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Zakupy historyczne (karty dostawy Optima)</h2>
+      <h2 className="text-lg font-semibold">{t('Zakupy historyczne (karty dostawy Optima)')}</h2>
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {([['pozycje', 'Pozycje'], ['kolejka', `Uzupełnij masę (${doUzupelnienia})`], ...(up.importy ? [['import', '+ Import karty dostawy']] : []), ['historia', 'Historia importów']] as [typeof widok, string][]).map(([id, et]) => (
+        {([['pozycje', t('Pozycje')], ['kolejka', t('Uzupełnij masę ({0})', doUzupelnienia)], ...(up.importy ? [['import', t('+ Import karty dostawy')]] : []), ['historia', t('Historia importów')]] as [typeof widok, string][]).map(([id, et]) => (
           <button key={id} onClick={() => setWidok(id)}
             className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', widok === id ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
         ))}
@@ -127,30 +128,29 @@ export function Zakupy({ profil }: { profil: Profil }) {
         <div className="space-y-3">
           <label className="flex max-w-xl cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-white p-5 hover:border-blekit">
             <Upload className="h-6 w-6 text-slate-400" />
-            <span className="text-sm">Wybierz plik „KARTA DOSTAWY” wyeksportowany z Optimy (.XLS). Ponowny import tej samej karty aktualizuje dane zamiast je dublować.</span>
+            <span className="text-sm">{t('Wybierz plik „KARTA DOSTAWY” wyeksportowany z Optimy (.XLS). Ponowny import tej samej karty aktualizuje dane zamiast je dublować.')}</span>
             <input type="file" accept=".xls,.xlsx" className="hidden" onChange={(e) => void wczytajPlik(e.target.files)} />
           </label>
           {podglad && (
             <section className="sekcja space-y-2">
-              <h3 className="font-semibold">Karta {podglad.numer_karty || '(brak numeru!)'} <span className="text-sm font-normal text-slate-500">({podglad.plik})</span></h3>
+              <h3 className="font-semibold">{t('Karta')}{' '}{podglad.numer_karty || t('(brak numeru!)')} <span className="text-sm font-normal text-slate-500">({podglad.plik})</span></h3>
               <div className={cn('flex items-center gap-2 text-sm', podglad.zgodna ? 'text-limonka-ciemna' : 'text-red-700')}>
                 {podglad.zgodna ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                Kontrola sumy: stopka {podglad.suma_stopka !== null ? zl(podglad.suma_stopka) : 'brak'} · suma zamówień {zl(podglad.suma_zamowien)} · suma pozycji {zl(podglad.suma_pozycji)}
-                {podglad.zgodna ? ' - zgodna' : ' - NIEZGODNA'}
+                {t('Kontrola sumy: stopka')}{' '}{podglad.suma_stopka !== null ? zl(podglad.suma_stopka) : 'brak'} {t('· suma zamówień')}{' '}{zl(podglad.suma_zamowien)} {t('· suma pozycji')}{' '}{zl(podglad.suma_pozycji)}
+                {podglad.zgodna ? t(' - zgodna') : t(' - NIEZGODNA')}
               </div>
               {podglad.zaokraglenia.length > 0 && (
-                <p className="text-xs text-slate-500">Groszowe zaokrąglenia Optimy: {podglad.zaokraglenia.map((z) => `${z.nr_zamowienia} (${zl(z.suma_pozycji)} → ${zl(z.suma_zamowienia)})`).join(', ')}</p>
+                <p className="text-xs text-slate-500">{t('Groszowe zaokrąglenia Optimy:')}{' '}{podglad.zaokraglenia.map((z) => `${z.nr_zamowienia} (${zl(z.suma_pozycji)} → ${zl(z.suma_zamowienia)})`).join(', ')}</p>
               )}
               {podglad.ostrzezenia.map((o) => <p key={o} className="text-sm text-amber-800">⚠ {o}</p>)}
               <p className="text-sm">
-                Pozycji: {podglad.pozycje.length} - {Object.entries(RODZAJE).map(([k, v]) => `${v}: ${podglad.pozycje.filter((p) => p.rodzaj === k).length}`).join(', ')}.
-                Bez masy (do uzupełnienia): {podglad.pozycje.filter((p) => wymagaMasy({ ...p, kategoria: p.kategoria })).length}.
+                {t('Pozycji:')}{' '}{podglad.pozycje.length} - {Object.entries(RODZAJE).map(([k, v]) => `${v}: ${podglad.pozycje.filter((p) => p.rodzaj === k).length}`).join(', ')}{t('. Bez masy (do uzupełnienia):')}{' '}{podglad.pozycje.filter((p) => wymagaMasy({ ...p, kategoria: p.kategoria })).length}.
               </p>
               <div className="flex gap-2">
-                <Button wariant="glowny" disabled={zajety || !podglad.numer_karty} onClick={() => void zapiszImport()}>Zapisz w bazie</Button>
-                <Button onClick={() => setPodglad(null)}>Anuluj</Button>
+                <Button wariant="glowny" disabled={zajety || !podglad.numer_karty} onClick={() => void zapiszImport()}>{t('Zapisz w bazie')}</Button>
+                <Button onClick={() => setPodglad(null)}>{t('Anuluj')}</Button>
               </div>
-              {!podglad.zgodna && <p className="text-xs text-slate-500">Import jest możliwy mimo niezgodności - zapisze się informacja, że suma się nie zgadzała.</p>}
+              {!podglad.zgodna && <p className="text-xs text-slate-500">{t('Import jest możliwy mimo niezgodności - zapisze się informacja, że suma się nie zgadzała.')}</p>}
             </section>
           )}
         </div>
@@ -159,7 +159,7 @@ export function Zakupy({ profil }: { profil: Profil }) {
       {widok === 'historia' && (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full border-collapse">
-            <thead><tr>{['Kiedy', 'Karta', 'Plik', 'Stopka', 'Suma pozycji', 'Zgodna', 'Pozycji', 'Nowe / zaktual. / usunięte'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
+            <thead><tr>{[t('Kiedy'), t('Karta'), t('Plik'), t('Stopka'), t('Suma pozycji'), t('Zgodna'), t('Pozycji'), t('Nowe / zaktual. / usunięte')].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
             <tbody>
               {importy.map((i) => (
                 <tr key={i.id}>
@@ -182,30 +182,30 @@ export function Zakupy({ profil }: { profil: Profil }) {
         <>
           {widok === 'kolejka' && (
             <p className="text-sm text-slate-600">
-              Materiały bez masy (np. „Wypałki … 1 kpl”) nie wchodzą do porównań zł/kg, dopóki ktoś nie wpisze masy. Wpisz masę w kg - zapisuje się od razu.
+              {t('Materiały bez masy (np. „Wypałki … 1 kpl”) nie wchodzą do porównań zł/kg, dopóki ktoś nie wpisze masy. Wpisz masę w kg - zapisuje się od razu.')}
             </p>
           )}
           <div className="flex flex-wrap items-end gap-3">
-            <label><span className="etykieta">Szukaj</span><input className="pole w-56" value={filtr.tekst} onChange={(e) => setFiltr({ ...filtr, tekst: e.target.value })} /></label>
-            <label><span className="etykieta">Karta / projekt</span>
+            <label><span className="etykieta">{t('Szukaj')}</span><input className="pole w-56" value={filtr.tekst} onChange={(e) => setFiltr({ ...filtr, tekst: e.target.value })} /></label>
+            <label><span className="etykieta">{t('Karta / projekt')}</span>
               <select className="pole w-48" value={filtr.karta} onChange={(e) => setFiltr({ ...filtr, karta: e.target.value })}>
                 <option value="">wszystkie</option>{karty.map((k) => <option key={k}>{k}</option>)}
               </select></label>
-            <label><span className="etykieta">Rodzaj</span>
+            <label><span className="etykieta">{t('Rodzaj')}</span>
               <select className="pole w-40" value={filtr.rodzaj} onChange={(e) => setFiltr({ ...filtr, rodzaj: e.target.value })}>
                 <option value="">wszystkie</option>{Object.entries(RODZAJE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select></label>
-            <label><span className="etykieta">Kategoria</span>
+            <label><span className="etykieta">{t('Kategoria')}</span>
               <select className="pole w-48" value={filtr.kategoria} onChange={(e) => setFiltr({ ...filtr, kategoria: e.target.value })}>
                 <option value="">wszystkie</option>
                 {s.kategorieMaterialow.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
                 {s.kategorieUslug.map((k) => <option key={k.kod} value={k.kod}>{k.nazwa}</option>)}
               </select></label>
-            <span className="pb-2 text-sm text-slate-500">{widoczne.length} pozycji · {zl(widoczne.reduce((a, z) => a + Number(z.wartosc), 0))} zł</span>
+            <span className="pb-2 text-sm text-slate-500">{widoczne.length} {t('pozycji ·')}{' '}{zl(widoczne.reduce((a, z) => a + Number(z.wartosc), 0))} {t('zł')}</span>
           </div>
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="w-full min-w-[1200px] border-collapse">
-              <thead><tr>{['Karta', 'Zamówienie', 'Dostawca', 'Nazwa', 'Kategoria', 'Gatunek', 'Ilość', 'Cena', 'Wartość', 'Masa [kg]', 'zł/kg', 'Data'].map((n) => <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>)}</tr></thead>
+              <thead><tr>{[t('Karta'), t('Zamówienie'), t('Dostawca'), t('Nazwa'), t('Kategoria'), t('Gatunek'), t('Ilość'), t('Cena'), t('Wartość'), t('Masa [kg]'), t('zł/kg'), t('Data')].map((n) => <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>)}</tr></thead>
               <tbody>
                 {widoczne.slice(0, 2000).map((z) => (
                   <tr key={z.id} className={cn(z.rodzaj === 'doplata' && 'text-slate-500', z.rodzaj === 'pomocnicze' && 'text-slate-500 italic')}>
@@ -218,14 +218,14 @@ export function Zakupy({ profil }: { profil: Profil }) {
                         value={z.rodzaj === 'material' ? `m:${z.kategoria}` : z.rodzaj === 'usluga' ? `u:${z.kategoria_uslugi ?? ''}` : `${z.rodzaj}:`}
                         onChange={(e) => void ustawKategorie(z, e.target.value)}>
                         {opcjeKategorii}
-                        {z.rodzaj === 'usluga' && !z.kategoria_uslugi && <option value="u:">usługa (bez kategorii)</option>}
+                        {z.rodzaj === 'usluga' && !z.kategoria_uslugi && <option value="u:">{t('usługa (bez kategorii)')}</option>}
                       </select>
                     </td>
                     <td className="komorka whitespace-nowrap text-xs">{z.gatunek}</td>
                     <td className="komorka liczba whitespace-nowrap">{liczba(z.ilosc)} {z.jm}</td>
                     <td className="komorka liczba whitespace-nowrap">{zl(z.cena_jedn)}</td>
                     <td className="komorka liczba whitespace-nowrap">{zl(z.wartosc)}</td>
-                    <td className={cn('komorka w-24', wymagaMasy(z) && 'bg-amber-50')} title={z.masa_zrodlo ? `źródło: ${z.masa_zrodlo}` : 'brak masy'}>
+                    <td className={cn('komorka w-24', wymagaMasy(z) && 'bg-amber-50')} title={z.masa_zrodlo ? t('źródło: {0}', z.masa_zrodlo) : t('brak masy')}>
                       {z.rodzaj === 'material'
                         ? <PoleLiczby wartosc={z.masa_kg} puste zmien={(n) => void ustawMase(z, n)} />
                         : null}

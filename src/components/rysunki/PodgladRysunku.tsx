@@ -1,5 +1,6 @@
 import { ETYKIETY_OBSZARU, KOLORY_OBSZARU, type Obszar, type Prostokat, type RodzajObszaru } from '@/lib/rysunki'
 import { ZaznaczanieObszarow } from '../ui/ZaznaczanieObszarow'
+import { t } from '@/i18n'
 
 interface Props {
   dataUrl: string
@@ -21,7 +22,7 @@ interface Props {
 export function PodgladRysunku({ dataUrl, obszary, rodzajNowego, zoom, wybrany, podswietlony, tylkoOdczyt, wybierz, dodaj, usun }: Props) {
   return (
     <ZaznaczanieObszarow
-      dataUrl={dataUrl} alt="Strona rysunku" zoom={zoom} wybrany={wybrany} podswietlony={podswietlony} tylkoOdczyt={tylkoOdczyt}
+      dataUrl={dataUrl} alt={t('Strona rysunku')} zoom={zoom} wybrany={wybrany} podswietlony={podswietlony} tylkoOdczyt={tylkoOdczyt}
       obszary={obszary.map((o) => ({ ...o, kolor: KOLORY_OBSZARU[o.rodzaj], etykieta: ETYKIETY_OBSZARU[o.rodzaj] }))}
       kolorNowego={KOLORY_OBSZARU[rodzajNowego]} wybierz={wybierz} usun={usun}
       dodaj={(p) => {

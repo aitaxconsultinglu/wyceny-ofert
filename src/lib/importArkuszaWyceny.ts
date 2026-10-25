@@ -3,6 +3,7 @@
 // i test lokalny, który sprawdza, że nowa metoda odtwarza wynik arkusza co do grosza.
 import type { AparatKalk, PozycjaKalk, Zakladka } from './kalkulacja'
 import type { WierszArkusza } from './importOptima'
+import { t } from '@/i18n'
 
 const tekst = (k: WierszArkusza[number]) => (k === null || k === undefined ? '' : String(k).replace(/\s+/g, ' ').trim())
 const liczba = (k: WierszArkusza[number]) => (typeof k === 'number' && Number.isFinite(k) ? k : null)
@@ -37,7 +38,7 @@ export function importujArkuszWyceny(arkusze: Record<string, WierszArkusza[]>): 
   const prac = arkusze['Pracochłonność'] ?? []
   const koop = arkusze['Kooperacja'] ?? []
   const bad = arkusze['Badania, odb, trans'] ?? []
-  if (!op.length || !mat.length) throw new Error('To nie jest arkusz w formacie arkusza wyceny (brak zakładek Opinia / Materiały).')
+  if (!op.length || !mat.length) throw new Error(t('To nie jest arkusz w formacie arkusza wyceny (brak zakładek Opinia / Materiały).'))
 
   const nazwa = tekst(mat[0]?.[0]) || tekst(znajdz(op, /^Przedmiot zapytania/)?.[0])
   const wierszMasy = znajdz(op, /^Ciężar NETTO/)

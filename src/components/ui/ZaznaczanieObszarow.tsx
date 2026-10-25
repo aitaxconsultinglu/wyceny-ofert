@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { X } from 'lucide-react'
 import type { Prostokat } from '@/lib/rysunki'
+import { t } from '@/i18n'
 
 export interface ObszarNaPodgladzie extends Prostokat { id: string; kolor: string; etykieta: string }
 
@@ -122,7 +123,7 @@ export function ZaznaczanieObszarow({ dataUrl, obszary, kolorNowego, zoom, wybra
             <span className="absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap rounded px-1 text-[11px] font-medium text-white" style={{ background: o.kolor }}>
               {o.etykieta}
               {!tylkoOdczyt && o.id === wybrany && (
-                <button title="Usuń obszar" className="hover:text-red-200" onPointerDown={(e) => e.stopPropagation()} onClick={() => usun(o.id)}><X className="h-3 w-3" /></button>
+                <button title={t('Usuń obszar')} className="hover:text-red-200" onPointerDown={(e) => e.stopPropagation()} onClick={() => usun(o.id)}><X className="h-3 w-3" /></button>
               )}
             </span>
           </div>

@@ -25,6 +25,7 @@ import { Podsumowanie } from './Podsumowanie'
 import { ZnajdzCene, type WybranaCena } from './ZnajdzCene'
 import { ImportListy } from './ImportListy'
 import { EdytorOferty } from './EdytorOferty'
+import { t } from '@/i18n'
 
 type Zakladka = 'materialy' | 'robocizna' | 'kooperacja' | 'badania' | 'podsumowanie' | 'oferta'
 
@@ -79,7 +80,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
     termin_realizacji_tyg: stan.wycena.termin_realizacji_tyg, montaz_tyg: stan.wycena.montaz_tyg,
   }) : []), [stan, s.ustawienia])
 
-  if (!stan || !par || !wynik) return <p className="text-slate-500">{blad ?? 'Wczytywanie wyceny...'}</p>
+  if (!stan || !par || !wynik) return <p className="text-slate-500">{blad ?? t('Wczytywanie wyceny...')}</p>
   const w = stan.wycena
   const tylkoOdczyt = w.status === 'zatwierdzona' || (w.status === 'do_zatwierdzenia' && !jestPrezesem)
   const aparat = stan.aparaty[Math.min(aktywny, stan.aparaty.length - 1)]
@@ -102,7 +103,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
     try {
       await zapiszWycene(stan, up.widziMarze)
       await wczytaj()
-      if (!cicho) setInfo('Zapisano.')
+      if (!cicho) setInfo(t('Zapisano.'))
       setZajety(false)
       return true
     } catch (e) {
@@ -115,12 +116,12 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
     if (!stan || !wynik) return
     let komentarz: string | null = null
     if (status === 'zwrocona') {
-      komentarz = window.prompt('Co poprawić? (komentarz dla autora wyceny)')
+      komentarz = window.prompt(t('Co poprawić? (komentarz dla autora wyceny)'))
       if (!komentarz?.trim()) return
     }
     if (status === 'zatwierdzona') {
-      if (!window.confirm(`Zatwierdzić wycenę v${w.wersja}? Cena końcowa: ${zl(wynik.cena_koncowa)} PLN. Zatwierdzona wersja zostanie zamrożona.`)) return
-      komentarz = window.prompt('Komentarz prezesa (opcjonalnie):') || null
+      if (!window.confirm(t('Zatwierdzić wycenę v{0}? Cena końcowa: {1} PLN. Zatwierdzona wersja zostanie zamrożona.', w.wersja, zl(wynik.cena_koncowa)))) return
+      komentarz = window.prompt(t('Komentarz prezesa (opcjonalnie):')) || null
     }
     if (zmieniony && !(await zapisz(true))) return
     // Po zapisie przelicz na świeżym stanie (np. marże prezesa).
@@ -132,12 +133,12 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
       p_ceny: status === 'zatwierdzona' ? { koszt_calkowity: wyn.koszty.koszt, cena: wyn.cena, cena_koncowa: wyn.cena_koncowa, cena_bez_opcji: wyn.cena_bez_opcji } : null,
     })
     if (error) { setBlad(komunikatPL(error.message)); return }
-    setInfo({ do_zatwierdzenia: 'Przekazano do zatwierdzenia przez prezesa.', zatwierdzona: 'Wycena zatwierdzona i zamrożona.', zwrocona: 'Zwrócono do poprawy.', robocza: 'Wycofano z kolejki do zatwierdzenia.' }[status])
+    setInfo({ do_zatwierdzenia: t('Przekazano do zatwierdzenia przez prezesa.'), zatwierdzona: t('Wycena zatwierdzona i zamrożona.'), zwrocona: t('Zwrócono do poprawy.'), robocza: t('Wycofano z kolejki do zatwierdzenia.') }[status])
     await wczytaj()
   }
 
   async function kopiuj() {
-    if (zmieniony && !window.confirm('Masz niezapisane zmiany - kopia powstanie z wersji zapisanej. Kontynuować?')) return
+    if (zmieniony && !window.confirm(t('Masz niezapisane zmiany - kopia powstanie z wersji zapisanej. Kontynuować?'))) return
     const { data, error } = await supabase.rpc('kopiuj_wycene', { p_wycena: w.id })
     if (error) { setBlad(komunikatPL(error.message)); return }
     otworzWycene(data as string)
@@ -146,7 +147,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
   async function pobierzKurs() {
     const k = await kursNaDzien('EUR', new Date().toISOString().slice(0, 10))
     if (k) ustWycene({ kurs_eur: k.kurs, kurs_eur_data: k.data, kurs_eur_zrodlo: `NBP ${k.tabela ?? ''}`.trim() })
-    else setBlad('Brak kursu EUR w bazie - pobierz kursy w Ustawieniach albo wpisz ręcznie.')
+    else setBlad(t('Brak kursu EUR w bazie - pobierz kursy w Ustawieniach albo wpisz ręcznie.'))
   }
 
   function wstawCene(c: WybranaCena) {
@@ -168,57 +169,57 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
         const { notatkaDlaPrezesa } = await import('@/lib/eksportWord')
         await notatkaDlaPrezesa(stan, wynik, par!, s)
       }
-    } catch (e) { setBlad(`Eksport nie powiódł się: ${e instanceof Error ? e.message : String(e)}`) }
+    } catch (e) { setBlad(t('Eksport nie powiódł się: {0}', e instanceof Error ? e.message : String(e))) }
   }
 
   const ZAKLADKI = ([
-    ['materialy', 'Materiały'], ['robocizna', 'Pracochłonność'], ['kooperacja', 'Kooperacja'], ['badania', 'Badania, odbiory, projekt, transport'],
-    ['podsumowanie', 'Podsumowanie'], ['oferta', 'Oferta dla klienta'],
+    ['materialy', t('Materiały')], ['robocizna', t('Pracochłonność')], ['kooperacja', t('Kooperacja')], ['badania', t('Badania, odbiory, projekt, transport')],
+    ['podsumowanie', t('Podsumowanie')], ['oferta', t('Oferta dla klienta')],
   ] as [Zakladka, string][])
   const koszt = wynik.aparaty[Math.min(aktywny, wynik.aparaty.length - 1)]
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button rozmiar="maly" wariant="cichy" onClick={() => { if (!zmieniony || window.confirm('Porzucić niezapisane zmiany?')) zamknij() }}><ArrowLeft className="h-4 w-4" /> Zapytanie</Button>
-        <h2 className="text-lg font-semibold">{stan.zapytanie.numer} · wycena v{w.wersja}</h2>
+        <Button rozmiar="maly" wariant="cichy" onClick={() => { if (!zmieniony || window.confirm(t('Porzucić niezapisane zmiany?'))) zamknij() }}><ArrowLeft className="h-4 w-4" /> {t('Zapytanie')}</Button>
+        <h2 className="text-lg font-semibold">{stan.zapytanie.numer} {t('· wycena v')}{w.wersja}</h2>
         <span className={cn('znacznik', KOLORY_STATUSU_WYCENY[w.status])}>{ETYKIETY_STATUSU_WYCENY[w.status]}</span>
         <span className="text-sm text-slate-600">{stan.zapytanie.przedmiot}{stan.zapytanie.klient ? ` · ${stan.zapytanie.klient}` : ''}</span>
         <div className="ml-auto flex flex-wrap gap-2">
-          {!tylkoOdczyt && <Button wariant="glowny" disabled={zajety || !zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> Zapisz</Button>}
-          {['robocza', 'zwrocona'].includes(w.status) && <Button wariant="akcent" disabled={zajety} onClick={() => void zmienStatus('do_zatwierdzenia')}><Send className="h-4 w-4" /> Do zatwierdzenia</Button>}
+          {!tylkoOdczyt && <Button wariant="glowny" disabled={zajety || !zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> {t('Zapisz')}</Button>}
+          {['robocza', 'zwrocona'].includes(w.status) && <Button wariant="akcent" disabled={zajety} onClick={() => void zmienStatus('do_zatwierdzenia')}><Send className="h-4 w-4" /> {t('Do zatwierdzenia')}</Button>}
           {w.status === 'do_zatwierdzenia' && jestPrezesem && (
             <>
-              <Button wariant="glowny" disabled={zajety} onClick={() => void zmienStatus('zatwierdzona')}><CheckCircle2 className="h-4 w-4" /> Zatwierdź</Button>
-              <Button wariant="ostrzezenie" disabled={zajety} onClick={() => void zmienStatus('zwrocona')}><Undo2 className="h-4 w-4" /> Zwróć</Button>
+              <Button wariant="glowny" disabled={zajety} onClick={() => void zmienStatus('zatwierdzona')}><CheckCircle2 className="h-4 w-4" /> {t('Zatwierdź')}</Button>
+              <Button wariant="ostrzezenie" disabled={zajety} onClick={() => void zmienStatus('zwrocona')}><Undo2 className="h-4 w-4" /> {t('Zwróć')}</Button>
             </>
           )}
-          {w.status === 'do_zatwierdzenia' && !jestPrezesem && <Button disabled={zajety} onClick={() => void zmienStatus('robocza')}><Undo2 className="h-4 w-4" /> Wycofaj</Button>}
-          <Button onClick={() => void kopiuj()}><Copy className="h-4 w-4" /> Kopiuj wersję</Button>
-          <Button onClick={() => void eksport('excel')}><FileSpreadsheet className="h-4 w-4" /> Excel</Button>
-          {up.widziMarze && <Button onClick={() => void eksport('notatka')}><FileText className="h-4 w-4" /> Notatka</Button>}
+          {w.status === 'do_zatwierdzenia' && !jestPrezesem && <Button disabled={zajety} onClick={() => void zmienStatus('robocza')}><Undo2 className="h-4 w-4" /> {t('Wycofaj')}</Button>}
+          <Button onClick={() => void kopiuj()}><Copy className="h-4 w-4" /> {t('Kopiuj wersję')}</Button>
+          <Button onClick={() => void eksport('excel')}><FileSpreadsheet className="h-4 w-4" /> {t('Excel')}</Button>
+          {up.widziMarze && <Button onClick={() => void eksport('notatka')}><FileText className="h-4 w-4" /> {t('Notatka')}</Button>}
         </div>
       </div>
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {info && <Komunikat rodzaj="sukces">{info}</Komunikat>}
-      {w.komentarz_prezesa && <Komunikat rodzaj={w.status === 'zwrocona' ? 'ostrzezenie' : 'info'}>Komentarz prezesa: {w.komentarz_prezesa}</Komunikat>}
-      {w.status === 'zatwierdzona' && <Komunikat rodzaj="info">Wersja zatwierdzona {dataGodzinaPL(w.zatwierdzono)} - zamrożona. Zmiana wymaga skopiowania wersji. Ofertę dla klienta można nadal redagować.</Komunikat>}
-      {profil.rola === 'handlowy' && !tylkoOdczyt && <p className="text-xs text-slate-500">Dział handlowy zmienia w wycenie ceny materiałów i kooperację. Pozostałe zmiany odrzuci baza.</p>}
+      {w.komentarz_prezesa && <Komunikat rodzaj={w.status === 'zwrocona' ? 'ostrzezenie' : 'info'}>{t('Komentarz prezesa:')}{' '}{w.komentarz_prezesa}</Komunikat>}
+      {w.status === 'zatwierdzona' && <Komunikat rodzaj="info">{t('Wersja zatwierdzona')}{' '}{dataGodzinaPL(w.zatwierdzono)} {t('- zamrożona. Zmiana wymaga skopiowania wersji. Ofertę dla klienta można nadal redagować.')}</Komunikat>}
+      {profil.rola === 'handlowy' && !tylkoOdczyt && <p className="text-xs text-slate-500">{t('Dział handlowy zmienia w wycenie ceny materiałów i kooperację. Pozostałe zmiany odrzuci baza.')}</p>}
 
       <section className="sekcja flex flex-wrap items-end gap-4 text-sm">
-        <label className="w-56"><span className="etykieta">Nazwa wersji</span><input className="pole" disabled={tylkoOdczyt} value={w.nazwa ?? ''} onChange={(e) => ustWycene({ nazwa: e.target.value || null })} /></label>
-        <label><span className="etykieta">Narzut zakupowy [%]</span>
+        <label className="w-56"><span className="etykieta">{t('Nazwa wersji')}</span><input className="pole" disabled={tylkoOdczyt} value={w.nazwa ?? ''} onChange={(e) => ustWycene({ nazwa: e.target.value || null })} /></label>
+        <label><span className="etykieta">{t('Narzut zakupowy [%]')}</span>
           <span className="block w-20 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={Number(w.narzut_zakupowy_proc)} disabled={tylkoOdczyt} zmien={(n) => ustWycene({ narzut_zakupowy_proc: n ?? 0 })} /></span></label>
-        <label><span className="etykieta">Narzut na kooperację [%]</span>
+        <label><span className="etykieta">{t('Narzut na kooperację [%]')}</span>
           <span className="block w-20 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={Number(w.narzut_kooperacja_proc)} disabled={tylkoOdczyt} zmien={(n) => ustWycene({ narzut_kooperacja_proc: n ?? 0 })} /></span></label>
-        <label><span className="etykieta">Termin realizacji [tyg.]</span>
+        <label><span className="etykieta">{t('Termin realizacji [tyg.]')}</span>
           <span className="block w-20 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={w.termin_realizacji_tyg} puste disabled={tylkoOdczyt} zmien={(n) => ustWycene({ termin_realizacji_tyg: n })} /></span></label>
-        <label title="Część terminu na montaż / odbiory - do ostrzeżeń o terminach dostaw materiałów"><span className="etykieta">w tym montaż [tyg.]</span>
+        <label title={t('Część terminu na montaż / odbiory - do ostrzeżeń o terminach dostaw materiałów')}><span className="etykieta">{t('w tym montaż [tyg.]')}</span>
           <span className="block w-20 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={w.montaz_tyg} puste disabled={tylkoOdczyt} zmien={(n) => ustWycene({ montaz_tyg: n })} /></span></label>
         <div className="ml-auto text-right">
-          <p>Koszty: <strong>{zl(wynik.koszty.koszt)} PLN</strong>{wynik.koszty.zl_kg !== null && ` (${liczba(wynik.koszty.zl_kg, 2)} PLN/kg)`}</p>
-          {wynik.cena_koncowa !== null && <p>Cena końcowa: <strong className="text-limonka-ciemna">{zl(wynik.cena_koncowa)} PLN</strong></p>}
-          {ostrz.length > 0 && <button className="text-xs text-amber-700 underline" onClick={() => setZakladka('podsumowanie')}>{ostrz.length} ostrzeżeń</button>}
+          <p>{t('Koszty:')}{' '}<strong>{zl(wynik.koszty.koszt)} PLN</strong>{wynik.koszty.zl_kg !== null && t(' ({0} PLN/kg)', liczba(wynik.koszty.zl_kg, 2))}</p>
+          {wynik.cena_koncowa !== null && <p>{t('Cena końcowa:')}{' '}<strong className="text-limonka-ciemna">{zl(wynik.cena_koncowa)} PLN</strong></p>}
+          {ostrz.length > 0 && <button className="text-xs text-amber-700 underline" onClick={() => setZakladka('podsumowanie')}>{ostrz.length} {t('ostrzeżeń')}</button>}
         </div>
       </section>
 
@@ -227,36 +228,36 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
         {stan.aparaty.map((a, i) => (
           <button key={a.klucz} onClick={() => setAktywny(i)}
             className={cn('rounded-md px-3 py-1.5 text-sm ring-1', i === aktywny ? 'bg-blekit-jasny font-medium ring-blekit' : 'bg-white ring-slate-200 hover:bg-slate-50')}>
-            {a.nazwa || `Aparat ${i + 1}`}{a.ilosc !== 1 && ` ×${liczba(a.ilosc)}`}
+            {a.nazwa || t('Aparat {0}', i + 1)}{a.ilosc !== 1 && ` ×${liczba(a.ilosc)}`}
           </button>
         ))}
         {!tylkoOdczyt && <Button rozmiar="maly" wariant="cichy" onClick={() => { ustStan((x) => ({ ...x, aparaty: [...x.aparaty, { ...nowyAparat(x.aparaty.length + 1), typ: typAparatuZRodzaju(x.zapytanie.rodzaj_aparatu, x.zapytanie.zakres_wymiennika) }] })); setAktywny(stan.aparaty.length) }}><Plus className="h-3 w-3" /> aparat</Button>}
       </div>
 
       <section className="sekcja flex flex-wrap items-end gap-3 text-sm">
-        <label className="w-64"><span className="etykieta">Nazwa aparatu</span><input className="pole" disabled={tylkoOdczyt} value={aparat.nazwa} onChange={(e) => zmienAparat((a) => ({ ...a, nazwa: e.target.value }))} /></label>
-        <div className="w-56"><span className="etykieta">Rodzaj (z zapytania)</span>
+        <label className="w-64"><span className="etykieta">{t('Nazwa aparatu')}</span><input className="pole" disabled={tylkoOdczyt} value={aparat.nazwa} onChange={(e) => zmienAparat((a) => ({ ...a, nazwa: e.target.value }))} /></label>
+        <div className="w-56"><span className="etykieta">{t('Rodzaj (z zapytania)')}</span>
           <ZnacznikRodzaju rodzaj={stan.zapytanie.rodzaj_aparatu} zakres={stan.zapytanie.zakres_wymiennika} opis={stan.zapytanie.zakres_opis} />
-          {aparat.typ && aparat.typ !== typAparatuZRodzaju(stan.zapytanie.rodzaj_aparatu, stan.zapytanie.zakres_wymiennika) && <span className="block text-xs text-slate-500">typ w tej wycenie: {aparat.typ}</span>}
+          {aparat.typ && aparat.typ !== typAparatuZRodzaju(stan.zapytanie.rodzaj_aparatu, stan.zapytanie.zakres_wymiennika) && <span className="block text-xs text-slate-500">{t('typ w tej wycenie:')}{' '}{aparat.typ}</span>}
         </div>
         {stan.zapytanie.rodzaj_aparatu === 'wymiennik' && (
           <label className="w-24"><span className="etykieta">TEMA</span><input className="pole" placeholder="AES" disabled={tylkoOdczyt} value={aparat.tema ?? ''} onChange={(e) => zmienAparat((a) => ({ ...a, tema: e.target.value || null }))} /></label>
         )}
-        <label><span className="etykieta">Ilość [szt.]</span>
+        <label><span className="etykieta">{t('Ilość [szt.]')}</span>
           <span className="block w-20 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={aparat.ilosc} disabled={tylkoOdczyt} zmien={(n) => zmienAparat((a) => ({ ...a, ilosc: n && n > 0 ? n : 1 }))} /></span></label>
-        <label><span className="etykieta">Masa netto [kg / szt.]</span>
+        <label><span className="etykieta">{t('Masa netto [kg / szt.]')}</span>
           <span className="block w-28 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={aparat.masa_netto_kg} puste disabled={tylkoOdczyt} zmien={(n) => zmienAparat((a) => ({ ...a, masa_netto_kg: n }))} /></span></label>
         {(['srednica_mm', 'wysokosc_mm', 'dlugosc_mm'] as const).map((k) => (
-          <label key={k}><span className="etykieta">{{ srednica_mm: 'Średnica', wysokosc_mm: 'Wysokość', dlugosc_mm: 'Długość' }[k]} [mm]</span>
+          <label key={k}><span className="etykieta">{{ srednica_mm: 'Średnica', wysokosc_mm: 'Wysokość', dlugosc_mm: 'Długość' }[k]} {t('[mm]')}</span>
             <span className="block w-24 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={aparat[k]} puste disabled={tylkoOdczyt} zmien={(n) => zmienAparat((a) => ({ ...a, [k]: n }))} /></span></label>
         ))}
-        <label className="w-40"><span className="etykieta">Materiał wiodący</span><input className="pole" disabled={tylkoOdczyt} value={aparat.material_wiodacy ?? ''} onChange={(e) => zmienAparat((a) => ({ ...a, material_wiodacy: e.target.value || null }))} /></label>
+        <label className="w-40"><span className="etykieta">{t('Materiał wiodący')}</span><input className="pole" disabled={tylkoOdczyt} value={aparat.material_wiodacy ?? ''} onChange={(e) => zmienAparat((a) => ({ ...a, material_wiodacy: e.target.value || null }))} /></label>
         <div className="ml-auto text-right">
-          <p>Koszt 1 szt.: <strong>{zl(koszt.koszt_szt)}</strong></p>
-          {koszt.cena_szt !== null && <p className="text-xs">cena 1 szt.: {zl(koszt.cena_szt)}</p>}
+          <p>{t('Koszt 1 szt.:')}{' '}<strong>{zl(koszt.koszt_szt)}</strong></p>
+          {koszt.cena_szt !== null && <p className="text-xs">{t('cena 1 szt.:')}{' '}{zl(koszt.cena_szt)}</p>}
           {!tylkoOdczyt && stan.aparaty.length > 1 && (
-            <button className="mt-1 inline-flex items-center gap-1 text-xs text-red-600" onClick={() => { if (window.confirm(`Usunąć aparat ${aparat.nazwa}?`)) { ustStan((x) => ({ ...x, aparaty: x.aparaty.filter((a) => a.klucz !== aparat.klucz) })); setAktywny(0) } }}>
-              <Trash2 className="h-3 w-3" /> usuń aparat
+            <button className="mt-1 inline-flex items-center gap-1 text-xs text-red-600" onClick={() => { if (window.confirm(t('Usunąć aparat {0}?', aparat.nazwa))) { ustStan((x) => ({ ...x, aparaty: x.aparaty.filter((a) => a.klucz !== aparat.klucz) })); setAktywny(0) } }}>
+              <Trash2 className="h-3 w-3" /> {t('usuń aparat')}
             </button>
           )}
         </div>

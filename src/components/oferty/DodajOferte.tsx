@@ -11,6 +11,7 @@ import { formularzZAi, pustyFormularz, zapiszOferte, type FormularzOferty as For
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { FormularzOferty } from './FormularzOferty'
+import { t } from '@/i18n'
 
 const MAKS_STRON_SKANU = 4
 
@@ -67,13 +68,13 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
     setBlad(null); setInfo(null); setSzacunek(null); setKlasyfikacja(null)
     const p = [...pliki][0]
     if (!p) return
-    setZajety('Wczytywanie pliku...')
+    setZajety(t('Wczytywanie pliku...'))
     try {
       const w = await wczytajPlik(p)
       setPlik(w)
       // Domyślnie do AI idą załączniki wyglądające na ofertę (PDF / obraz / DOCX), nie karty techniczne.
       setWybrane(new Set(w.zalaczniki.filter((z) => ['pdf', 'obraz', 'docx', 'arkusz'].includes(z.rodzaj) && !/datasheet|karta techn|aprobata/i.test(z.nazwa)).map((z) => z.nazwa)))
-    } catch (e) { setBlad(`Nie udało się odczytać pliku: ${e instanceof Error ? e.message : String(e)}`) }
+    } catch (e) { setBlad(t('Nie udało się odczytać pliku: {0}', e instanceof Error ? e.message : String(e))) }
     setZajety(null)
   }
 
@@ -85,7 +86,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
 
   async function oszacuj() {
     if (!plik) return
-    setBlad(null); setZajety('Przygotowanie treści i szacowanie kosztu...')
+    setBlad(null); setZajety(t('Przygotowanie treści i szacowanie kosztu...'))
     const tresc = await przygotujTresc(plik, wybrane)
     const { szacunek: sz, blad: b } = await szacujAi('wyciagnij_oferte', { tekst: tresc.tekst, obrazy: tresc.obrazy })
     setZajety(null)
@@ -97,10 +98,10 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
     if (!plik) return
     setBlad(null)
     const tresc = await przygotujTresc(plik, wybrane)
-    setZajety('Klasyfikacja (model tani)...')
+    setZajety(t('Klasyfikacja (model tani)...'))
     const { odp: k } = await wywolajAi<KlasyfikacjaMaila>('klasyfikuj_mail', { tekst: tresc.tekst.slice(0, 30_000), metadane: { plik: plik.nazwa } })
     if (k) setKlasyfikacja(k.wynik)
-    setZajety('Odczyt pozycji oferty...')
+    setZajety(t('Odczyt pozycji oferty...'))
     const { odp, blad: b } = await wywolajAi<OfertaAi>('wyciagnij_oferte', { tekst: tresc.tekst, obrazy: tresc.obrazy, metadane: { plik: plik.nazwa } })
     setZajety(null)
     if (b || !odp) { setBlad(b); return }
@@ -108,8 +109,8 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
     const f = formularzZAi(odp.wynik, dostawcy, zrodlo)
     if (!f.nr_zo && k?.wynik.nr_zo) f.nr_zo = k.wynik.nr_zo
     setFormularz(f)
-    setInfo(`Odczytano ${odp.wynik.pozycje.length} pozycji (model ${odp.model}, koszt ${liczba(odp.koszt_pln, 3)} zł). Sprawdź dane przed zatwierdzeniem.` +
-      (odp.wynik.czy_oferta ? '' : ' Uwaga: model ocenił, że to nie jest oferta.'))
+    setInfo(t('Odczytano {0} pozycji (model {1}, koszt {2} zł). Sprawdź dane przed zatwierdzeniem.', odp.wynik.pozycje.length, odp.model, liczba(odp.koszt_pln, 3)) +
+      (odp.wynik.czy_oferta ? '' : t(' Uwaga: model ocenił, że to nie jest oferta.')))
   }
 
   async function zapisz(f: Formularz, status: 'zatwierdzona' | 'do_przejrzenia') {
@@ -123,7 +124,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
         await supabase.from('oferty_dostawcow').update({ dokument_id: dokument.id }).eq('id', id)
         if (ostrzezenia.length) window.alert(ostrzezenia.join('\n'))
       } catch (e) {
-        window.alert(`Oferta zapisana, ale nie udało się zapisać dokumentu: ${e instanceof Error ? e.message : String(e)}`)
+        window.alert(t('Oferta zapisana, ale nie udało się zapisać dokumentu: {0}', e instanceof Error ? e.message : String(e)))
       }
     } else if (plik) {
       await supabase.from('oferty_dostawcow').update({ uwagi: [f.uwagi, `Treść wklejona:\n${plik.tekst.slice(0, 4000)}`].filter(Boolean).join('\n\n') }).eq('id', id)
@@ -137,7 +138,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
         {info && <Komunikat rodzaj="info">{info}</Komunikat>}
         {klasyfikacja && (
           <p className="text-xs text-slate-500">
-            Klasyfikacja: {klasyfikacja.typ.replace(/_/g, ' ')}, dostawca: {klasyfikacja.dostawca_nazwa ?? '?'}, ZO: {klasyfikacja.nr_zo ?? '-'} - {klasyfikacja.czego_dotyczy}
+            {t('Klasyfikacja:')}{' '}{klasyfikacja.typ.replace(/_/g, ' ')}{t(', dostawca:')}{' '}{klasyfikacja.dostawca_nazwa ?? '?'}{t(', ZO:')}{' '}{klasyfikacja.nr_zo ?? '-'} - {klasyfikacja.czego_dotyczy}
           </p>
         )}
         <FormularzOferty poczatkowy={formularz} zapisz={zapisz} anuluj={() => setFormularz(null)} />
@@ -159,16 +160,16 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
             przeciaganie ? 'border-blekit bg-blekit-jasny' : 'border-slate-300 hover:border-blekit')}
         >
           <Upload className="h-8 w-8 text-slate-400" />
-          <span className="text-sm font-medium">Przeciągnij tu maila z Outlooka (.msg), plik .eml, PDF albo skan</span>
-          <span className="text-xs text-slate-500">albo kliknij, żeby wybrać plik</span>
+          <span className="text-sm font-medium">{t('Przeciągnij tu maila z Outlooka (.msg), plik .eml, PDF albo skan')}</span>
+          <span className="text-xs text-slate-500">{t('albo kliknij, żeby wybrać plik')}</span>
           <input type="file" className="hidden" accept=".msg,.eml,.pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt" onChange={(e) => e.target.files && void przyjmij(e.target.files)} />
         </label>
         <div className="sekcja flex flex-col gap-2">
-          <span className="etykieta">...albo wklej treść maila z ofertą</span>
+          <span className="etykieta">{t('...albo wklej treść maila z ofertą')}</span>
           <textarea className="pole min-h-[7rem] flex-1" value={wklejony} onChange={(e) => setWklejony(e.target.value)} />
           <div className="flex gap-2">
-            <Button rozmiar="maly" disabled={!wklejony.trim()} onClick={() => void plikZWklejonego()}>Użyj wklejonej treści</Button>
-            <Button rozmiar="maly" wariant="cichy" onClick={() => setFormularz(pustyFormularz())}>Wprowadź ofertę ręcznie</Button>
+            <Button rozmiar="maly" disabled={!wklejony.trim()} onClick={() => void plikZWklejonego()}>{t('Użyj wklejonej treści')}</Button>
+            <Button rozmiar="maly" wariant="cichy" onClick={() => setFormularz(pustyFormularz())}>{t('Wprowadź ofertę ręcznie')}</Button>
           </div>
         </div>
       </div>
@@ -179,14 +180,14 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
             {plik.rodzaj === 'mail' ? <Mail className="mt-0.5 h-5 w-5 text-blekit-ciemny" /> : <FileText className="mt-0.5 h-5 w-5 text-blekit-ciemny" />}
             <div className="min-w-0 flex-1">
               <p className="font-medium">{plik.rodzaj === 'mail' ? String(plik.metadane.temat || plik.nazwa) : plik.nazwa}</p>
-              {plik.rodzaj === 'mail' && <p className="text-xs text-slate-500">od: {String(plik.metadane.od)} · {String(plik.metadane.data ?? '')}</p>}
-              {plik.rodzaj === 'pdf' && <p className="text-xs text-slate-500">PDF, stron: {String(plik.metadane.stron)}{plik.metadane.skan ? ' - skan bez warstwy tekstowej (do AI idą obrazy stron)' : ''}</p>}
-              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-700">{plik.tekst.slice(0, 3000) || '(brak tekstu)'}</pre>
+              {plik.rodzaj === 'mail' && <p className="text-xs text-slate-500">{t('od:')}{' '}{String(plik.metadane.od)} · {String(plik.metadane.data ?? '')}</p>}
+              {plik.rodzaj === 'pdf' && <p className="text-xs text-slate-500">{t('PDF, stron:')}{' '}{String(plik.metadane.stron)}{plik.metadane.skan ? t(' - skan bez warstwy tekstowej (do AI idą obrazy stron)') : ''}</p>}
+              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-700">{plik.tekst.slice(0, 3000) || t('(brak tekstu)')}</pre>
             </div>
           </div>
           {plik.zalaczniki.length > 0 && (
             <div>
-              <span className="etykieta">Załączniki - zaznacz te, które są ofertą (pójdą do odczytu AI i zapiszą się przy ofercie; reszta nie trafi do bazy):</span>
+              <span className="etykieta">{t('Załączniki - zaznacz te, które są ofertą (pójdą do odczytu AI i zapiszą się przy ofercie; reszta nie trafi do bazy):')}</span>
               <ul className="space-y-1">
                 {plik.zalaczniki.map((z) => (
                   <li key={z.nazwa} className="flex items-center gap-2 text-sm">
@@ -194,28 +195,27 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
                       const n = new Set(wybrane); if (e.target.checked) n.add(z.nazwa); else n.delete(z.nazwa); setWybrane(n)
                     }} />
                     <Paperclip className="h-3 w-3 text-slate-400" /> {z.nazwa}
-                    <span className="text-xs text-slate-400">{(z.rozmiar / 1024).toFixed(0)} kB{z.rodzaj === 'pdf' && z.metadane.skan ? ', skan' : ''}</span>
+                    <span className="text-xs text-slate-400">{(z.rozmiar / 1024).toFixed(0)} {t('kB')}{z.rodzaj === 'pdf' && z.metadane.skan ? t(', skan') : ''}</span>
                   </li>
                 ))}
               </ul>
               {((plik.metadane.pominiete_zalaczniki as PominietyZalacznik[] | undefined) ?? []).length > 0 && (
-                <p className="mt-1 text-xs text-slate-500">Pominięte automatycznie: {((plik.metadane.pominiete_zalaczniki as PominietyZalacznik[]) ?? []).map((x) => `${x.nazwa} (${x.powod})`).join('; ')}.</p>
+                <p className="mt-1 text-xs text-slate-500">{t('Pominięte automatycznie:')}{' '}{((plik.metadane.pominiete_zalaczniki as PominietyZalacznik[]) ?? []).map((x) => `${x.nazwa} (${x.powod})`).join('; ')}.</p>
               )}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
             {!szacunek ? (
-              <Button wariant="akcent" disabled={!!zajety} onClick={() => void oszacuj()}><Sparkles className="h-4 w-4" /> Odczytaj ofertę (AI) - najpierw szacunek kosztu</Button>
+              <Button wariant="akcent" disabled={!!zajety} onClick={() => void oszacuj()}><Sparkles className="h-4 w-4" /> {t('Odczytaj ofertę (AI) - najpierw szacunek kosztu')}</Button>
             ) : (
               <>
                 <span className="text-sm">
-                  Szacowany koszt: <strong>{liczba(szacunek.koszt_pln, 3)} zł</strong> ({szacunek.model}, ok. {liczba(szacunek.tokeny_wejscie, 0)} tokenów wejścia).
-                  W tym miesiącu zostało {liczba(szacunek.pozostalo_miesiac_pln, 2)} zł budżetu.
+                  {t('Szacowany koszt:')}{' '}<strong>{liczba(szacunek.koszt_pln, 3)} {t('zł')}</strong> ({szacunek.model}{t(', ok.')}{' '}{liczba(szacunek.tokeny_wejscie, 0)} {t('tokenów wejścia). W tym miesiącu zostało')}{' '}{liczba(szacunek.pozostalo_miesiac_pln, 2)} {t('zł budżetu.')}
                 </span>
-                <Button wariant="glowny" disabled={!!zajety} onClick={() => void odczytaj()}><Sparkles className="h-4 w-4" /> Uruchom odczyt</Button>
+                <Button wariant="glowny" disabled={!!zajety} onClick={() => void odczytaj()}><Sparkles className="h-4 w-4" /> {t('Uruchom odczyt')}</Button>
               </>
             )}
-            <Button wariant="cichy" onClick={() => setFormularz({ ...pustyFormularz(), zrodlo: plik.rodzaj === 'mail' ? 'mail' : 'pdf' })}>Wprowadź ręcznie</Button>
+            <Button wariant="cichy" onClick={() => setFormularz({ ...pustyFormularz(), zrodlo: plik.rodzaj === 'mail' ? 'mail' : 'pdf' })}>{t('Wprowadź ręcznie')}</Button>
           </div>
         </section>
       )}

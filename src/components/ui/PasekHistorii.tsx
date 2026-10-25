@@ -3,8 +3,9 @@ import { History, Redo2, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { cofnij, ponow, przejdzDo, useStanHistorii } from '@/lib/historia'
 import { Button } from './button'
+import { lokalizacja, t } from '@/i18n'
 
-const godzina = (t: number) => new Date(t).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const godzina = (t: number) => new Date(t).toLocaleTimeString(lokalizacja(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 /** Cofnij / Ponów w nagłówku (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z) i lista kroków z możliwością cofnięcia do wybranego. */
 export function PasekHistorii() {
@@ -13,7 +14,7 @@ export function PasekHistorii() {
   const [blad, setBlad] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  const wykonaj = async (f: () => Promise<string | null>) => { const b = await f(); setBlad(b && b !== 'Anulowano.' ? b : null) }
+  const wykonaj = async (f: () => Promise<string | null>) => { const b = await f(); setBlad(b && b !== t('Anulowano.') ? b : null) }
 
   useEffect(() => {
     const klawisz = (e: KeyboardEvent) => {
@@ -35,21 +36,21 @@ export function PasekHistorii() {
   if (!h.zakres) return null
   return (
     <div ref={ref} className="relative flex items-center gap-0.5">
-      <Button wariant="cichy" rozmiar="maly" disabled={!h.doCofniecia} title={h.doCofniecia ? `Cofnij: ${h.doCofniecia.opis} (Ctrl+Z)` : 'Nic do cofnięcia'} onClick={() => void wykonaj(cofnij)}>
+      <Button wariant="cichy" rozmiar="maly" disabled={!h.doCofniecia} title={h.doCofniecia ? t('Cofnij: {0} (Ctrl+Z)', h.doCofniecia.opis) : t('Nic do cofnięcia')} onClick={() => void wykonaj(cofnij)}>
         <Undo2 className="h-4 w-4" />
       </Button>
-      <Button wariant="cichy" rozmiar="maly" disabled={!h.doPonowienia} title={h.doPonowienia ? `Ponów: ${h.doPonowienia.opis} (Ctrl+Y)` : 'Nic do ponowienia'} onClick={() => void wykonaj(ponow)}>
+      <Button wariant="cichy" rozmiar="maly" disabled={!h.doPonowienia} title={h.doPonowienia ? t('Ponów: {0} (Ctrl+Y)', h.doPonowienia.opis) : t('Nic do ponowienia')} onClick={() => void wykonaj(ponow)}>
         <Redo2 className="h-4 w-4" />
       </Button>
-      <Button wariant="cichy" rozmiar="maly" title="Historia zmian w tej sesji" disabled={!h.kroki.length} onClick={() => setPanel(!panel)}>
+      <Button wariant="cichy" rozmiar="maly" title={t('Historia zmian w tej sesji')} disabled={!h.kroki.length} onClick={() => setPanel(!panel)}>
         <History className="h-4 w-4" />
       </Button>
       {blad && <span className="max-w-[16rem] truncate text-xs text-red-700" title={blad}>{blad}</span>}
       {panel && (
         <div className="absolute right-0 top-full z-40 mt-1 max-h-96 w-80 overflow-auto rounded-md border border-slate-200 bg-white p-1 text-xs shadow-lg">
-          <p className="px-2 py-1 font-semibold text-slate-500">Historia zmian ({h.kroki.length}) - kliknij krok, żeby wrócić do stanu po nim</p>
+          <p className="px-2 py-1 font-semibold text-slate-500">{t('Historia zmian (')}{h.kroki.length}{t(') - kliknij krok, żeby wrócić do stanu po nim')}</p>
           <button className={cn('block w-full rounded px-2 py-1 text-left hover:bg-slate-100', h.wskaznik === 0 && 'bg-limonka-jasna')} onClick={() => void wykonaj(() => przejdzDo(0))}>
-            stan początkowy
+            {t('stan początkowy')}
           </button>
           {h.kroki.map((k, i) => (
             <button key={i} onClick={() => void wykonaj(() => przejdzDo(i + 1))}

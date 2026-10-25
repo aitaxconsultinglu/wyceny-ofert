@@ -3,7 +3,7 @@ import { FilePlus2, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { useSlowniki } from '@/lib/slowniki'
-import { liczba } from '@/lib/format'
+import { liczba, dataGodzinaPL } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { NAZWY_JEZYKOW, numeryStron } from '@/lib/wersjeEdytowalne'
 import { dodajPlik, usunPlik, type PlikEdytowalny } from '@/lib/wersjeEdytowalnePliki'
@@ -13,12 +13,13 @@ import { Komunikat } from '../ui/komunikat'
 import { PlikWersji } from './PlikWersji'
 import { HistoriaOdczytow } from './HistoriaOdczytow'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 const ETYKIETY_RODZAJU: Record<PlikEdytowalny['rodzaj'], string> = {
-  pdf: 'PDF', obraz: 'zdjęcie / skan', docx: 'Word', arkusz: 'arkusz', tekst: 'tekst', cad: 'CAD', inny: 'inny',
+  pdf: t('PDF'), obraz: t('zdjęcie / skan'), docx: t('Word'), arkusz: t('arkusz'), tekst: t('tekst'), cad: t('CAD'), inny: t('inny'),
 }
 const AKCEPTOWANE = '.pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.xls,.xlsm,.csv,.txt,.md,.dxf,.dwg,.step,.stp'
-const data = (d: string) => new Date(d).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })
+const data = (d: string) => dataGodzinaPL(d)
 
 /**
  * Moduł "Wersje edytowalne" - niezależny od zapytań i wycen: pracownik dodaje plik (PDF, skan, zdjęcie, DOCX, arkusz, DXF),
@@ -57,7 +58,7 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
     let ostatni: PlikEdytowalny | null = null
     const tablica = Array.from(lista)
     for (const [i, f] of tablica.entries()) {
-      setZajety(`Zapisywanie ${i + 1}/${tablica.length}: ${f.name}...`)
+      setZajety(t('Zapisywanie {0}/{1}: {2}...', i + 1, tablica.length, f.name))
       try { ostatni = await dodajPlik(f, s.ustawienia.limity_planu?.plik_mb ?? 20) } catch (e) { bledy.push(e instanceof Error ? e.message : String(e)) }
     }
     setZajety(null)
@@ -70,7 +71,7 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
     if (e.dataTransfer.files.length) void dodaj(e.dataTransfer.files)
   }
   async function usun(p: PlikEdytowalny) {
-    if (!window.confirm(`Przenieść plik „${p.nazwa_pliku}” z wersją edytowalną do kosza? Historia odczytów zostaje.`)) return
+    if (!window.confirm(t('Przenieść plik „{0}” z wersją edytowalną do kosza? Historia odczytów zostaje.', p.nazwa_pliku))) return
     try { await usunPlik(p); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
@@ -80,37 +81,36 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
   const mozeUsunac = (p: PlikEdytowalny) => profil.rola === 'administrator' || p.utworzyl === profil.id
 
   const kolumny: KolumnaTabeli<PlikEdytowalny>[] = [
-    { id: 'plik', naglowek: 'Plik', typ: 'tekst', wartosc: (p) => p.nazwa_pliku, className: 'font-medium text-slate-900' },
-    { id: 'rodzaj', naglowek: 'Rodzaj', typ: 'lista', wartosc: (p) => ETYKIETY_RODZAJU[p.rodzaj] },
-    { id: 'stron', naglowek: 'Stron', typ: 'liczba', wartosc: (p) => p.stron },
-    { id: 'jezyk', naglowek: 'Język', typ: 'lista', wartosc: (p) => (p.jezyk ? NAZWY_JEZYKOW[p.jezyk] ?? p.jezyk : null) },
+    { id: 'plik', naglowek: t('Plik'), typ: 'tekst', wartosc: (p) => p.nazwa_pliku, className: 'font-medium text-slate-900' },
+    { id: 'rodzaj', naglowek: t('Rodzaj'), typ: 'lista', wartosc: (p) => ETYKIETY_RODZAJU[p.rodzaj] },
+    { id: 'stron', naglowek: t('Stron'), typ: 'liczba', wartosc: (p) => p.stron },
+    { id: 'jezyk', naglowek: t('Język'), typ: 'lista', wartosc: (p) => (p.jezyk ? NAZWY_JEZYKOW[p.jezyk] ?? p.jezyk : null) },
     {
-      id: 'wersja', naglowek: 'Wersja edytowalna', typ: 'liczba', wartosc: (p) => numeryStron(p.tresc?.strony ?? {}).length, className: 'text-xs text-left',
+      id: 'wersja', naglowek: t('Wersja edytowalna'), typ: 'liczba', wartosc: (p) => numeryStron(p.tresc?.strony ?? {}).length, className: 'text-xs text-left',
       komorka: (p) => { const o = numeryStron(p.tresc?.strony ?? {}).length; const pl = numeryStron(p.tresc?.tlumaczenie ?? {}).length; return o ? `${o} str.${pl ? `, po polsku ${pl}` : ''}` : <span className="text-slate-400">brak</span> },
     },
-    { id: 'koszt', naglowek: 'Koszt AI', typ: 'liczba', wartosc: (p) => koszty[p.id] ?? null, komorka: (p) => (koszty[p.id] ? `${liczba(koszty[p.id], 2)} zł` : '') },
-    { id: 'dodal', naglowek: 'Dodał', typ: 'lista', wartosc: (p) => (p.utworzyl ? ludzie[p.utworzyl] ?? null : null), className: 'text-xs' },
-    { id: 'dodano', naglowek: 'Dodano', typ: 'data', wartosc: (p) => p.utworzono, komorka: (p) => data(p.utworzono), className: 'text-xs' },
+    { id: 'koszt', naglowek: t('Koszt AI'), typ: 'liczba', wartosc: (p) => koszty[p.id] ?? null, komorka: (p) => (koszty[p.id] ? `${liczba(koszty[p.id], 2)} zł` : '') },
+    { id: 'dodal', naglowek: t('Dodał'), typ: 'lista', wartosc: (p) => (p.utworzyl ? ludzie[p.utworzyl] ?? null : null), className: 'text-xs' },
+    { id: 'dodano', naglowek: t('Dodano'), typ: 'data', wartosc: (p) => p.utworzono, komorka: (p) => data(p.utworzono), className: 'text-xs' },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
-      komorka: (p) => mozeUsunac(p) && <button title="Przenieś do kosza" className="text-slate-400 hover:text-red-600" onClick={(e) => { e.stopPropagation(); void usun(p) }}><Trash2 className="h-4 w-4" /></button>,
+      komorka: (p) => mozeUsunac(p) && <button title={t('Przenieś do kosza')} className="text-slate-400 hover:text-red-600" onClick={(e) => { e.stopPropagation(); void usun(p) }}><Trash2 className="h-4 w-4" /></button>,
     },
   ]
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">Wersje edytowalne</h2>
+        <h2 className="text-lg font-semibold">{t('Wersje edytowalne')}</h2>
         <div className="flex rounded-md border border-slate-200 text-sm">
-          <button className={cn('px-3 py-1', zakladka === 'pliki' && 'bg-slate-800 text-white')} onClick={() => setZakladka('pliki')}>Pliki</button>
-          <button className={cn('px-3 py-1', zakladka === 'historia' && 'bg-slate-800 text-white')} onClick={() => setZakladka('historia')}>Historia i budżet</button>
+          <button className={cn('px-3 py-1', zakladka === 'pliki' && 'bg-slate-800 text-white')} onClick={() => setZakladka('pliki')}>{t('Pliki')}</button>
+          <button className={cn('px-3 py-1', zakladka === 'historia' && 'bg-slate-800 text-white')} onClick={() => setZakladka('historia')}>{t('Historia i budżet')}</button>
         </div>
       </div>
       <p className="text-sm text-slate-600">
-        Odczyt plików i przerabianie ich na wersje edytowalne w Wordzie, z rozpoznaniem języka i tłumaczeniem na polski - niezależnie od zapytań i wycen.
-        PDF z warstwą tekstową, DOCX, arkusze, TXT i DXF czytane są <strong>bez AI</strong> (bez kosztów); skany i zdjęcia - przez AI, z kosztem pokazanym przed odczytem.
+        {t('Odczyt plików i przerabianie ich na wersje edytowalne w Wordzie, z rozpoznaniem języka i tłumaczeniem na polski - niezależnie od zapytań i wycen. PDF z warstwą tekstową, DOCX, arkusze, TXT i DXF czytane są')}{' '}<strong>{t('bez AI')}</strong> {t('(bez kosztów); skany i zdjęcia - przez AI, z kosztem pokazanym przed odczytem.')}
       </p>
-      {id && !otwarty && pliki.length > 0 && <Komunikat rodzaj="ostrzezenie">Nie ma takiego pliku (mógł zostać usunięty).</Komunikat>}
+      {id && !otwarty && pliki.length > 0 && <Komunikat rodzaj="ostrzezenie">{t('Nie ma takiego pliku (mógł zostać usunięty).')}</Komunikat>}
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {zajety && <Komunikat rodzaj="info">{zajety}</Komunikat>}
 
@@ -120,13 +120,13 @@ export function WersjeEdytowalne({ profil, id, otworz }: { profil: Profil; id: s
             onDragOver={(e) => { e.preventDefault(); setNadPolem(true) }} onDragLeave={() => setNadPolem(false)} onDrop={upusc}
             className={cn('flex flex-wrap items-center gap-3 rounded-lg border-2 border-dashed p-4 text-sm', nadPolem ? 'border-limonka bg-limonka-jasna' : 'border-slate-300 bg-white')}
           >
-            <Button wariant="glowny" disabled={!!zajety} onClick={() => wybor.current?.click()}><FilePlus2 className="h-4 w-4" /> Dodaj pliki</Button>
-            <span className="text-slate-600">albo przeciągnij je tutaj · PDF, skany, JPG / PNG, DOCX, XLSX / CSV, TXT, DXF · do {s.ustawienia.limity_planu?.plik_mb ?? 20} MB</span>
+            <Button wariant="glowny" disabled={!!zajety} onClick={() => wybor.current?.click()}><FilePlus2 className="h-4 w-4" /> {t('Dodaj pliki')}</Button>
+            <span className="text-slate-600">{t('albo przeciągnij je tutaj · PDF, skany, JPG / PNG, DOCX, XLSX / CSV, TXT, DXF · do')}{' '}{s.ustawienia.limity_planu?.plik_mb ?? 20} MB</span>
             <input ref={wybor} type="file" multiple accept={AKCEPTOWANE} className="hidden" onChange={(e) => { if (e.target.files?.length) void dodaj(e.target.files); e.target.value = '' }} />
-            <input className="pole ml-auto w-64" placeholder="Szukaj pliku..." value={filtr} onChange={(e) => setFiltr(e.target.value)} />
+            <input className="pole ml-auto w-64" placeholder={t('Szukaj pliku...')} value={filtr} onChange={(e) => setFiltr(e.target.value)} />
           </div>
           <Tabela id="pliki-edytowalne" kolumny={kolumny} wiersze={widoczne} klucz={(p) => p.id} onKlik={(p) => otworz(p.id)}
-            pusto={pliki.length ? 'Brak plików pasujących do wyszukiwania.' : 'Nie dodano jeszcze żadnych plików.'} />
+            pusto={pliki.length ? t('Brak plików pasujących do wyszukiwania.') : t('Nie dodano jeszcze żadnych plików.')} />
         </>
       )}
     </div>

@@ -4,6 +4,7 @@ import { grupujDoPorownania, wczytajCeny, type WierszCeny } from '@/lib/bazaCen'
 import { Komunikat } from '../ui/komunikat'
 import { kolumnyCen } from './Porownywarka'
 import { Tabela } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 interface ZapytanieListy { id: string; numer: string; przedmiot: string }
 
@@ -31,17 +32,17 @@ export function OfertyDoZapytania({ zapytanieId: poczatkowe }: { zapytanieId?: s
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       <label className="block max-w-xl">
-        <span className="etykieta">Zapytanie ofertowe</span>
+        <span className="etykieta">{t('Zapytanie ofertowe')}</span>
         <select className="pole" value={wybrane} onChange={(e) => setWybrane(e.target.value)}>
-          <option value="">- wybierz ZO -</option>
+          <option value="">{t('- wybierz ZO -')}</option>
           {zapytania.map((z) => <option key={z.id} value={z.id}>{z.numer} - {z.przedmiot}</option>)}
         </select>
       </label>
       {wybrane && (
         <p className="text-sm text-slate-600">
-          {wiersze.length} pozycji ofert od {dostawcow} dostawców, {grupy.length} grup. Ceny w PLN wg kursu NBP z dnia oferty.
-          <span className="ml-2 rounded bg-limonka-jasna px-1">najniższa cena</span>
-          <span className="ml-1 rounded bg-blekit-jasny px-1">najkrótszy termin</span>
+          {wiersze.length} {t('pozycji ofert od')}{' '}{dostawcow} {t('dostawców,')}{' '}{grupy.length} {t('grup. Ceny w PLN wg kursu NBP z dnia oferty.')}
+          <span className="ml-2 rounded bg-limonka-jasna px-1">{t('najniższa cena')}</span>
+          <span className="ml-1 rounded bg-blekit-jasny px-1">{t('najkrótszy termin')}</span>
         </p>
       )}
       {grupy.map((g) => (
@@ -51,7 +52,7 @@ export function OfertyDoZapytania({ zapytanieId: poczatkowe }: { zapytanieId?: s
             wiersze={g.wiersze} klucz={(w) => w.klucz} bezPaska />
         </section>
       ))}
-      {wybrane && grupy.length === 0 && <p className="text-sm text-slate-500">Brak zatwierdzonych ofert powiązanych z tym zapytaniem.</p>}
+      {wybrane && grupy.length === 0 && <p className="text-sm text-slate-500">{t('Brak zatwierdzonych ofert powiązanych z tym zapytaniem.')}</p>}
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 interface Kontakt { osoba: string; email: string; telefon: string }
 interface Dostawca {
@@ -40,7 +41,7 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
   const nazwaKategorii = (kod: string) => s.kategorieMaterialow.find((k) => k.kod === kod)?.nazwa ?? s.kategorieUslug.find((k) => k.kod === kod)?.nazwa ?? kod
 
   async function zapisz() {
-    if (!edytowany?.nazwa.trim()) { setBlad('Podaj nazwę.'); return }
+    if (!edytowany?.nazwa.trim()) { setBlad(t('Podaj nazwę.')); return }
     const { id, ...dane } = edytowany
     const { error } = id
       ? await supabase.from('dostawcy').update(dane).eq('id', id)
@@ -50,7 +51,7 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
   }
 
   async function usun(d: Dostawca) {
-    if (!window.confirm(`Usunąć dostawcę ${d.nazwa}? Nie da się, jeśli ma oferty w bazie.`)) return
+    if (!window.confirm(t('Usunąć dostawcę {0}? Nie da się, jeśli ma oferty w bazie.', d.nazwa))) return
     const { error } = await supabase.from('dostawcy').delete().eq('id', d.id!)
     if (error) setBlad(komunikatPL(error.message)); else await wczytaj()
   }
@@ -58,17 +59,17 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
   const widoczni = lista.filter((d) => !szukaj || `${d.nazwa} ${d.aliasy.join(' ')} ${d.kategorie.map(nazwaKategorii).join(' ')}`.toLowerCase().includes(szukaj.toLowerCase()))
 
   const kolumny: KolumnaTabeli<Dostawca>[] = [
-    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (d) => d.nazwa, className: 'font-medium', komorka: (d) => <>{d.nazwa}{d.skrot && <span className="ml-1 text-xs text-slate-500">({d.skrot})</span>}</> },
-    { id: 'nip', naglowek: 'NIP', typ: 'tekst', wartosc: (d) => d.nip, className: 'text-sm' },
-    { id: 'kategorie', naglowek: 'Kategorie', typ: 'tekst', wartosc: (d) => d.kategorie.map(nazwaKategorii).join(', ') || null, className: 'text-xs' },
-    { id: 'kontakty', naglowek: 'Kontakty', typ: 'tekst', wartosc: (d) => d.kontakty.map((k) => [k.osoba, k.email].filter(Boolean).join(' ')).join('; ') || null, className: 'text-xs' },
-    { id: 'aliasy', naglowek: 'Aliasy', typ: 'tekst', wartosc: (d) => d.aliasy.join('; ') || null, className: 'text-xs text-slate-500' },
-    { id: 'aktywny', naglowek: 'Aktywny', typ: 'tak_nie', wartosc: (d) => d.aktywny },
+    { id: 'nazwa', naglowek: t('Nazwa'), typ: 'tekst', wartosc: (d) => d.nazwa, className: 'font-medium', komorka: (d) => <>{d.nazwa}{d.skrot && <span className="ml-1 text-xs text-slate-500">({d.skrot})</span>}</> },
+    { id: 'nip', naglowek: t('NIP'), typ: 'tekst', wartosc: (d) => d.nip, className: 'text-sm' },
+    { id: 'kategorie', naglowek: t('Kategorie'), typ: 'tekst', wartosc: (d) => d.kategorie.map(nazwaKategorii).join(', ') || null, className: 'text-xs' },
+    { id: 'kontakty', naglowek: t('Kontakty'), typ: 'tekst', wartosc: (d) => d.kontakty.map((k) => [k.osoba, k.email].filter(Boolean).join(' ')).join('; ') || null, className: 'text-xs' },
+    { id: 'aliasy', naglowek: t('Aliasy'), typ: 'tekst', wartosc: (d) => d.aliasy.join('; ') || null, className: 'text-xs text-slate-500' },
+    { id: 'aktywny', naglowek: t('Aktywny'), typ: 'tak_nie', wartosc: (d) => d.aktywny },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
       komorka: (d) => mozeEdytowac && (
         <div className="flex justify-end gap-1">
-          <Button rozmiar="maly" onClick={() => setEdytowany({ ...d })}>Edytuj</Button>
+          <Button rozmiar="maly" onClick={() => setEdytowany({ ...d })}>{t('Edytuj')}</Button>
           <Button rozmiar="maly" wariant="ostrzezenie" onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
@@ -79,24 +80,24 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       <div className="flex items-end gap-2">
-        <label><span className="etykieta">Szukaj</span><input className="pole w-64" value={szukaj} onChange={(e) => setSzukaj(e.target.value)} /></label>
-        {mozeEdytowac && <Button wariant="glowny" onClick={() => setEdytowany({ ...PUSTY })}><Plus className="h-4 w-4" /> Dodaj dostawcę</Button>}
+        <label><span className="etykieta">{t('Szukaj')}</span><input className="pole w-64" value={szukaj} onChange={(e) => setSzukaj(e.target.value)} /></label>
+        {mozeEdytowac && <Button wariant="glowny" onClick={() => setEdytowany({ ...PUSTY })}><Plus className="h-4 w-4" /> {t('Dodaj dostawcę')}</Button>}
       </div>
-      <Tabela id="dostawcy" kolumny={kolumny} wiersze={widoczni} klucz={(d) => d.id ?? d.nazwa} klasaWiersza={(d) => (d.aktywny ? undefined : 'text-slate-400')} pusto="Brak dostawców." />
+      <Tabela id="dostawcy" kolumny={kolumny} wiersze={widoczni} klucz={(d) => d.id ?? d.nazwa} klasaWiersza={(d) => (d.aktywny ? undefined : 'text-slate-400')} pusto={t('Brak dostawców.')} />
 
 
       <Dialog open={!!edytowany} onOpenChange={(o) => !o && setEdytowany(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogTitle>{edytowany?.id ? 'Dostawca' : 'Nowy dostawca'}</DialogTitle>
+          <DialogTitle>{edytowany?.id ? t('Dostawca') : t('Nowy dostawca')}</DialogTitle>
           {edytowany && (
             <div className="mt-3 space-y-3">
               <div className="flex flex-wrap gap-3">
-                <label className="flex-1"><span className="etykieta">Nazwa</span><input className="pole" value={edytowany.nazwa} onChange={(e) => setEdytowany({ ...edytowany, nazwa: e.target.value })} /></label>
-                <label className="w-32"><span className="etykieta">Skrót</span><input className="pole" value={edytowany.skrot ?? ''} onChange={(e) => setEdytowany({ ...edytowany, skrot: e.target.value || null })} /></label>
+                <label className="flex-1"><span className="etykieta">{t('Nazwa')}</span><input className="pole" value={edytowany.nazwa} onChange={(e) => setEdytowany({ ...edytowany, nazwa: e.target.value })} /></label>
+                <label className="w-32"><span className="etykieta">{t('Skrót')}</span><input className="pole" value={edytowany.skrot ?? ''} onChange={(e) => setEdytowany({ ...edytowany, skrot: e.target.value || null })} /></label>
                 <label className="w-36"><span className="etykieta">NIP</span><input className="pole" value={edytowany.nip ?? ''} onChange={(e) => setEdytowany({ ...edytowany, nip: e.target.value || null })} /></label>
               </div>
               <div>
-                <span className="etykieta">Kategorie, w których składa oferty</span>
+                <span className="etykieta">{t('Kategorie, w których składa oferty')}</span>
                 <div className="grid grid-cols-2 gap-1 text-sm md:grid-cols-3">
                   {[...s.kategorieMaterialow, ...s.kategorieUslug].map((k) => (
                     <label key={k.kod} className="flex items-center gap-1">
@@ -108,7 +109,7 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
                 </div>
               </div>
               <div>
-                <span className="etykieta">Kontakty (do zapytań ofertowych)</span>
+                <span className="etykieta">{t('Kontakty (do zapytań ofertowych)')}</span>
                 {edytowany.kontakty.map((k, i) => (
                   <div key={i} className="mb-1 flex gap-2">
                     {(['osoba', 'email', 'telefon'] as const).map((pole) => (
@@ -120,14 +121,14 @@ export function Dostawcy({ mozeEdytowac }: { mozeEdytowac: boolean }) {
                 ))}
                 <Button rozmiar="maly" wariant="cichy" onClick={() => setEdytowany({ ...edytowany, kontakty: [...edytowany.kontakty, { osoba: '', email: '', telefon: '' }] })}><Plus className="h-3 w-3" /> kontakt</Button>
               </div>
-              <label className="block"><span className="etykieta">Aliasy nazwy (np. obcięta nazwa z Optimy) - jeden w wierszu</span>
+              <label className="block"><span className="etykieta">{t('Aliasy nazwy (np. obcięta nazwa z Optimy) - jeden w wierszu')}</span>
                 <textarea className="pole h-16" value={edytowany.aliasy.join('\n')} onChange={(e) => setEdytowany({ ...edytowany, aliasy: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })} /></label>
-              <label className="block"><span className="etykieta">Uwagi</span>
+              <label className="block"><span className="etykieta">{t('Uwagi')}</span>
                 <textarea className="pole h-14" value={edytowany.uwagi ?? ''} onChange={(e) => setEdytowany({ ...edytowany, uwagi: e.target.value || null })} /></label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={edytowany.aktywny} onChange={(e) => setEdytowany({ ...edytowany, aktywny: e.target.checked })} /> aktywny</label>
               <div className="flex justify-end gap-2">
-                <Button onClick={() => setEdytowany(null)}>Anuluj</Button>
-                <Button wariant="glowny" onClick={() => void zapisz()}><Save className="h-4 w-4" /> Zapisz</Button>
+                <Button onClick={() => setEdytowany(null)}>{t('Anuluj')}</Button>
+                <Button wariant="glowny" onClick={() => void zapisz()}><Save className="h-4 w-4" /> {t('Zapisz')}</Button>
               </div>
             </div>
           )}

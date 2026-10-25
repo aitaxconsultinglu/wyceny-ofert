@@ -8,9 +8,10 @@ import { wykonajPrzygotowanie, zaplanujPrzygotowanie, type PlanPrzygotowania, ty
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { t } from '@/i18n'
 
 type Etap = 'opcje' | 'planowanie' | 'plan' | 'trwa' | 'gotowe'
-const GDZIE: Record<'wycena' | 'rysunki' | 'karta', string> = { wycena: 'wycena', rysunki: 'rysunki i listy', karta: 'karta analizy' }
+const GDZIE: Record<'wycena' | 'rysunki' | 'karta', string> = { wycena: t('wycena'), rysunki: t('rysunki i listy'), karta: t('karta analizy') }
 
 /** Lista kroków i punktów do weryfikacji (też w karcie analizy). */
 export function RaportWidok({ raport, otworzWycene, otworzZakladke, bezKarty }: {
@@ -30,7 +31,7 @@ export function RaportWidok({ raport, otworzWycene, otworzZakladke, bezKarty }: 
       </ul>
       {raport.weryfikacja.length > 0 && (
         <div>
-          <p className="etykieta">Do sprawdzenia ({raport.weryfikacja.length})</p>
+          <p className="etykieta">{t('Do sprawdzenia (')}{raport.weryfikacja.length})</p>
           <ul className="space-y-1">
             {raport.weryfikacja.map((p, i) => (
               <li key={i} className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /><span>{p.opis} <span className="text-xs text-slate-400">({GDZIE[p.gdzie]})</span></span></li>
@@ -39,9 +40,9 @@ export function RaportWidok({ raport, otworzWycene, otworzZakladke, bezKarty }: 
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        {raport.wycena_id && otworzWycene && <Button rozmiar="maly" wariant="glowny" onClick={() => otworzWycene(raport.wycena_id!)}><FileText className="h-3 w-3" /> Otwórz wycenę v{raport.wersja}</Button>}
-        {otworzZakladke && !bezKarty && <Button rozmiar="maly" onClick={() => otworzZakladke('analiza')}>Karta analizy</Button>}
-        {otworzZakladke && <Button rozmiar="maly" onClick={() => otworzZakladke('rysunki')}>Rysunki i listy</Button>}
+        {raport.wycena_id && otworzWycene && <Button rozmiar="maly" wariant="glowny" onClick={() => otworzWycene(raport.wycena_id!)}><FileText className="h-3 w-3" /> {t('Otwórz wycenę v')}{raport.wersja}</Button>}
+        {otworzZakladke && !bezKarty && <Button rozmiar="maly" onClick={() => otworzZakladke('analiza')}>{t('Karta analizy')}</Button>}
+        {otworzZakladke && <Button rozmiar="maly" onClick={() => otworzZakladke('rysunki')}>{t('Rysunki i listy')}</Button>}
       </div>
     </div>
   )
@@ -105,52 +106,52 @@ export function PrzygotowanieAutomatyczne({ otwarty, zamknij, zapytanie, widziMa
   return (
     <Dialog open={otwarty} onOpenChange={(o) => { if (!o && etap !== 'trwa' && etap !== 'planowanie') zamknij() }}>
       <DialogContent className="max-w-2xl">
-        <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blekit-ciemny" /> Przygotuj automatycznie - {zapytanie.numer}</DialogTitle>
-        <DialogDescription>Wynik to wersja wstępna do weryfikacji przez pracownika - niczego nie wysyła klientowi.</DialogDescription>
+        <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blekit-ciemny" /> {t('Przygotuj automatycznie -')}{' '}{zapytanie.numer}</DialogTitle>
+        <DialogDescription>{t('Wynik to wersja wstępna do weryfikacji przez pracownika - niczego nie wysyła klientowi.')}</DialogDescription>
         <div className="mt-3 space-y-3 text-sm">
           {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
           {etap === 'opcje' && (
             <>
               <div className="space-y-2">
-                {opcja('analiza', 'Analiza zapytania (AI)', 'karta analizy: wymagania kosztotwórcze, usługi, pytania, niespójności; uzupełnia kartę zapytania')}
-                {opcja('rysunki', 'Listy materiałów z rysunków (AI)', 'rysunki PDF oznaczone jako istotne, najwyżej 3 strony z pliku i 8 stron razem')}
-                {opcja('wycena', 'Wstępna wycena', 'aparaty, materiały z list z cenami z bazy ofert i zakupów, robocizna wskaźnikowa, usługi z karty')}
-                {opcja('oferta', 'Projekt oferty', 'klauzule dobrane do wymagań z karty, terminy i warunki domyślne')}
+                {opcja('analiza', t('Analiza zapytania (AI)'), t('karta analizy: wymagania kosztotwórcze, usługi, pytania, niespójności; uzupełnia kartę zapytania'))}
+                {opcja('rysunki', t('Listy materiałów z rysunków (AI)'), t('rysunki PDF oznaczone jako istotne, najwyżej 3 strony z pliku i 8 stron razem'))}
+                {opcja('wycena', t('Wstępna wycena'), t('aparaty, materiały z list z cenami z bazy ofert i zakupów, robocizna wskaźnikowa, usługi z karty'))}
+                {opcja('oferta', t('Projekt oferty'), t('klauzule dobrane do wymagań z karty, terminy i warunki domyślne'))}
               </div>
-              <p className="text-xs text-slate-500">Każde uruchomienie tworzy nową wersję wyceny - wcześniejsze zostają bez zmian.</p>
+              <p className="text-xs text-slate-500">{t('Każde uruchomienie tworzy nową wersję wyceny - wcześniejsze zostają bez zmian.')}</p>
               <div className="flex justify-end gap-2">
-                <Button onClick={zamknij}>Anuluj</Button>
-                <Button wariant="akcent" disabled={!Object.values(opcje).some(Boolean)} onClick={() => void planuj()}>Dalej - szacunek kosztu</Button>
+                <Button onClick={zamknij}>{t('Anuluj')}</Button>
+                <Button wariant="akcent" disabled={!Object.values(opcje).some(Boolean)} onClick={() => void planuj()}>{t('Dalej - szacunek kosztu')}</Button>
               </div>
             </>
           )}
-          {(etap === 'planowanie' || etap === 'trwa') && <Komunikat rodzaj="info">{postep || 'Przygotowanie...'}</Komunikat>}
+          {(etap === 'planowanie' || etap === 'trwa') && <Komunikat rodzaj="info">{postep || t('Przygotowanie...')}</Komunikat>}
           {etap === 'plan' && plan && (
             <>
               {plan.zadania.length > 0 && (
                 <ul className="list-disc space-y-0.5 pl-5">
-                  {plan.zadania.map((t, i) => <li key={i}>{t.opis}{t.koszt_pln !== null && <span className="text-slate-500"> - ok. {liczba(t.koszt_pln, 2)} zł</span>}</li>)}
+                  {plan.zadania.map((zd, i) => <li key={i}>{zd.opis}{zd.koszt_pln !== null && <span className="text-slate-500"> {t('- ok.')}{' '}{liczba(zd.koszt_pln, 2)} {t('zł')}</span>}</li>)}
                 </ul>
               )}
-              {plan.pominiete.length > 0 && <p className="text-xs text-amber-800">Pominięte: {plan.pominiete.join('; ')}.</p>}
+              {plan.pominiete.length > 0 && <p className="text-xs text-amber-800">{t('Pominięte:')}{' '}{plan.pominiete.join('; ')}.</p>}
               {plan.uwaga
                 ? <Komunikat rodzaj="ostrzezenie">{plan.uwaga}</Komunikat>
-                : plan.zadania.length > 0 && <p>Szacowany koszt AI: <strong>{liczba(plan.koszt_pln, 2)} zł</strong>.</p>}
+                : plan.zadania.length > 0 && <p>{t('Szacowany koszt AI:')}{' '}<strong>{liczba(plan.koszt_pln, 2)} {t('zł')}</strong>.</p>}
               <div className="flex justify-end gap-2">
-                <Button onClick={() => setEtap('opcje')}>Wstecz</Button>
+                <Button onClick={() => setEtap('opcje')}>{t('Wstecz')}</Button>
                 <Button wariant="akcent" disabled={!plan.aiDostepne && !opcje.wycena} onClick={() => void wykonaj()}>
-                  <Sparkles className="h-4 w-4" /> {plan.aiDostepne && plan.zadania.length ? 'Uruchom' : 'Uruchom bez AI'}
+                  <Sparkles className="h-4 w-4" /> {plan.aiDostepne && plan.zadania.length ? t('Uruchom') : t('Uruchom bez AI')}
                 </Button>
               </div>
             </>
           )}
           {etap === 'gotowe' && raport && (
             <>
-              <Komunikat rodzaj="sukces">Gotowe{raport.koszt_pln ? ` (koszt AI ${liczba(raport.koszt_pln, 2)} zł)` : ''}. Raport zapisał się w karcie analizy.</Komunikat>
+              <Komunikat rodzaj="sukces">{t('Gotowe')}{raport.koszt_pln ? t(' (koszt AI {0} zł)', liczba(raport.koszt_pln, 2)) : ''}{t('. Raport zapisał się w karcie analizy.')}</Komunikat>
               <RaportWidok raport={raport} otworzWycene={(id) => { zamknij(); otworzWycene(id) }} otworzZakladke={(z) => { zamknij(); otworzZakladke(z) }} />
             </>
           )}
-          {etap === 'trwa' && <p className={cn('text-xs text-slate-500')}>Nie zamykaj okna do końca - kolejne kroki zapisują się na bieżąco.</p>}
+          {etap === 'trwa' && <p className={cn('text-xs text-slate-500')}>{t('Nie zamykaj okna do końca - kolejne kroki zapisują się na bieżąco.')}</p>}
         </div>
       </DialogContent>
     </Dialog>

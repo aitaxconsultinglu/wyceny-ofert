@@ -8,6 +8,7 @@ import type { WynikWyceny } from '@/lib/kalkulacja'
 import type { StanWyceny, Wycena } from '@/lib/wyceny'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
+import { t } from '@/i18n'
 
 type Kategoria = 'obejmuje' | 'nie_obejmuje' | 'uwagi'
 interface Klauzula { id: number; kategoria: Kategoria; tekst: string; tagi: string[]; kolejnosc: number }
@@ -29,7 +30,7 @@ export interface OfertaWyceny {
   przedmiot: string
 }
 
-const TYTULY: Record<Kategoria, string> = { obejmuje: 'Oferta obejmuje', nie_obejmuje: 'Oferta nie obejmuje', uwagi: 'Uwagi' }
+const TYTULY: Record<Kategoria, string> = { obejmuje: t('Oferta obejmuje'), nie_obejmuje: t('Oferta nie obejmuje'), uwagi: t('Uwagi') }
 
 /** Podstawia {zmienne}; brakująca zmienna zostaje widoczna jako [nazwa]. */
 export function podstaw(tekst: string, zmienne: Record<string, string>) {
@@ -104,7 +105,7 @@ export function EdytorOferty({ stan, wynik, zmienWycene, widziMarze, zapisz, zmi
 
   async function pobierz() {
     setBlad(null)
-    if (cena === null) { setBlad('Cena będzie dostępna po zatwierdzeniu wyceny przez prezesa.'); return }
+    if (cena === null) { setBlad(t('Cena będzie dostępna po zatwierdzeniu wyceny przez prezesa.')); return }
     if (zmieniony && !(await zapisz())) return
     const { ofertaDlaKlienta } = await import('@/lib/eksportWord')
     await ofertaDlaKlienta({
@@ -122,12 +123,12 @@ export function EdytorOferty({ stan, wynik, zmienWycene, widziMarze, zapisz, zmi
   return (
     <div className="space-y-4">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
-      {projekt && <Komunikat rodzaj="ostrzezenie">Wycena nie jest zatwierdzona - dokument dostanie oznaczenie „PROJEKT OFERTY”.</Komunikat>}
+      {projekt && <Komunikat rodzaj="ostrzezenie">{t('Wycena nie jest zatwierdzona - dokument dostanie oznaczenie „PROJEKT OFERTY”.')}</Komunikat>}
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="sekcja space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold">Biblioteka klauzul</h4>
-            <Button rozmiar="maly" wariant="cichy" disabled title="Propozycja zestawu klauzul z karty analizy - etap 4 (AI)"><Sparkles className="h-3 w-3" /> AI: zaproponuj</Button>
+            <h4 className="text-sm font-semibold">{t('Biblioteka klauzul')}</h4>
+            <Button rozmiar="maly" wariant="cichy" disabled title={t('Propozycja zestawu klauzul z karty analizy - etap 4 (AI)')}><Sparkles className="h-3 w-3" /> {t('AI: zaproponuj')}</Button>
           </div>
           {(['obejmuje', 'nie_obejmuje', 'uwagi'] as Kategoria[]).map((kat) => (
             <div key={kat}>
@@ -144,12 +145,12 @@ export function EdytorOferty({ stan, wynik, zmienWycene, widziMarze, zapisz, zmi
               </ul>
             </div>
           ))}
-          <p className="text-xs text-slate-500">Bibliotekę rozbudowuje administrator. Własne punkty dopiszesz po prawej.</p>
+          <p className="text-xs text-slate-500">{t('Bibliotekę rozbudowuje administrator. Własne punkty dopiszesz po prawej.')}</p>
         </section>
 
         <section className="sekcja space-y-3">
-          <h4 className="text-sm font-semibold">Treść oferty</h4>
-          <label className="block"><span className="etykieta">Przedmiot oferty</span><input className="pole" value={o.przedmiot} onChange={(e) => ust({ przedmiot: e.target.value })} /></label>
+          <h4 className="text-sm font-semibold">{t('Treść oferty')}</h4>
+          <label className="block"><span className="etykieta">{t('Przedmiot oferty')}</span><input className="pole" value={o.przedmiot} onChange={(e) => ust({ przedmiot: e.target.value })} /></label>
           {(['obejmuje', 'nie_obejmuje', 'uwagi'] as Kategoria[]).map((kat) => (
             <div key={kat}>
               <p className="etykieta">{TYTULY[kat]}</p>
@@ -164,7 +165,7 @@ export function EdytorOferty({ stan, wynik, zmienWycene, widziMarze, zapisz, zmi
                 ))}
               </ul>
               <div className="mt-1 flex gap-1">
-                <input className="pole text-sm" placeholder="własny punkt..." value={nowa[kat]} onChange={(e) => setNowa({ ...nowa, [kat]: e.target.value })} />
+                <input className="pole text-sm" placeholder={t('własny punkt...')} value={nowa[kat]} onChange={(e) => setNowa({ ...nowa, [kat]: e.target.value })} />
                 <Button rozmiar="maly" disabled={!nowa[kat].trim()} onClick={() => { ust({ [kat]: [...o[kat], nowa[kat].trim()] } as Partial<OfertaWyceny>); setNowa({ ...nowa, [kat]: '' }) }}><Plus className="h-3 w-3" /></Button>
               </div>
             </div>
@@ -172,7 +173,7 @@ export function EdytorOferty({ stan, wynik, zmienWycene, widziMarze, zapisz, zmi
 
           {uzyte.length > 0 && (
             <div>
-              <p className="etykieta">Zmienne w klauzulach</p>
+              <p className="etykieta">{t('Zmienne w klauzulach')}</p>
               <div className="grid gap-2 md:grid-cols-2">
                 {uzyte.map((n) => (
                   <label key={n} className="text-sm"><span className="text-xs text-slate-500">{`{${n}}`}</span>
@@ -184,25 +185,25 @@ export function EdytorOferty({ stan, wynik, zmienWycene, widziMarze, zapisz, zmi
           )}
 
           <div className="grid gap-2 md:grid-cols-2">
-            <label className="text-sm md:col-span-2"><span className="etykieta">Termin realizacji</span><input className="pole" value={o.termin_realizacji} onChange={(e) => ust({ termin_realizacji: e.target.value })} /></label>
-            <label className="text-sm"><span className="etykieta">Gwarancja [mies.]</span><input type="number" className="pole" value={o.gwarancja_mies} onChange={(e) => ust({ gwarancja_mies: Number(e.target.value) })} /></label>
-            <label className="text-sm"><span className="etykieta">Ważność oferty [dni]</span><input type="number" className="pole" value={o.waznosc_dni} onChange={(e) => ust({ waznosc_dni: Number(e.target.value) })} /></label>
-            <label className="text-sm"><span className="etykieta">Płatność</span><input className="pole" value={o.platnosc} onChange={(e) => ust({ platnosc: e.target.value })} /></label>
-            <label className="text-sm"><span className="etykieta">Data oferty</span><input type="date" className="pole" value={o.data} onChange={(e) => ust({ data: e.target.value })} /></label>
-            <label className="text-sm"><span className="etykieta">Waluta oferty</span>
+            <label className="text-sm md:col-span-2"><span className="etykieta">{t('Termin realizacji')}</span><input className="pole" value={o.termin_realizacji} onChange={(e) => ust({ termin_realizacji: e.target.value })} /></label>
+            <label className="text-sm"><span className="etykieta">{t('Gwarancja [mies.]')}</span><input type="number" className="pole" value={o.gwarancja_mies} onChange={(e) => ust({ gwarancja_mies: Number(e.target.value) })} /></label>
+            <label className="text-sm"><span className="etykieta">{t('Ważność oferty [dni]')}</span><input type="number" className="pole" value={o.waznosc_dni} onChange={(e) => ust({ waznosc_dni: Number(e.target.value) })} /></label>
+            <label className="text-sm"><span className="etykieta">{t('Płatność')}</span><input className="pole" value={o.platnosc} onChange={(e) => ust({ platnosc: e.target.value })} /></label>
+            <label className="text-sm"><span className="etykieta">{t('Data oferty')}</span><input type="date" className="pole" value={o.data} onChange={(e) => ust({ data: e.target.value })} /></label>
+            <label className="text-sm"><span className="etykieta">{t('Waluta oferty')}</span>
               <select className="pole" value={o.waluta} onChange={(e) => ust({ waluta: e.target.value as 'PLN' | 'EUR' })}><option>PLN</option><option>EUR</option></select></label>
-            <label className="text-sm"><span className="etykieta">Podpis (stanowisko)</span><input className="pole" placeholder="np. Dział handlowy" value={o.podpis} onChange={(e) => ust({ podpis: e.target.value })} /></label>
+            <label className="text-sm"><span className="etykieta">{t('Podpis (stanowisko)')}</span><input className="pole" placeholder={t('np. Dział handlowy')} value={o.podpis} onChange={(e) => ust({ podpis: e.target.value })} /></label>
             {wynik.ma_opcje && (
               <label className="flex items-center gap-2 text-sm md:col-span-2">
-                <input type="checkbox" checked={o.pokaz_wariant} onChange={(e) => ust({ pokaz_wariant: e.target.checked })} /> pokaż wariant
+                <input type="checkbox" checked={o.pokaz_wariant} onChange={(e) => ust({ pokaz_wariant: e.target.checked })} /> {t('pokaż wariant')}
                 <input className="pole" value={o.opis_wariantu} onChange={(e) => ust({ opis_wariantu: e.target.value })} />
               </label>
             )}
           </div>
-          {o.waluta === 'EUR' && !w.kurs_eur && <p className="text-xs text-amber-700">Ustaw kurs EUR w zakładce Podsumowanie.</p>}
+          {o.waluta === 'EUR' && !w.kurs_eur && <p className="text-xs text-amber-700">{t('Ustaw kurs EUR w zakładce Podsumowanie.')}</p>}
           <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-            <span className="text-sm">{cena !== null ? <>Cena netto: <strong>{zl(cena)} PLN</strong></> : <span className="text-slate-500">Cena po zatwierdzeniu przez prezesa.</span>}</span>
-            <Button wariant="glowny" disabled={cena === null} onClick={() => void pobierz()}><FileDown className="h-4 w-4" /> Oferta (Word)</Button>
+            <span className="text-sm">{cena !== null ? <>{t('Cena netto:')}{' '}<strong>{zl(cena)} PLN</strong></> : <span className="text-slate-500">{t('Cena po zatwierdzeniu przez prezesa.')}</span>}</span>
+            <Button wariant="glowny" disabled={cena === null} onClick={() => void pobierz()}><FileDown className="h-4 w-4" /> {t('Oferta (Word)')}</Button>
           </div>
         </section>
       </div>

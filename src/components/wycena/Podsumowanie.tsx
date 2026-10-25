@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import type { Ostrzezenie, WynikWyceny } from '@/lib/kalkulacja'
 import type { Marze, Wycena } from '@/lib/wyceny'
 import { PoleLiczby } from '../PoleLiczby'
+import { t } from '@/i18n'
 
 interface Props {
   wynik: WynikWyceny
@@ -18,7 +19,7 @@ interface Props {
 }
 
 const RODZAJE: Record<Ostrzezenie['rodzaj'], string> = {
-  brak_ceny: 'brak ceny', stara_cena: 'stara cena', ryzyko_cenowe: 'ryzyko cenowe', termin_dostawy: 'termin dostawy', kpl_bez_masy: 'komplet bez masy',
+  brak_ceny: t('brak ceny'), stara_cena: t('stara cena'), ryzyko_cenowe: t('ryzyko cenowe'), termin_dostawy: t('termin dostawy'), kpl_bez_masy: t('komplet bez masy'),
 }
 
 /** Podsumowanie (następca "Oceny ekonomicznej" z dotychczasowego arkusza wyceny): koszty, PLN/kg, udział, zysk, cena, korekta prezesa. */
@@ -31,21 +32,21 @@ export function Podsumowanie({ wynik, wycena, marze, ostrzezenia, tylkoOdczyt, j
   return (
     <div className="space-y-4">
       <section className="sekcja space-y-2">
-        <h4 className="text-sm font-semibold">Ocena ekonomiczna - masa netto razem {liczba(wynik.masa_kg, 0)} kg ({liczba(wynik.masa_kg / 1000, 3)} t)</h4>
+        <h4 className="text-sm font-semibold">{t('Ocena ekonomiczna - masa netto razem')}{' '}{liczba(wynik.masa_kg, 0)} {t('kg (')}{liczba(wynik.masa_kg / 1000, 3)} {t('t)')}</h4>
         <table className="w-full max-w-3xl border-collapse">
-          <thead><tr>{['', 'PLN', 'PLN/kg', 'Udział'].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
+          <thead><tr>{['', 'PLN', t('PLN/kg'), t('Udział')].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
           <tbody>
             {wiersze.map(([n, w]) => (
               <tr key={n}><td className="komorka">{n}</td><td className="komorka liczba">{zl(w.koszt)}</td><td className="komorka liczba">{w.zl_kg !== null ? liczba(w.zl_kg, 2) : ''}</td><td className="komorka liczba">{procent(w.udzial)}</td></tr>
             ))}
-            <tr className="font-semibold"><td className="komorka">Koszty całkowite</td><td className="komorka liczba">{zl(wynik.koszty.koszt)}</td><td className="komorka liczba">{wynik.koszty.zl_kg !== null ? liczba(wynik.koszty.zl_kg, 2) : ''}</td><td className="komorka liczba">100%</td></tr>
+            <tr className="font-semibold"><td className="komorka">{t('Koszty całkowite')}</td><td className="komorka liczba">{zl(wynik.koszty.koszt)}</td><td className="komorka liczba">{wynik.koszty.zl_kg !== null ? liczba(wynik.koszty.zl_kg, 2) : ''}</td><td className="komorka liczba">100%</td></tr>
           </tbody>
         </table>
       </section>
 
       {wynik.aparaty.length > 1 && (
         <section className="sekcja">
-          <h4 className="mb-2 text-sm font-semibold">Aparaty</h4>
+          <h4 className="mb-2 text-sm font-semibold">{t('Aparaty')}</h4>
           <table className="w-full border-collapse">
             <thead><tr>{['Aparat', 'Szt.', 'Masa szt. kg', 'Robocizna', 'Materiały', 'Kooperacja', 'Badania...', 'Koszt szt.', 'Koszt razem', ...(marze ? ['Cena szt.', 'Cena razem'] : [])].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
             <tbody>
@@ -64,19 +65,19 @@ export function Podsumowanie({ wynik, wycena, marze, ostrzezenia, tylkoOdczyt, j
 
       {marze ? (
         <section className="sekcja space-y-3">
-          <h4 className="text-sm font-semibold">Cena</h4>
+          <h4 className="text-sm font-semibold">{t('Cena')}</h4>
           <div className="flex flex-wrap items-end gap-4 text-sm">
-            <label><span className="etykieta">Narzut / zysk [%]</span>
+            <label><span className="etykieta">{t('Narzut / zysk [%]')}</span>
               <span className="block w-24 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={Number(marze.narzut_zysk_proc)} disabled={blokadaMarz} zmien={(n) => zmienMarze({ narzut_zysk_proc: n ?? 0 })} /></span></label>
-            <label><span className="etykieta">Zaokrąglenie ceny aparatu</span>
+            <label><span className="etykieta">{t('Zaokrąglenie ceny aparatu')}</span>
               <select className="pole w-36" disabled={blokadaMarz} value={Number(marze.zaokraglenie)} onChange={(e) => zmienMarze({ zaokraglenie: Number(e.target.value) })}>
-                <option value={0}>bez</option><option value={10}>do 10 zł</option><option value={100}>do 100 zł</option><option value={1000}>do 1000 zł</option>
+                <option value={0}>bez</option><option value={10}>{t('do 10 zł')}</option><option value={100}>{t('do 100 zł')}</option><option value={1000}>{t('do 1000 zł')}</option>
               </select></label>
-            <label title={jestPrezesem ? undefined : 'Korektę zmienia tylko prezes'}><span className="etykieta">Korekta prezesa [zł]</span>
+            <label title={jestPrezesem ? undefined : t('Korektę zmienia tylko prezes')}><span className="etykieta">{t('Korekta prezesa [zł]')}</span>
               <span className="block w-32 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={Number(marze.korekta_prezesa_kwota)} ujemne disabled={blokadaMarz || !jestPrezesem} zmien={(n) => zmienMarze({ korekta_prezesa_kwota: n ?? 0 })} /></span></label>
-            <label><span className="etykieta">Korekta prezesa [%]</span>
+            <label><span className="etykieta">{t('Korekta prezesa [%]')}</span>
               <span className="block w-20 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={Number(marze.korekta_prezesa_proc)} ujemne disabled={blokadaMarz || !jestPrezesem} zmien={(n) => zmienMarze({ korekta_prezesa_proc: n ?? 0 })} /></span></label>
-            <label><span className="etykieta">Kurs EUR</span>
+            <label><span className="etykieta">{t('Kurs EUR')}</span>
               <span className="flex items-center gap-1">
                 <span className="w-24 rounded border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={wycena.kurs_eur} puste disabled={tylkoOdczyt} zmien={(n) => zmienWycene({ kurs_eur: n, kurs_eur_zrodlo: 'ręcznie', kurs_eur_data: null })} /></span>
                 {!tylkoOdczyt && <button className="text-xs text-blekit-ciemny underline" onClick={pobierzKurs}>NBP</button>}
@@ -86,28 +87,28 @@ export function Podsumowanie({ wynik, wycena, marze, ostrzezenia, tylkoOdczyt, j
           </div>
           <table className="w-full max-w-2xl border-collapse text-sm">
             <tbody>
-              <tr><td className="komorka">Koszty całkowite</td><td className="komorka liczba">{zl(wynik.koszty.koszt)} PLN</td></tr>
-              <tr><td className="komorka">Zysk ({liczba(wynik.zysk_proc)}%{Number(marze.zaokraglenie) ? `, z zaokrągleniem do ${marze.zaokraglenie} zł` : ''})</td><td className="komorka liczba">{zl(wynik.zysk)} PLN</td></tr>
-              <tr className="font-semibold"><td className="komorka">Cena</td><td className="komorka liczba">{zl(wynik.cena)} PLN</td></tr>
-              {(wynik.korekta ?? 0) !== 0 && <tr><td className="komorka">Korekta prezesa</td><td className="komorka liczba">{zl(wynik.korekta)} PLN</td></tr>}
-              <tr className="bg-limonka-jasna text-base font-bold"><td className="komorka">Cena końcowa (netto)</td><td className="komorka liczba">{zl(wynik.cena_koncowa)} PLN</td></tr>
-              <tr><td className="komorka">Cena za kg</td><td className="komorka liczba">{wynik.cena_koncowa_zl_kg !== null ? `${liczba(wynik.cena_koncowa_zl_kg, 2)} PLN/kg` : '-'}</td></tr>
-              {wynik.cena_koncowa_eur !== null && <tr><td className="komorka">Cena w EUR</td><td className="komorka liczba">{zl(wynik.cena_koncowa_eur)} EUR</td></tr>}
+              <tr><td className="komorka">{t('Koszty całkowite')}</td><td className="komorka liczba">{zl(wynik.koszty.koszt)} PLN</td></tr>
+              <tr><td className="komorka">{t('Zysk (')}{liczba(wynik.zysk_proc)}%{Number(marze.zaokraglenie) ? t(', z zaokrągleniem do {0} zł', marze.zaokraglenie) : ''})</td><td className="komorka liczba">{zl(wynik.zysk)} PLN</td></tr>
+              <tr className="font-semibold"><td className="komorka">{t('Cena')}</td><td className="komorka liczba">{zl(wynik.cena)} PLN</td></tr>
+              {(wynik.korekta ?? 0) !== 0 && <tr><td className="komorka">{t('Korekta prezesa')}</td><td className="komorka liczba">{zl(wynik.korekta)} PLN</td></tr>}
+              <tr className="bg-limonka-jasna text-base font-bold"><td className="komorka">{t('Cena końcowa (netto)')}</td><td className="komorka liczba">{zl(wynik.cena_koncowa)} PLN</td></tr>
+              <tr><td className="komorka">{t('Cena za kg')}</td><td className="komorka liczba">{wynik.cena_koncowa_zl_kg !== null ? t('{0} PLN/kg', liczba(wynik.cena_koncowa_zl_kg, 2)) : '-'}</td></tr>
+              {wynik.cena_koncowa_eur !== null && <tr><td className="komorka">{t('Cena w EUR')}</td><td className="komorka liczba">{zl(wynik.cena_koncowa_eur)} EUR</td></tr>}
               {wynik.ma_opcje && (
-                <tr><td className="komorka">Wariant bez pozycji opcjonalnych (bez korekty)</td><td className="komorka liczba">{zl(wynik.cena_bez_opcji)} PLN{wynik.masa_kg ? ` (${liczba((wynik.cena_bez_opcji ?? 0) / wynik.masa_kg, 2)} PLN/kg)` : ''}</td></tr>
+                <tr><td className="komorka">{t('Wariant bez pozycji opcjonalnych (bez korekty)')}</td><td className="komorka liczba">{zl(wynik.cena_bez_opcji)} PLN{wynik.masa_kg ? t(' ({0} PLN/kg)', liczba((wynik.cena_bez_opcji ?? 0) / wynik.masa_kg, 2)) : ''}</td></tr>
               )}
             </tbody>
           </table>
         </section>
       ) : (
         <section className="sekcja text-sm text-slate-600">
-          Narzut, zysk i korekta prezesa są widoczne tylko dla osób z uprawnieniem „widzi narzuty i marże”.
+          {t('Narzut, zysk i korekta prezesa są widoczne tylko dla osób z uprawnieniem „widzi narzuty i marże”.')}
         </section>
       )}
 
       <section className="sekcja space-y-2">
-        <h4 className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="h-4 w-4 text-amber-600" /> Ostrzeżenia ({ostrzezenia.length})</h4>
-        {ostrzezenia.length === 0 ? <p className="text-sm text-limonka-ciemna">Brak ostrzeżeń.</p> : (
+        <h4 className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="h-4 w-4 text-amber-600" /> {t('Ostrzeżenia (')}{ostrzezenia.length})</h4>
+        {ostrzezenia.length === 0 ? <p className="text-sm text-limonka-ciemna">{t('Brak ostrzeżeń.')}</p> : (
           <ul className="space-y-1 text-sm">
             {ostrzezenia.map((o, i) => (
               <li key={i} className="flex gap-2">

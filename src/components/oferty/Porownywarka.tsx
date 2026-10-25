@@ -9,11 +9,12 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { WykresCen } from './WykresCen'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 export type Miara = 'cena_pln_kg' | 'cena_pln_m' | 'cena_pln_szt' | 'cena_pln_odniesienia'
 export const MIARY: { id: Miara; etykieta: string }[] = [
-  { id: 'cena_pln_kg', etykieta: 'PLN/kg' }, { id: 'cena_pln_m', etykieta: 'PLN/m' },
-  { id: 'cena_pln_szt', etykieta: 'PLN/szt' }, { id: 'cena_pln_odniesienia', etykieta: 'PLN/jedn. odniesienia' },
+  { id: 'cena_pln_kg', etykieta: t('PLN/kg') }, { id: 'cena_pln_m', etykieta: t('PLN/m') },
+  { id: 'cena_pln_szt', etykieta: t('PLN/szt') }, { id: 'cena_pln_odniesienia', etykieta: t('PLN/jedn. odniesienia') },
 ]
 
 const WYMAGANIA_SKROTY: [string, string][] = [['atest_31', '3.1'], ['ped', 'PED'], ['ut', 'UT'], ['nft', 'NFT'], ['pochodzenie_ue', 'UE'], ['udt', 'UDT']]
@@ -40,14 +41,14 @@ const doplaty = (w: WierszCeny) => w.doplaty.map((d) => `${d.opis} ${liczba(d.kw
 export function kolumnyCen(o: { miara?: Miara; najlepsza?: number | null; najtansza?: string | null; najszybsza?: string | null; bezZrodla?: boolean }): KolumnaTabeli<WierszCeny>[] {
   const miara = o.miara ?? 'cena_pln_kg'
   return [
-    ...(o.bezZrodla ? [] : [{ id: 'zrodlo', naglowek: 'Źródło', typ: 'lista' as const, wartosc: (w: WierszCeny) => (w.zrodlo === 'oferta' ? 'oferta' : 'zakup'), className: 'text-xs' }]),
-    { id: 'data', naglowek: 'Data', typ: 'data', wartosc: (w) => w.data, komorka: (w) => dataPL(w.data), className: 'whitespace-nowrap' },
-    { id: 'dostawca', naglowek: 'Dostawca', typ: 'lista', wartosc: (w) => w.dostawca, className: 'max-w-[12rem] truncate font-medium' },
-    { id: 'opis', naglowek: 'Opis', typ: 'tekst', wartosc: (w) => w.opis, className: 'max-w-[22rem] text-sm' },
-    { id: 'gatunek', naglowek: 'Gatunek', typ: 'lista', wartosc: (w) => w.gatunek, className: 'whitespace-nowrap' },
-    { id: 'wymiary', naglowek: 'Wymiary', typ: 'tekst', wartosc: (w) => opisWymiarow(w) || null, className: 'whitespace-nowrap text-xs' },
-    { id: 'ilosc', naglowek: 'Ilość', typ: 'liczba', wartosc: (w) => w.ilosc, komorka: (w) => `${liczba(w.ilosc)} ${w.jm ?? ''}`, className: 'whitespace-nowrap' },
-    { id: 'cena', naglowek: 'Cena oryg.', typ: 'liczba', wartosc: (w) => w.cena_jedn, komorka: (w) => `${liczba(w.cena_jedn, 2)} ${w.waluta}`, className: 'whitespace-nowrap' },
+    ...(o.bezZrodla ? [] : [{ id: 'zrodlo', naglowek: t('Źródło'), typ: 'lista' as const, wartosc: (w: WierszCeny) => (w.zrodlo === 'oferta' ? 'oferta' : 'zakup'), className: 'text-xs' }]),
+    { id: 'data', naglowek: t('Data'), typ: 'data', wartosc: (w) => w.data, komorka: (w) => dataPL(w.data), className: 'whitespace-nowrap' },
+    { id: 'dostawca', naglowek: t('Dostawca'), typ: 'lista', wartosc: (w) => w.dostawca, className: 'max-w-[12rem] truncate font-medium' },
+    { id: 'opis', naglowek: t('Opis'), typ: 'tekst', wartosc: (w) => w.opis, className: 'max-w-[22rem] text-sm' },
+    { id: 'gatunek', naglowek: t('Gatunek'), typ: 'lista', wartosc: (w) => w.gatunek, className: 'whitespace-nowrap' },
+    { id: 'wymiary', naglowek: t('Wymiary'), typ: 'tekst', wartosc: (w) => opisWymiarow(w) || null, className: 'whitespace-nowrap text-xs' },
+    { id: 'ilosc', naglowek: t('Ilość'), typ: 'liczba', wartosc: (w) => w.ilosc, komorka: (w) => `${liczba(w.ilosc)} ${w.jm ?? ''}`, className: 'whitespace-nowrap' },
+    { id: 'cena', naglowek: t('Cena oryg.'), typ: 'liczba', wartosc: (w) => w.cena_jedn, komorka: (w) => `${liczba(w.cena_jedn, 2)} ${w.waluta}`, className: 'whitespace-nowrap' },
     {
       id: 'miara', naglowek: MIARY.find((m) => m.id === miara)!.etykieta, typ: 'liczba', wartosc: (w) => w[miara], className: 'whitespace-nowrap font-medium',
       komorka: (w) => (
@@ -57,12 +58,12 @@ export function kolumnyCen(o: { miara?: Miara; najlepsza?: number | null; najtan
         </span>
       ),
     },
-    { id: 'termin', naglowek: 'Termin', typ: 'tekst', wartosc: (w) => w.termin, className: 'whitespace-nowrap text-xs', komorka: (w) => <span className={cn(o.najszybsza === w.klucz && 'bg-blekit-jasny px-1')}>{w.termin}{w.termin_dni ? ` (${w.termin_dni} dni)` : ''}</span> },
-    { id: 'waznosc', naglowek: 'Ważność', typ: 'data', wartosc: (w) => w.waznosc_do, komorka: (w) => (w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis), className: 'whitespace-nowrap text-xs' },
-    { id: 'warunki', naglowek: 'Warunki', typ: 'tekst', wartosc: (w) => w.warunki, className: 'text-xs' },
-    { id: 'wymagania', naglowek: 'Wymagania', typ: 'tekst', wartosc: (w) => Object.entries(w.wymagania ?? {}).filter(([, v]) => v === true).map(([k]) => k).join(' ') || null, komorka: (w) => <KolumnaWymagan w={w.wymagania} /> },
-    { id: 'doplaty', naglowek: 'Dopłaty', typ: 'tekst', wartosc: (w) => doplaty(w) || null, className: 'text-xs' },
-    { id: 'zo', naglowek: 'ZO', typ: 'lista', wartosc: (w) => w.nr_zo, className: 'whitespace-nowrap text-xs' },
+    { id: 'termin', naglowek: t('Termin'), typ: 'tekst', wartosc: (w) => w.termin, className: 'whitespace-nowrap text-xs', komorka: (w) => <span className={cn(o.najszybsza === w.klucz && 'bg-blekit-jasny px-1')}>{w.termin}{w.termin_dni ? t(' ({0} dni)', w.termin_dni) : ''}</span> },
+    { id: 'waznosc', naglowek: t('Ważność'), typ: 'data', wartosc: (w) => w.waznosc_do, komorka: (w) => (w.waznosc_do ? dataPL(w.waznosc_do) : w.waznosc_opis), className: 'whitespace-nowrap text-xs' },
+    { id: 'warunki', naglowek: t('Warunki'), typ: 'tekst', wartosc: (w) => w.warunki, className: 'text-xs' },
+    { id: 'wymagania', naglowek: t('Wymagania'), typ: 'tekst', wartosc: (w) => Object.entries(w.wymagania ?? {}).filter(([, v]) => v === true).map(([k]) => k).join(' ') || null, komorka: (w) => <KolumnaWymagan w={w.wymagania} /> },
+    { id: 'doplaty', naglowek: t('Dopłaty'), typ: 'tekst', wartosc: (w) => doplaty(w) || null, className: 'text-xs' },
+    { id: 'zo', naglowek: t('ZO'), typ: 'lista', wartosc: (w) => w.nr_zo, className: 'whitespace-nowrap text-xs' },
   ]
 }
 
@@ -104,55 +105,55 @@ export function Porownywarka({ tylkoUslugi = false }: { tylkoUslugi?: boolean })
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       <section className="sekcja flex flex-wrap items-end gap-3">
-        <label><span className="etykieta">Szukaj</span>
-          <input className="pole w-56" placeholder="opis, dostawca, ZO..." value={filtr.tekst} onChange={(e) => ust({ tekst: e.target.value })} /></label>
-        <label><span className="etykieta">Kategoria</span>
+        <label><span className="etykieta">{t('Szukaj')}</span>
+          <input className="pole w-56" placeholder={t('opis, dostawca, ZO...')} value={filtr.tekst} onChange={(e) => ust({ tekst: e.target.value })} /></label>
+        <label><span className="etykieta">{t('Kategoria')}</span>
           <select className="pole w-56" value={filtr.kategoria} onChange={(e) => ust({ kategoria: e.target.value })}>
             <option value="">wszystkie</option>
             {kategorie.map((k) => <option key={k.wartosc} value={k.wartosc}>{k.etykieta}</option>)}
           </select></label>
         {!tylkoUslugi && (
           <>
-            <label><span className="etykieta">Gatunek (z równoważnikami)</span>
-              <input className="pole w-40" list="lista-gatunkow" placeholder="np. P355NL1" value={filtr.gatunek} onChange={(e) => ust({ gatunek: e.target.value })} />
+            <label><span className="etykieta">{t('Gatunek (z równoważnikami)')}</span>
+              <input className="pole w-40" list="lista-gatunkow" placeholder={t('np. P355NL1')} value={filtr.gatunek} onChange={(e) => ust({ gatunek: e.target.value })} />
               <datalist id="lista-gatunkow">{s.gatunki.map((g) => <option key={g.kod} value={g.kod} />)}</datalist></label>
-            <label><span className="etykieta">Ø zewn. [mm]</span>
+            <label><span className="etykieta">{t('Ø zewn. [mm]')}</span>
               <span className="block w-24 rounded-md border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={filtr.d_zew} puste zmien={(n) => ust({ d_zew: n })} /></span></label>
-            <label><span className="etykieta">Grubość [mm]</span>
+            <label><span className="etykieta">{t('Grubość [mm]')}</span>
               <span className="block w-24 rounded-md border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={filtr.grubosc} puste zmien={(n) => ust({ grubosc: n })} /></span></label>
-            <label><span className="etykieta">Tolerancja ±%</span>
+            <label><span className="etykieta">{t('Tolerancja ±%')}</span>
               <span className="block w-16 rounded-md border border-slate-300 px-1.5 py-1"><PoleLiczby wartosc={filtr.tolerancja_proc} zmien={(n) => ust({ tolerancja_proc: n ?? 0 })} /></span></label>
           </>
         )}
-        <label><span className="etykieta">Dostawca</span>
+        <label><span className="etykieta">{t('Dostawca')}</span>
           <input className="pole w-40" value={filtr.dostawca} onChange={(e) => ust({ dostawca: e.target.value })} /></label>
-        <label><span className="etykieta">Od daty</span>
+        <label><span className="etykieta">{t('Od daty')}</span>
           <input type="date" className="pole w-40" value={filtr.od} onChange={(e) => ust({ od: e.target.value })} /></label>
         <div className="flex flex-col gap-1 text-sm">
-          <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.tylkoWazne} onChange={(e) => ust({ tylkoWazne: e.target.checked })} /> tylko ważne oferty</label>
-          {!tylkoUslugi && <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.udarnosc45} onChange={(e) => ust({ udarnosc45: e.target.checked })} /> udarność −45 °C</label>}
+          <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.tylkoWazne} onChange={(e) => ust({ tylkoWazne: e.target.checked })} /> {t('tylko ważne oferty')}</label>
+          {!tylkoUslugi && <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.udarnosc45} onChange={(e) => ust({ udarnosc45: e.target.checked })} /> {t('udarność −45 °C')}</label>}
         </div>
         <div className="flex flex-col gap-1 text-sm">
           <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.zrodla.oferta} onChange={(e) => ust({ zrodla: { ...filtr.zrodla, oferta: e.target.checked } })} /> oferty</label>
-          <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.zrodla.zakup} onChange={(e) => ust({ zrodla: { ...filtr.zrodla, zakup: e.target.checked } })} /> zakupy (Optima)</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={filtr.zrodla.zakup} onChange={(e) => ust({ zrodla: { ...filtr.zrodla, zakup: e.target.checked } })} /> {t('zakupy (Optima)')}</label>
         </div>
-        <label><span className="etykieta">Sortuj wg</span>
+        <label><span className="etykieta">{t('Sortuj wg')}</span>
           <select className="pole w-44" value={miara} onChange={(e) => setMiara(e.target.value as Miara)}>
             {MIARY.map((m) => <option key={m.id} value={m.id}>{m.etykieta}</option>)}
           </select></label>
-        <Button rozmiar="maly" wariant="cichy" onClick={() => setFiltr(PUSTY_FILTR)}><RotateCcw className="h-3 w-3" /> wyczyść</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={() => setFiltr(PUSTY_FILTR)}><RotateCcw className="h-3 w-3" /> {t('wyczyść')}</Button>
       </section>
 
-      {ladowanie ? <p className="text-sm text-slate-500">Wczytywanie...</p> : (
+      {ladowanie ? <p className="text-sm text-slate-500">{t('Wczytywanie...')}</p> : (
         <>
           <p className="text-xs text-slate-500">
-            {wynik.length} pozycji. <span className="rounded bg-amber-100 px-1">Żółte</span> - cena starsza niż {progMies} mies.,
-            <span className="ml-1 rounded bg-red-100 px-1">czerwone</span> - oferta po terminie ważności. Ceny w PLN wg kursu z dnia oferty.
+            {wynik.length} {t('pozycji.')}{' '}<span className="rounded bg-amber-100 px-1">{t('Żółte')}</span> {t('- cena starsza niż')}{' '}{progMies} {t('mies.,')}
+            <span className="ml-1 rounded bg-red-100 px-1">czerwone</span> {t('- oferta po terminie ważności. Ceny w PLN wg kursu z dnia oferty.')}
           </p>
           {wynik.length > 1 && wynik.length <= 400 && <WykresCen wiersze={wynik} miara={miara} />}
           <Tabela id={tylkoUslugi ? 'porownywarka-uslug' : 'porownywarka'} kolumny={kolumnyCen({ miara, najlepsza })} wiersze={wynik} klucz={(w) => w.klucz}
             klasaWiersza={(w) => { const wiek = wiekMiesiecy(w.data); return w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis ? 'bg-red-50' : wiek !== null && wiek >= progMies ? 'bg-amber-50' : undefined }}
-            pusto="Brak pozycji spełniających kryteria." />
+            pusto={t('Brak pozycji spełniających kryteria.')} />
         </>
       )}
     </div>

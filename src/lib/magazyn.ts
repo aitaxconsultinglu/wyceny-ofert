@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { komunikatPL } from './config'
 import type { TypDokumentu, WczytanyPlik } from './dokumenty'
+import { t } from '@/i18n'
 
 export const BUCKET = 'dokumenty'
 const WAZNOSC_LINKU_S = 60
@@ -60,7 +61,7 @@ export async function zapiszDokument(
     metadane,
   }).select('id, nazwa_pliku, stan, sciezka').single()
   if (error) {
-    if (/dokumenty_message_id/.test(error.message)) throw new Error(`Ten mail jest już w bazie (ten sam Message-ID): ${plik.nazwa}`)
+    if (/dokumenty_message_id/.test(error.message)) throw new Error(t('Ten mail jest już w bazie (ten sam Message-ID): {0}', plik.nazwa))
     throw new Error(komunikatPL(error.message))
   }
   const dokument = data as ZapisanyDokument

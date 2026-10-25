@@ -5,6 +5,7 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { GeneratorZapytan } from './GeneratorZapytan'
 import { ListaZapytanDostawcow } from './ListaZapytanDostawcow'
+import { t } from '@/i18n'
 
 /** Zakładka karty zapytania: generator zapytań do dostawców i status wysłanych zapytań. */
 export function ZapytaniaDoDostawcow({ zapytanieId, numer, profil, zrodloStartowe }: {
@@ -22,19 +23,19 @@ export function ZapytaniaDoDostawcow({ zapytanieId, numer, profil, zrodloStartow
       {up.bazaOfert ? (
         <div className="flex items-center gap-2">
           <Button wariant={generator ? 'zwykly' : 'glowny'} onClick={() => { setGenerator(!generator); setInfo(null) }}>
-            {generator ? <><X className="h-4 w-4" /> Zamknij generator</> : <><Plus className="h-4 w-4" /> Nowe zapytanie do dostawców</>}
+            {generator ? <><X className="h-4 w-4" /> {t('Zamknij generator')}</> : <><Plus className="h-4 w-4" /> {t('Nowe zapytanie do dostawców')}</>}
           </Button>
-          <span className="text-xs text-slate-500">Pozycje z wyceny albo z odczytu rysunku, osobne zapytanie dla każdej kategorii.</span>
+          <span className="text-xs text-slate-500">{t('Pozycje z wyceny albo z odczytu rysunku, osobne zapytanie dla każdej kategorii.')}</span>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">Zapytania do dostawców wysyła dział handlowy - poniżej ich status.</p>
+        <p className="text-xs text-slate-500">{t('Zapytania do dostawców wysyła dział handlowy - poniżej ich status.')}</p>
       )}
       {generator && (
         <GeneratorZapytan zapytanieId={zapytanieId} numer={numer} zrodloStartowe={zrodloStartowe}
-          gotowe={(ile) => { setOdswiez((x) => x + 1); setInfo(`Zapisano zapytanie (${ile} odb.). Wyślij je przyciskiem „Wyślij” przy każdym odbiorcy.`) }} />
+          gotowe={(ile) => { setOdswiez((x) => x + 1); setInfo(t('Zapisano zapytanie ({0} odb.). Wyślij je przyciskiem „Wyślij” przy każdym odbiorcy.', ile)) }} />
       )}
       <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Wysłane zapytania</h4>
+        <h4 className="text-sm font-semibold">{t('Wysłane zapytania')}</h4>
         <ListaZapytanDostawcow zapytanieId={zapytanieId} mozeEdytowac={up.bazaOfert} odswiez={odswiez} />
       </section>
     </div>

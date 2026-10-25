@@ -6,13 +6,15 @@ import { normalizujNazwe, znajdzGatunek } from './normalizacjaNazw'
 import { liczbaPL } from './importOptima'
 import { odmiana } from './format'
 import type { RysunekAi } from './ai'
+import { t } from '@/i18n'
+import { nazwyPLEN } from './terminy'
 
 /** Prostokąt w pikselach albo - dla obszarów - we współrzędnych względnych 0..1 strony (po obrocie, jak na ekranie). */
 export interface Prostokat { x: number; y: number; w: number; h: number }
 
 export type RodzajObszaru = 'czesci' | 'krocce' | 'parametry' | 'tabliczka'
 export const ETYKIETY_OBSZARU: Record<RodzajObszaru, string> = {
-  czesci: 'wykaz części', krocce: 'tabela króćców', parametry: 'dane projektowe', tabliczka: 'tabliczka rysunkowa',
+  czesci: t('wykaz części'), krocce: t('tabela króćców'), parametry: t('dane projektowe'), tabliczka: t('tabliczka rysunkowa'),
 }
 export const KOLORY_OBSZARU: Record<RodzajObszaru, string> = {
   czesci: '#0ea5e9', krocce: '#a855f7', parametry: '#f59e0b', tabliczka: '#64748b',
@@ -37,6 +39,9 @@ export interface PozycjaRysunku {
   /** kategorie_materialow.kod - reguły (normalizacja nazw) albo AI. */
   sekcja: string
   obszar_zrodlowy: ObszarZrodlowy | null
+  /** Odpowiedniki PL / EN nazwy - tylko gdy pewne (lib/terminy.ts); sama nazwa zostaje jak w źródle. */
+  nazwa_pl?: string
+  nazwa_en?: string
 }
 
 export interface KrociecRysunku {
@@ -58,6 +63,8 @@ export interface ParametrRysunku {
   wartosc: string
   jednostka: string | null
   pewnosc: number
+  nazwa_pl?: string
+  nazwa_en?: string
 }
 
 export interface WynikRysunku {
@@ -242,7 +249,7 @@ export function czesciZTabeli(wiersze: string[][], ramki: (ObszarZrodlowy | null
     return i >= 0 ? ramki[i] ?? null : null
   }
   const wynik = pozycje.map((w): PozycjaRysunku => ({
-    poz: String(w.lp), nazwa: w.nazwa, ilosc: w.ilosc, jm: w.jm, material: w.gatunek, norma: w.norma, wymiary: null,
+    poz: String(w.lp), nazwa: w.nazwa, ...nazwyPLEN(w.nazwa), ilosc: w.ilosc, jm: w.jm, material: w.gatunek, norma: w.norma, wymiary: null,
     masa_jedn: w.masa_jedn, masa_calk: w.masa_jedn !== null ? w.masa_jedn * w.ilosc : null, uwagi: w.uwagi,
     pewnosc: w.pewnosc, sekcja: w.sekcja, obszar_zrodlowy: zRamka(w),
   }))
@@ -357,9 +364,9 @@ export function listaZRysunku(pozycje: PozycjaRysunku[]): WierszListy[] {
 // --- Odpowiedź AI -> wynik ----------------------------------------------------------------------
 
 export const ETYKIETY_DANYCH_PROJEKTOWYCH: Record<keyof RysunekAi['dane_projektowe'], string> = {
-  kod_projektowy: 'Kod projektowy', cisnienie_obliczeniowe: 'Ciśnienie obliczeniowe', temperatura_obliczeniowa: 'Temperatura obliczeniowa',
-  mdmt: 'MDMT', naddatek_korozyjny: 'Naddatek korozyjny', pwht: 'PWHT (obróbka cieplna)', badania_ndt: 'Badania NDT',
-  kategoria_ped: 'Kategoria PED', dozor_udt: 'Dozór UDT', masa_pusta: 'Masa pusta',
+  kod_projektowy: t('Kod projektowy'), cisnienie_obliczeniowe: t('Ciśnienie obliczeniowe'), temperatura_obliczeniowa: t('Temperatura obliczeniowa'),
+  mdmt: t('MDMT'), naddatek_korozyjny: t('Naddatek korozyjny'), pwht: t('PWHT (obróbka cieplna)'), badania_ndt: t('Badania NDT'),
+  kategoria_ped: t('Kategoria PED'), dozor_udt: t('Dozór UDT'), masa_pusta: t('Masa pusta'),
 }
 
 /** Opis kafla wysyłany przed obrazem - model zwraca numer kafla, z którego odczytał wiersz. */
@@ -382,7 +389,7 @@ export function zWynikuAi(ai: RysunekAi, kafle: ObszarZrodlowy[], kody: string[]
     pozycje: ai.pozycje.map((p) => {
       const reguly = klasyfikuj(p.nazwa, p.wymiary, p.material)
       return {
-        poz: p.poz, nazwa: p.nazwa, ilosc: p.ilosc, jm: p.jm || 'szt', material: p.material, norma: p.norma, wymiary: p.wymiary,
+        poz: p.poz, nazwa: p.nazwa, ...nazwyPLEN(p.nazwa), ilosc: p.ilosc, jm: p.jm || 'szt', material: p.material, norma: p.norma, wymiary: p.wymiary,
         masa_jedn: p.masa_jedn, masa_calk: p.masa_calk, uwagi: p.uwagi,
         pewnosc: Math.max(0, Math.min(1, p.pewnosc)),
         sekcja: p.kategoria && kody.includes(p.kategoria) ? p.kategoria : reguly.sekcja,
@@ -390,7 +397,7 @@ export function zWynikuAi(ai: RysunekAi, kafle: ObszarZrodlowy[], kody: string[]
       }
     }),
     krocce: ai.krocce.map((k) => ({ ...k, pewnosc: Math.max(0, Math.min(1, k.pewnosc)), obszar_zrodlowy: zrodlo(k.kafel) })).map(({ kafel: _k, ...r }) => { void _k; return r }),
-    parametry: [...dane, ...ai.parametry],
+    parametry: [...dane, ...ai.parametry.map((x) => ({ ...x, ...nazwyPLEN(x.nazwa) }))],
     uwagi: ai.uwagi_do_wyceny,
   }
 }

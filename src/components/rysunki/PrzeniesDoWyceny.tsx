@@ -8,6 +8,7 @@ import { ETYKIETY_STATUSU_WYCENY, nowyAparat, wczytajWycene, zapiszWycene, type 
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { t } from '@/i18n'
 
 interface Props {
   otwarty: boolean
@@ -71,7 +72,7 @@ export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZ
       const nowe = pozycjeZListy(listaZRysunku(pozycje), opisZrodla)
       a.pozycje = [...a.pozycje, ...nowe]
       await zapiszWycene(s, widziMarze)
-      setGotowe(`Dodano ${nowe.length} pozycji do zakładki Materiały (${a.nazwa}). Ceny uzupełnij przyciskiem „Znajdź cenę”.`)
+      setGotowe(t('Dodano {0} pozycji do zakładki Materiały ({1}). Ceny uzupełnij przyciskiem „Znajdź cenę”.', nowe.length, a.nazwa))
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
     setZajety(false)
   }
@@ -80,10 +81,10 @@ export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZ
   return (
     <Dialog open={otwarty} onOpenChange={(o) => !o && zamknij()}>
       <DialogContent className="max-w-lg">
-        <DialogTitle>Przenieś wykaz części do wyceny</DialogTitle>
+        <DialogTitle>{t('Przenieś wykaz części do wyceny')}</DialogTitle>
         <DialogDescription>
-          {pozycje.length} pozycji trafi do zakładki Materiały wybranego aparatu (kategorie, wymiary i gatunki z siatki, cena do uzupełnienia).
-          {niepewne > 0 && ` ${niepewne} niepewnych odczytów dostanie w uwagach dopisek „(?)” - sprawdź je w wycenie.`}
+          {pozycje.length} {t('pozycji trafi do zakładki Materiały wybranego aparatu (kategorie, wymiary i gatunki z siatki, cena do uzupełnienia).')}
+          {niepewne > 0 && t(' {0} niepewnych odczytów dostanie w uwagach dopisek „(?)” - sprawdź je w wycenie.', niepewne)}
         </DialogDescription>
         <div className="mt-3 space-y-3">
           {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -91,38 +92,38 @@ export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZ
             <>
               <Komunikat rodzaj="sukces">{gotowe}</Komunikat>
               <div className="flex justify-end gap-2">
-                <Button onClick={zamknij}>Zamknij</Button>
-                <Button wariant="glowny" onClick={() => otworzWycene(wycenaId)}>Otwórz wycenę <ArrowRight className="h-4 w-4" /></Button>
+                <Button onClick={zamknij}>{t('Zamknij')}</Button>
+                <Button wariant="glowny" onClick={() => otworzWycene(wycenaId)}>{t('Otwórz wycenę')}{' '}<ArrowRight className="h-4 w-4" /></Button>
               </div>
             </>
           ) : (
             <>
-              <label className="block"><span className="etykieta">Wersja wyceny (robocza albo zwrócona)</span>
+              <label className="block"><span className="etykieta">{t('Wersja wyceny (robocza albo zwrócona)')}</span>
                 <div className="flex gap-2">
                   <select className="pole" value={wycenaId} onChange={(e) => setWycenaId(e.target.value)}>
-                    {wersje.length === 0 && <option value="">brak wersji roboczej</option>}
+                    {wersje.length === 0 && <option value="">{t('brak wersji roboczej')}</option>}
                     {wersje.map((w) => <option key={w.id} value={w.id}>v{w.wersja}{w.nazwa ? ` - ${w.nazwa}` : ''} ({ETYKIETY_STATUSU_WYCENY[w.status]})</option>)}
                   </select>
-                  <Button rozmiar="maly" title="Nowa wersja wyceny" onClick={() => void nowaWycena()}><Plus className="h-3 w-3" /> nowa</Button>
+                  <Button rozmiar="maly" title={t('Nowa wersja wyceny')} onClick={() => void nowaWycena()}><Plus className="h-3 w-3" /> nowa</Button>
                 </div>
               </label>
               {stan && (
-                <label className="block"><span className="etykieta">Aparat</span>
+                <label className="block"><span className="etykieta">{t('Aparat')}</span>
                   <select className="pole" value={aparat} onChange={(e) => setAparat(e.target.value)}>
-                    {stan.aparaty.map((a, i) => <option key={a.klucz} value={String(i)}>{a.nazwa} ({a.pozycje.filter((p) => p.zakladka === 'materialy').length} poz. materiałów)</option>)}
-                    <option value="nowy">+ nowy aparat</option>
+                    {stan.aparaty.map((a, i) => <option key={a.klucz} value={String(i)}>{a.nazwa} ({a.pozycje.filter((p) => p.zakladka === 'materialy').length} {t('poz. materiałów)')}</option>)}
+                    <option value="nowy">{t('+ nowy aparat')}</option>
                   </select>
                 </label>
               )}
               {stan && aparat === 'nowy' && (
-                <label className="block"><span className="etykieta">Nazwa nowego aparatu</span>
-                  <input className="pole" value={nazwaAparatu} placeholder={`Aparat ${stan.aparaty.length + 1}`} onChange={(e) => setNazwaAparatu(e.target.value)} />
+                <label className="block"><span className="etykieta">{t('Nazwa nowego aparatu')}</span>
+                  <input className="pole" value={nazwaAparatu} placeholder={t('Aparat {0}', stan.aparaty.length + 1)} onChange={(e) => setNazwaAparatu(e.target.value)} />
                 </label>
               )}
               <div className="flex justify-end gap-2">
-                <Button onClick={zamknij}>Anuluj</Button>
+                <Button onClick={zamknij}>{t('Anuluj')}</Button>
                 <Button wariant="glowny" disabled={!stan || zajety || !pozycje.length} onClick={() => void przenies()}>
-                  {zajety ? 'Zapisywanie...' : `Przenieś ${pozycje.length} pozycji`}
+                  {zajety ? t('Zapisywanie...') : t('Przenieś {0} pozycji', pozycje.length)}
                 </Button>
               </div>
             </>

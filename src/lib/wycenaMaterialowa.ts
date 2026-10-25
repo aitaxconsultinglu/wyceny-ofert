@@ -15,6 +15,7 @@ import { BUCKET } from './magazyn'
 import { klucz, nowyAparat, wczytajWycene, zapiszWycene, type PozycjaWyceny } from './wyceny'
 import { elementPozycji, szablonDlaTypu, ulozWgSzablonu, wierszElementu, type Szablon } from './szablony'
 import type { Gatunek } from './types'
+import { t } from '@/i18n'
 
 const STRON_NA_RYSUNEK = 3
 const MIN_ELEMENTOW_TEKSTU = 30
@@ -45,7 +46,7 @@ async function odczytajRysunkiTekstowo(zapytanieId: string, postep: Postep, db: 
   let stron = 0
   const skany: string[] = []
   for (const d of rysunki) {
-    postep(`Rysunek ${d.nazwa_pliku}...`)
+    postep(t('Rysunek {0}...', d.nazwa_pliku))
     const { data: plik } = await db.storage.from(BUCKET).download(d.sciezka!)
     if (!plik) continue
     const pdf = await otworzRysunek(new Uint8Array(await plik.arrayBuffer()))
@@ -147,9 +148,9 @@ export async function przygotujWyceneMaterialowa(
   z: { id: string; przedmiot: string; status: string }, typ: string, gatunki: Gatunek[], postep: Postep, db: SupabaseClient = supabase,
 ): Promise<RaportWycenyMaterialowej> {
   const s = szablonDlaTypu(typ)
-  if (!s) throw new Error(`Brak szablonu dla typu "${typ}" - etap 1 obejmuje wymienniki i zbiorniki.`)
+  if (!s) throw new Error(t('Brak szablonu dla typu "{0}" - etap 1 obejmuje wymienniki i zbiorniki.', typ))
   const odczyt = await odczytajRysunkiTekstowo(z.id, postep, db)
-  postep('Lista materiałów...')
+  postep(t('Lista materiałów...'))
   const { czesci, materialy, krocce, parametry } = await zebraneOdczyty(z.id, db)
   // Skany bez odczytu: strony, dla których nie ma żadnego zapisanego odczytu (np. AI w module Rysunki i listy).
   const { data: zapisane } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona').eq('zapytanie_id', z.id)
@@ -182,7 +183,7 @@ export async function przygotujWyceneMaterialowa(
   pozycje = ulozWgSzablonu(pozycje, s).map((p, i) => ({ ...p, lp: i + 1 }))
 
   // 4. Ceny: zakupy z Optimy i oferty na materiały do tego zapytania.
-  postep('Ceny z kart dostawy Optimy i ofert do zapytania...')
+  postep(t('Ceny z kart dostawy Optimy i ofert do zapytania...'))
   const { wiersze, blad } = await wczytajCeny({ zakupy: true }, db)
   if (blad) throw new Error(blad)
   const cennik = cennikEtapu1(wiersze, z.id)
@@ -209,7 +210,7 @@ export async function przygotujWyceneMaterialowa(
   }
 
   // 5. Nowa wersja wyceny z jednym aparatem.
-  postep('Zapis wyceny...')
+  postep(t('Zapis wyceny...'))
   const { data: wid, error } = await db.rpc('nowa_wycena', { p_zapytanie: z.id, p_nazwa: 'Wycena materiałowa' })
   if (error) throw new Error(komunikatPL(error.message))
   const st = await wczytajWycene(wid as string, db)

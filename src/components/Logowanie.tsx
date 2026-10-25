@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { Button } from './ui/button'
+import { t } from '@/i18n'
 
 export function Logowanie() {
   const [adres, setAdres] = useState('')
@@ -37,8 +38,8 @@ export function Logowanie() {
     } else {
       // Celowo ten sam komunikat niezależnie od tego, czy konto istnieje.
       setKomunikat(
-        `Jeśli konto ${adres} istnieje, wysłaliśmy na nie link do ustawienia nowego hasła. ` +
-        'Sprawdź skrzynkę, także folder spam.',
+        t('Jeśli konto {0} istnieje, wysłaliśmy na nie link do ustawienia nowego hasła. ', adres) +
+        t('Sprawdź skrzynkę, także folder spam.'),
       )
     }
   }
@@ -50,12 +51,12 @@ export function Logowanie() {
         className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
       >
         <img src={`${import.meta.env.BASE_URL}ikona.svg`} alt="" className="mx-auto h-12 w-auto" />
-        <h1 className="mt-5 text-center text-lg font-semibold">Wyceny i oferty</h1>
+        <h1 className="mt-5 text-center text-lg font-semibold">{t('Wyceny i oferty')}</h1>
         <p className="mt-1 text-center text-sm text-slate-600">
-          {resetowanie ? 'Odzyskiwanie dostępu' : 'Zaloguj się służbowym adresem e-mail'}
+          {resetowanie ? t('Odzyskiwanie dostępu') : t('Zaloguj się służbowym adresem e-mail')}
         </p>
 
-        <label className="mt-6 block text-sm font-medium text-slate-700" htmlFor="adres">Adres e-mail</label>
+        <label className="mt-6 block text-sm font-medium text-slate-700" htmlFor="adres">{t('Adres e-mail')}</label>
         <input
           id="adres" type="email" required autoFocus autoComplete="username"
           value={adres} onChange={(e) => setAdres(e.target.value)}
@@ -64,7 +65,7 @@ export function Logowanie() {
 
         {!resetowanie && (
           <>
-            <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="haslo">Hasło</label>
+            <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="haslo">{t('Hasło')}</label>
             <input
               id="haslo" type="password" required autoComplete="current-password"
               value={haslo} onChange={(e) => setHaslo(e.target.value)}
@@ -77,7 +78,7 @@ export function Logowanie() {
         {komunikat && <p className="mt-4 rounded bg-limonka-jasna px-3 py-2 text-sm text-limonka-ciemna">{komunikat}</p>}
 
         <Button type="submit" wariant="glowny" disabled={zajety} className="mt-6 w-full">
-          {zajety ? 'Proszę czekać...' : resetowanie ? 'Wyślij link do zmiany hasła' : 'Zaloguj się'}
+          {zajety ? t('Proszę czekać...') : resetowanie ? t('Wyślij link do zmiany hasła') : t('Zaloguj się')}
         </Button>
 
         <button
@@ -85,11 +86,11 @@ export function Logowanie() {
           onClick={() => { setResetowanie(!resetowanie); setBlad(null); setKomunikat(null) }}
           className="mt-4 w-full text-sm text-blekit-ciemny underline"
         >
-          {resetowanie ? 'Wróć do logowania' : 'Nie pamiętam hasła'}
+          {resetowanie ? t('Wróć do logowania') : t('Nie pamiętam hasła')}
         </button>
 
         <p className="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-slate-500">
-          Konta zakłada administrator. Jeśli nie masz jeszcze dostępu, zgłoś się do niego.
+          {t('Konta zakłada administrator. Jeśli nie masz jeszcze dostępu, zgłoś się do niego.')}
         </p>
       </form>
     </div>

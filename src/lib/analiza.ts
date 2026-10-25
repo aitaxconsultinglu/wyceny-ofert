@@ -2,30 +2,31 @@
 // kosztotwórcze z cytatami, usługi do zapytań, pytania do klienta, niespójności, segregacja dokumentów
 // i ocena działów. Część czysta - testy w repo na danych fikcyjnych.
 import type { PozycjaZapytania } from './zapytaniaDostawcow'
+import { t } from '@/i18n'
 
 /** Checklista wymagań kosztotwórczych (§7.2) - zawsze na karcie, nawet gdy dokumenty o nich milczą. */
 export const CHECKLISTA: { kod: string; nazwa: string; podpowiedz: string }[] = [
-  { kod: 'material', nazwa: 'Materiał specjalny / udarność / pochodzenie', podpowiedz: 'gatunki, udarność −45 °C / −29 °C, producent z UE, „odpowiedniki”' },
-  { kod: 'atesty', nazwa: 'Atesty 3.1 / PED / UDT producenta', podpowiedz: 'atest 3.1, PED, uprawnienia UDT wytwórcy materiału' },
-  { kod: 'ped', nazwa: 'Kategoria PED / moduł / JN / CE', podpowiedz: 'kategoria, moduł oceny zgodności, Jednostka Notyfikowana, znak CE' },
-  { kod: 'udt', nazwa: 'UDT (dokumentacja koncesyjna, odbiory)', podpowiedz: 'dozór, dokumentacja do uzgodnienia, odbiory UDT' },
-  { kod: 'ndt', nazwa: 'NDT (zakres %)', podpowiedz: 'RT, UT, PT, MT, NFT - zakres procentowy' },
-  { kod: 'proba', nazwa: 'Próba ciśnieniowa', podpowiedz: 'hydrauliczna / pneumatyczna, ciśnienie, medium' },
-  { kod: 'pwht', nazwa: 'PWHT (obróbka cieplna)', podpowiedz: 'wyżarzanie odprężające, transport do pieca' },
-  { kod: 'sekafenowanie', nazwa: 'Sekafenowanie', podpowiedz: 'system, grubość powłoki, zakres (wkład, głowica)' },
-  { kod: 'antykorozja', nazwa: 'Antykorozja (system i grubości)', podpowiedz: 'przygotowanie powierzchni, systemy malarskie, grubości' },
-  { kod: 'izolacja', nazwa: 'Izolacja', podpowiedz: 'materiał, grubość, płaszcz' },
-  { kod: 'transport', nazwa: 'Transport ponadgabarytowy', podpowiedz: 'wymiary, masa, warunki dostawy (DDP)' },
-  { kod: 'wizja', nazwa: 'Wizja lokalna', podpowiedz: 'obowiązkowa / zalecana, termin' },
-  { kod: 'montaz', nazwa: 'Demontaż / montaż, prace podczas postoju', podpowiedz: 'zakres na obiekcie, termin postoju' },
-  { kod: 'prawa_autorskie', nazwa: 'Prawa autorskie do dokumentacji', podpowiedz: 'przeniesienie praw, dokumentacja w edytowalnej formie' },
-  { kod: 'kary', nazwa: 'Kary i terminy', podpowiedz: 'kary umowne, termin realizacji, gwarancja' },
-  { kod: 'odpowiedniki', nazwa: '„Odpowiedniki, nie zamienniki”', podpowiedz: 'zgoda na materiały równoważne' },
+  { kod: 'material', nazwa: t('Materiał specjalny / udarność / pochodzenie'), podpowiedz: t('gatunki, udarność −45 °C / −29 °C, producent z UE, „odpowiedniki”') },
+  { kod: 'atesty', nazwa: t('Atesty 3.1 / PED / UDT producenta'), podpowiedz: t('atest 3.1, PED, uprawnienia UDT wytwórcy materiału') },
+  { kod: 'ped', nazwa: t('Kategoria PED / moduł / JN / CE'), podpowiedz: t('kategoria, moduł oceny zgodności, Jednostka Notyfikowana, znak CE') },
+  { kod: 'udt', nazwa: t('UDT (dokumentacja koncesyjna, odbiory)'), podpowiedz: t('dozór, dokumentacja do uzgodnienia, odbiory UDT') },
+  { kod: 'ndt', nazwa: t('NDT (zakres %)'), podpowiedz: t('RT, UT, PT, MT, NFT - zakres procentowy') },
+  { kod: 'proba', nazwa: t('Próba ciśnieniowa'), podpowiedz: t('hydrauliczna / pneumatyczna, ciśnienie, medium') },
+  { kod: 'pwht', nazwa: t('PWHT (obróbka cieplna)'), podpowiedz: t('wyżarzanie odprężające, transport do pieca') },
+  { kod: 'sekafenowanie', nazwa: t('Sekafenowanie'), podpowiedz: t('system, grubość powłoki, zakres (wkład, głowica)') },
+  { kod: 'antykorozja', nazwa: t('Antykorozja (system i grubości)'), podpowiedz: t('przygotowanie powierzchni, systemy malarskie, grubości') },
+  { kod: 'izolacja', nazwa: t('Izolacja'), podpowiedz: t('materiał, grubość, płaszcz') },
+  { kod: 'transport', nazwa: t('Transport ponadgabarytowy'), podpowiedz: t('wymiary, masa, warunki dostawy (DDP)') },
+  { kod: 'wizja', nazwa: t('Wizja lokalna'), podpowiedz: t('obowiązkowa / zalecana, termin') },
+  { kod: 'montaz', nazwa: t('Demontaż / montaż, prace podczas postoju'), podpowiedz: t('zakres na obiekcie, termin postoju') },
+  { kod: 'prawa_autorskie', nazwa: t('Prawa autorskie do dokumentacji'), podpowiedz: t('przeniesienie praw, dokumentacja w edytowalnej formie') },
+  { kod: 'kary', nazwa: t('Kary i terminy'), podpowiedz: t('kary umowne, termin realizacji, gwarancja') },
+  { kod: 'odpowiedniki', nazwa: t('„Odpowiedniki, nie zamienniki”'), podpowiedz: t('zgoda na materiały równoważne') },
 ]
 
 export type StanWymagania = 'wymagane' | 'nie' | 'do_wyjasnienia' | 'brak_informacji'
 export const ETYKIETY_STANU: Record<StanWymagania, string> = {
-  wymagane: 'wymagane', nie: 'nie dotyczy', do_wyjasnienia: 'do wyjaśnienia', brak_informacji: 'brak informacji',
+  wymagane: t('wymagane'), nie: t('nie dotyczy'), do_wyjasnienia: t('do wyjaśnienia'), brak_informacji: t('brak informacji'),
 }
 export type Wplyw = 'wysoki' | 'sredni' | 'niski'
 

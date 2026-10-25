@@ -1,6 +1,10 @@
-const ZL = new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const LICZBA = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 3 })
-const PROCENT = new Intl.NumberFormat('pl-PL', { style: 'percent', maximumFractionDigits: 1 })
+import { jezyk, lokalizacja } from '@/i18n'
+
+// Formaty liczb i dat wg języka interfejsu (zmiana języka przeładowuje aplikację, więc wystarczy policzyć raz).
+const LOK = lokalizacja()
+const ZL = new Intl.NumberFormat(LOK, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const LICZBA = new Intl.NumberFormat(LOK, { maximumFractionDigits: 3 })
+const PROCENT = new Intl.NumberFormat(LOK, { style: 'percent', maximumFractionDigits: 1 })
 
 export function zl(wartosc: number | null | undefined) {
   return ZL.format(Number(wartosc ?? 0))
@@ -8,7 +12,7 @@ export function zl(wartosc: number | null | undefined) {
 
 export function liczba(wartosc: number | null | undefined, miejsc?: number) {
   if (miejsc !== undefined) {
-    return new Intl.NumberFormat('pl-PL', { minimumFractionDigits: miejsc, maximumFractionDigits: miejsc }).format(Number(wartosc ?? 0))
+    return new Intl.NumberFormat(LOK, { minimumFractionDigits: miejsc, maximumFractionDigits: miejsc }).format(Number(wartosc ?? 0))
   }
   return LICZBA.format(Number(wartosc ?? 0))
 }
@@ -29,12 +33,12 @@ export function parsujLiczbe(tekst: string): number {
 export function dataPL(iso: string | null | undefined) {
   if (!iso) return ''
   const [r, m, d] = iso.slice(0, 10).split('-')
-  return `${d}.${m}.${r}`
+  return jezyk() === 'en' ? `${d}/${m}/${r}` : `${d}.${m}.${r}`
 }
 
 export function dataGodzinaPL(iso: string | null | undefined) {
   if (!iso) return ''
-  return new Date(iso).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })
+  return new Date(iso).toLocaleString(LOK, { dateStyle: 'short', timeStyle: 'short' })
 }
 
 export function dzisiajISO() {
@@ -42,8 +46,17 @@ export function dzisiajISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Liczba z rzeczownikiem w dobrej formie: odmiana(3, ['wiersz', 'wiersze', 'wierszy']) -> "3 wiersze". */
+/** Formy angielskie (pojedyncza, mnoga) dla polskich trzech form - klucz to forma pojedyncza. */
+const ODMIANY_EN: Record<string, [string, string]> = {
+  blok: ['block', 'blocks'], 'dokument istotny': ['relevant document', 'relevant documents'], fragment: ['fragment', 'fragments'],
+  kafel: ['tile', 'tiles'], 'króciec': ['nozzle', 'nozzles'], parametr: ['parameter', 'parameters'], 'pozycję': ['item', 'items'],
+  pozycja: ['item', 'items'], strona: ['page', 'pages'], wiersz: ['row', 'rows'],
+}
+
+/** Liczba z rzeczownikiem w dobrej formie: odmiana(3, ['wiersz', 'wiersze', 'wierszy']) -> "3 wiersze" (po angielsku "3 rows"). */
 export function odmiana(n: number, [jeden, kilka, wiele]: [string, string, string]) {
+  const en = jezyk() === 'en' ? ODMIANY_EN[jeden] : undefined
+  if (en) return `${n} ${n === 1 ? en[0] : en[1]}`
   if (n === 1) return `1 ${jeden}`
   const j = n % 10
   const d = n % 100

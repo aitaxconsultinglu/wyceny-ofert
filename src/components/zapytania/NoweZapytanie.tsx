@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
 import { PoleRodzajuAparatu, type WyborRodzaju } from './RodzajAparatu'
+import { t } from '@/i18n'
 
 /** Nowe zapytanie: najpierw (obowiązkowo) rodzaj aparatu, potem przedmiot i klient; numer ZO nadaje baza. */
 export function NoweZapytanie({ otwarty, zamknij, utworzone }: { otwarty: boolean; zamknij: () => void; utworzone: (id: string) => void }) {
@@ -23,7 +24,7 @@ export function NoweZapytanie({ otwarty, zamknij, utworzone }: { otwarty: boolea
   }, [otwarty])
 
   async function utworz() {
-    if (!rodzaj.rodzaj) { setBlad('Wybierz rodzaj aparatu: zbiornik albo wymiennik ciepła.'); return }
+    if (!rodzaj.rodzaj) { setBlad(t('Wybierz rodzaj aparatu: zbiornik albo wymiennik ciepła.')); return }
     setZajety(true); setBlad(null)
     const { data, error } = await supabase.from('zapytania').insert({
       numer: '', status: 'nowe', przedmiot: przedmiot.trim() || (rodzaj.rodzaj === 'zbiornik' ? 'Zbiornik' : 'Wymiennik ciepła'),
@@ -40,20 +41,20 @@ export function NoweZapytanie({ otwarty, zamknij, utworzone }: { otwarty: boolea
   return (
     <Dialog open={otwarty} onOpenChange={(o) => !o && zamknij()}>
       <DialogContent className="max-w-xl">
-        <DialogTitle>Nowe zapytanie ofertowe</DialogTitle>
-        <DialogDescription>Rodzaj aparatu decyduje o szablonie elementów, kategoriach tabel rysunków i wymaganiach. Można go później zmienić w karcie zapytania.</DialogDescription>
+        <DialogTitle>{t('Nowe zapytanie ofertowe')}</DialogTitle>
+        <DialogDescription>{t('Rodzaj aparatu decyduje o szablonie elementów, kategoriach tabel rysunków i wymaganiach. Można go później zmienić w karcie zapytania.')}</DialogDescription>
         <div className="mt-3 space-y-3 text-sm">
           {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
-          <div><span className="etykieta">Rodzaj aparatu *</span><PoleRodzajuAparatu wartosc={rodzaj} zmien={setRodzaj} /></div>
-          <label className="block"><span className="etykieta">Przedmiot zapytania</span>
-            <input className="pole" value={przedmiot} onChange={(e) => setPrzedmiot(e.target.value)} placeholder="np. Zbiornik buforowy wody procesowej" /></label>
-          <label className="block"><span className="etykieta">Klient</span>
+          <div><span className="etykieta">{t('Rodzaj aparatu *')}</span><PoleRodzajuAparatu wartosc={rodzaj} zmien={setRodzaj} /></div>
+          <label className="block"><span className="etykieta">{t('Przedmiot zapytania')}</span>
+            <input className="pole" value={przedmiot} onChange={(e) => setPrzedmiot(e.target.value)} placeholder={t('np. Zbiornik buforowy wody procesowej')} /></label>
+          <label className="block"><span className="etykieta">{t('Klient')}</span>
             <select className="pole" value={klient} onChange={(e) => setKlient(e.target.value)}>
               <option value="">-</option>{klienci.map((k) => <option key={k.id} value={k.id}>{k.nazwa}</option>)}
             </select></label>
           <div className="flex justify-end gap-2">
-            <Button onClick={zamknij}>Anuluj</Button>
-            <Button wariant="glowny" disabled={zajety || !rodzaj.rodzaj} onClick={() => void utworz()}><Plus className="h-4 w-4" /> Utwórz zapytanie</Button>
+            <Button onClick={zamknij}>{t('Anuluj')}</Button>
+            <Button wariant="glowny" disabled={zajety || !rodzaj.rodzaj} onClick={() => void utworz()}><Plus className="h-4 w-4" /> {t('Utwórz zapytanie')}</Button>
           </div>
         </div>
       </DialogContent>

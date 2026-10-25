@@ -11,10 +11,11 @@ import { Komunikat } from '../ui/komunikat'
 import { OdczytRysunku, type DokumentRysunku, type OdczytZapisany } from './OdczytRysunku'
 import { doKosza } from '@/lib/kosz'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 type DokumentPdf = DokumentRysunku & { typ: TypDokumentu; stan: string }
 
-const ZRODLA: Record<OdczytZapisany['zrodlo'], string> = { recznie: 'ręcznie', tekst: 'tekst PDF', ai: 'AI' }
+const ZRODLA: Record<OdczytZapisany['zrodlo'], string> = { recznie: t('ręcznie'), tekst: t('tekst PDF'), ai: t('AI') }
 
 /** Zakładka „Rysunki i listy” karty zapytania: PDF-y zapytania i zapisane odczyty list z rysunków. */
 export function RysunkiZapytania({ zapytanieId, numer, profil, otworzWycene }: { zapytanieId: string; numer: string; profil: Profil; otworzWycene: (id: string) => void }) {
@@ -39,7 +40,7 @@ export function RysunkiZapytania({ zapytanieId, numer, profil, otworzWycene }: {
   useEffect(() => { void wczytaj() }, [wczytaj])
 
   async function usun(o: OdczytZapisany) {
-    if (!window.confirm(`Przenieść odczyt ${o.nazwa_pliku}, str. ${o.strona} do kosza?`)) return
+    if (!window.confirm(t('Przenieść odczyt {0}, str. {1} do kosza?', o.nazwa_pliku, o.strona))) return
     try { await doKosza('odczyt_rysunku', [o.id], `zapytanie:${zapytanieId}`); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
@@ -58,32 +59,32 @@ export function RysunkiZapytania({ zapytanieId, numer, profil, otworzWycene }: {
 
   const doSprawdzenia = (o: OdczytZapisany) => [...o.wynik.pozycje, ...o.wynik.krocce, ...o.wynik.parametry].filter((x) => x.pewnosc < PROG_PEWNOSCI).length
   const kolumnyOdczytow: KolumnaTabeli<OdczytZapisany>[] = [
-    { id: 'plik', naglowek: 'Rysunek', typ: 'lista', wartosc: (o) => o.nazwa_pliku, className: 'text-sm' },
-    { id: 'strona', naglowek: 'Strona', typ: 'liczba', wartosc: (o) => o.strona, className: 'text-sm' },
-    { id: 'zrodlo', naglowek: 'Źródło', typ: 'lista', wartosc: (o) => ZRODLA[o.zrodlo], className: 'text-sm', komorka: (o) => `${ZRODLA[o.zrodlo]}${o.koszt_pln ? ` (${liczba(o.koszt_pln, 2)} zł)` : ''}` },
-    { id: 'pozycje', naglowek: 'Pozycje', typ: 'liczba', wartosc: (o) => o.wynik.pozycje.length, className: 'text-sm' },
-    { id: 'krocce', naglowek: 'Króćce', typ: 'liczba', wartosc: (o) => o.wynik.krocce.length, className: 'text-sm' },
-    { id: 'parametry', naglowek: 'Parametry', typ: 'liczba', wartosc: (o) => o.wynik.parametry.length, className: 'text-sm' },
-    { id: 'niepewne', naglowek: 'Do sprawdzenia', typ: 'liczba', wartosc: (o) => doSprawdzenia(o), className: 'text-sm', komorka: (o) => (doSprawdzenia(o) ? <span className="text-amber-700">{doSprawdzenia(o)}</span> : '-') },
-    { id: 'sprawdzony', naglowek: 'Sprawdzony', typ: 'tak_nie', wartosc: (o) => o.sprawdzony, className: 'text-sm' },
-    { id: 'zmieniono', naglowek: 'Zmieniono', typ: 'data', wartosc: (o) => o.zmodyfikowano, komorka: (o) => dataGodzinaPL(o.zmodyfikowano), className: 'whitespace-nowrap text-xs' },
+    { id: 'plik', naglowek: t('Rysunek'), typ: 'lista', wartosc: (o) => o.nazwa_pliku, className: 'text-sm' },
+    { id: 'strona', naglowek: t('Strona'), typ: 'liczba', wartosc: (o) => o.strona, className: 'text-sm' },
+    { id: 'zrodlo', naglowek: t('Źródło'), typ: 'lista', wartosc: (o) => ZRODLA[o.zrodlo], className: 'text-sm', komorka: (o) => `${ZRODLA[o.zrodlo]}${o.koszt_pln ? ` (${liczba(o.koszt_pln, 2)} zł)` : ''}` },
+    { id: 'pozycje', naglowek: t('Pozycje'), typ: 'liczba', wartosc: (o) => o.wynik.pozycje.length, className: 'text-sm' },
+    { id: 'krocce', naglowek: t('Króćce'), typ: 'liczba', wartosc: (o) => o.wynik.krocce.length, className: 'text-sm' },
+    { id: 'parametry', naglowek: t('Parametry'), typ: 'liczba', wartosc: (o) => o.wynik.parametry.length, className: 'text-sm' },
+    { id: 'niepewne', naglowek: t('Do sprawdzenia'), typ: 'liczba', wartosc: (o) => doSprawdzenia(o), className: 'text-sm', komorka: (o) => (doSprawdzenia(o) ? <span className="text-amber-700">{doSprawdzenia(o)}</span> : '-') },
+    { id: 'sprawdzony', naglowek: t('Sprawdzony'), typ: 'tak_nie', wartosc: (o) => o.sprawdzony, className: 'text-sm' },
+    { id: 'zmieniono', naglowek: t('Zmieniono'), typ: 'data', wartosc: (o) => o.zmodyfikowano, komorka: (o) => dataGodzinaPL(o.zmodyfikowano), className: 'whitespace-nowrap text-xs' },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
       komorka: (o) => (profil.rola === 'administrator' || o.utworzyl === profil.id) && (
-        <button className="text-slate-400 hover:text-red-600" title="Przenieś odczyt do kosza" onClick={(e) => { e.stopPropagation(); void usun(o) }}><Trash2 className="h-4 w-4" /></button>
+        <button className="text-slate-400 hover:text-red-600" title={t('Przenieś odczyt do kosza')} onClick={(e) => { e.stopPropagation(); void usun(o) }}><Trash2 className="h-4 w-4" /></button>
       ),
     },
   ]
   const kolumnyPlikow: KolumnaTabeli<(typeof dokumenty)[number]>[] = [
-    { id: 'plik', naglowek: 'Plik', typ: 'tekst', wartosc: (d) => d.nazwa_pliku, className: 'text-sm' },
-    { id: 'typ', naglowek: 'Typ', typ: 'lista', wartosc: (d) => ETYKIETY_TYPU[d.typ], className: 'text-sm' },
-    { id: 'stron', naglowek: 'Stron', typ: 'liczba', wartosc: (d) => (d.metadane?.stron as number | undefined) ?? null, className: 'text-sm' },
-    { id: 'rodzaj', naglowek: 'Rodzaj', typ: 'lista', wartosc: (d) => (d.metadane?.skan ? 'skan' : 'z warstwą tekstową'), className: 'text-sm' },
+    { id: 'plik', naglowek: t('Plik'), typ: 'tekst', wartosc: (d) => d.nazwa_pliku, className: 'text-sm' },
+    { id: 'typ', naglowek: t('Typ'), typ: 'lista', wartosc: (d) => ETYKIETY_TYPU[d.typ], className: 'text-sm' },
+    { id: 'stron', naglowek: t('Stron'), typ: 'liczba', wartosc: (d) => (d.metadane?.stron as number | undefined) ?? null, className: 'text-sm' },
+    { id: 'rodzaj', naglowek: t('Rodzaj'), typ: 'lista', wartosc: (d) => (d.metadane?.skan ? 'skan' : 'z warstwą tekstową'), className: 'text-sm' },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true, className: 'text-right',
       komorka: (d) => (d.sciezka
-        ? <Button rozmiar="maly" onClick={() => setOtwarty({ dokument: d, odczyt: null })}><FileSearch className="h-3 w-3" /> Odczytaj listę</Button>
-        : <span className="text-xs text-slate-400">plik zarchiwizowany</span>),
+        ? <Button rozmiar="maly" onClick={() => setOtwarty({ dokument: d, odczyt: null })}><FileSearch className="h-3 w-3" /> {t('Odczytaj listę')}</Button>
+        : <span className="text-xs text-slate-400">{t('plik zarchiwizowany')}</span>),
     },
   ]
 
@@ -91,16 +92,16 @@ export function RysunkiZapytania({ zapytanieId, numer, profil, otworzWycene }: {
     <div className="space-y-4">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Zapisane odczyty</h4>
+        <h4 className="text-sm font-semibold">{t('Zapisane odczyty')}</h4>
         <Tabela id="odczyty-rysunkow" kolumny={kolumnyOdczytow} wiersze={odczyty} klucz={(o) => o.id}
-          onKlik={(o) => setOtwarty({ dokument: dokumentOdczytu(o), odczyt: o })} pusto="Brak odczytów - otwórz rysunek poniżej." />
+          onKlik={(o) => setOtwarty({ dokument: dokumentOdczytu(o), odczyt: o })} pusto={t('Brak odczytów - otwórz rysunek poniżej.')} />
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Pliki PDF zapytania</h4>
-        <Tabela id="pliki-rysunkow" kolumny={kolumnyPlikow} wiersze={dokumenty} klucz={(d) => d.id} pusto="Brak plików PDF - dodaj rysunki w zakładce Dokumenty." />
+        <h4 className="text-sm font-semibold">{t('Pliki PDF zapytania')}</h4>
+        <Tabela id="pliki-rysunkow" kolumny={kolumnyPlikow} wiersze={dokumenty} klucz={(d) => d.id} pusto={t('Brak plików PDF - dodaj rysunki w zakładce Dokumenty.')} />
         <p className="text-xs text-slate-500">
-          PDF z warstwą tekstową (rysunek z CAD) można odczytać bez AI. Skany czyta AI - tylko zaznaczone fragmenty, w ~300 DPI, pocięte na kafle.
+          {t('PDF z warstwą tekstową (rysunek z CAD) można odczytać bez AI. Skany czyta AI - tylko zaznaczone fragmenty, w ~300 DPI, pocięte na kafle.')}
         </p>
       </section>
     </div>

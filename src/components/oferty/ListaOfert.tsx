@@ -12,6 +12,7 @@ import { Komunikat } from '../ui/komunikat'
 import { FormularzOferty } from './FormularzOferty'
 import { doKosza } from '@/lib/kosz'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 interface WierszOferty {
   id: string; data_oferty: string | null; numer_oferty: string | null; nr_zo: string | null; waluta: string; kurs: number
@@ -23,7 +24,7 @@ interface WierszOferty {
   pozycje_ofert: { wartosc: number | null; ilosc: number; cena_jedn: number }[]
 }
 
-const STATUSY: Record<string, string> = { do_przejrzenia: 'do przejrzenia', zatwierdzona: 'zatwierdzona', odrzucona: 'odrzucona' }
+const STATUSY: Record<string, string> = { do_przejrzenia: t('do przejrzenia'), zatwierdzona: t('zatwierdzona'), odrzucona: t('odrzucona') }
 
 export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
   const s = useSlowniki()
@@ -62,7 +63,7 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
   }
 
   async function usun(o: WierszOferty) {
-    if (!window.confirm(`Przenieść ofertę ${o.dostawcy?.nazwa ?? ''} z ${dataPL(o.data_oferty)} do kosza (razem z jej dokumentami)?`)) return
+    if (!window.confirm(t('Przenieść ofertę {0} z {1} do kosza (razem z jej dokumentami)?', o.dostawcy?.nazwa ?? '', dataPL(o.data_oferty)))) return
     try { await doKosza('oferta_dostawcy', [o.id], 'oferty'); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
@@ -75,17 +76,17 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
 
   const wartoscOferty = (o: WierszOferty) => o.pozycje_ofert.reduce((s2, p) => s2 + Number(p.wartosc ?? p.ilosc * p.cena_jedn), 0)
   const kolumny: KolumnaTabeli<WierszOferty>[] = [
-    { id: 'data', naglowek: 'Data', typ: 'data', wartosc: (o) => o.data_oferty, komorka: (o) => dataPL(o.data_oferty), className: 'whitespace-nowrap' },
-    { id: 'dostawca', naglowek: 'Dostawca', typ: 'lista', wartosc: (o) => o.dostawcy?.nazwa ?? null, className: 'font-medium' },
-    { id: 'numer', naglowek: 'Nr oferty', typ: 'tekst', wartosc: (o) => o.numer_oferty, className: 'text-sm' },
-    { id: 'zo', naglowek: 'ZO', typ: 'lista', wartosc: (o) => o.zapytania?.numer ?? o.nr_zo, className: 'whitespace-nowrap text-sm' },
-    { id: 'pozycji', naglowek: 'Pozycji', typ: 'liczba', wartosc: (o) => o.pozycje_ofert.length },
-    { id: 'wartosc', naglowek: 'Wartość', typ: 'liczba', wartosc: (o) => wartoscOferty(o), komorka: (o) => `${liczba(wartoscOferty(o), 2)} ${o.waluta}`, className: 'whitespace-nowrap' },
-    { id: 'termin', naglowek: 'Termin', typ: 'tekst', wartosc: (o) => o.termin_realizacji, className: 'text-xs' },
-    { id: 'waznosc', naglowek: 'Ważność', typ: 'data', wartosc: (o) => o.waznosc_do, komorka: (o) => (o.waznosc_do ? dataPL(o.waznosc_do) : o.waznosc_opis), className: 'whitespace-nowrap text-xs' },
-    { id: 'zrodlo', naglowek: 'Źródło', typ: 'lista', wartosc: (o) => `${o.zrodlo}${o.czy_zakupiono ? ', zakupiono' : ''}`, className: 'text-xs' },
+    { id: 'data', naglowek: t('Data'), typ: 'data', wartosc: (o) => o.data_oferty, komorka: (o) => dataPL(o.data_oferty), className: 'whitespace-nowrap' },
+    { id: 'dostawca', naglowek: t('Dostawca'), typ: 'lista', wartosc: (o) => o.dostawcy?.nazwa ?? null, className: 'font-medium' },
+    { id: 'numer', naglowek: t('Nr oferty'), typ: 'tekst', wartosc: (o) => o.numer_oferty, className: 'text-sm' },
+    { id: 'zo', naglowek: t('ZO'), typ: 'lista', wartosc: (o) => o.zapytania?.numer ?? o.nr_zo, className: 'whitespace-nowrap text-sm' },
+    { id: 'pozycji', naglowek: t('Pozycji'), typ: 'liczba', wartosc: (o) => o.pozycje_ofert.length },
+    { id: 'wartosc', naglowek: t('Wartość'), typ: 'liczba', wartosc: (o) => wartoscOferty(o), komorka: (o) => `${liczba(wartoscOferty(o), 2)} ${o.waluta}`, className: 'whitespace-nowrap' },
+    { id: 'termin', naglowek: t('Termin'), typ: 'tekst', wartosc: (o) => o.termin_realizacji, className: 'text-xs' },
+    { id: 'waznosc', naglowek: t('Ważność'), typ: 'data', wartosc: (o) => o.waznosc_do, komorka: (o) => (o.waznosc_do ? dataPL(o.waznosc_do) : o.waznosc_opis), className: 'whitespace-nowrap text-xs' },
+    { id: 'zrodlo', naglowek: t('Źródło'), typ: 'lista', wartosc: (o) => `${o.zrodlo}${o.czy_zakupiono ? ', zakupiono' : ''}`, className: 'text-xs' },
     {
-      id: 'status', naglowek: 'Status', typ: 'lista', wartosc: (o) => STATUSY[o.status] ?? o.status,
+      id: 'status', naglowek: t('Status'), typ: 'lista', wartosc: (o) => STATUSY[o.status] ?? o.status,
       komorka: (o) => <span className={cn('znacznik', o.status === 'zatwierdzona' ? 'bg-limonka-jasna text-limonka-ciemna ring-limonka' : o.status === 'do_przejrzenia' ? 'bg-amber-50 text-amber-800 ring-amber-300' : 'bg-slate-100 text-slate-600 ring-slate-300')}>{STATUSY[o.status]}</span>,
     },
     {
@@ -93,12 +94,12 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
       komorka: (o) => (
         <div className="flex justify-end gap-1">
           {o.dokumenty?.sciezka && (
-            <Button rozmiar="maly" title={`Otwórz ${o.dokumenty.nazwa_pliku}`} onClick={() => void otworzDokument(o.dokumenty!.sciezka!).catch((e) => setBlad(String(e.message ?? e)))}>
+            <Button rozmiar="maly" title={t('Otwórz {0}', o.dokumenty.nazwa_pliku)} onClick={() => void otworzDokument(o.dokumenty!.sciezka!).catch((e) => setBlad(String(e.message ?? e)))}>
               <FileText className="h-4 w-4" />
             </Button>
           )}
-          {mozeEdytowac && <Button rozmiar="maly" title="Popraw" onClick={() => void edytuj(o.id)}><Pencil className="h-4 w-4" /></Button>}
-          {mozeEdytowac && <Button rozmiar="maly" wariant="ostrzezenie" title="Przenieś do kosza" onClick={() => void usun(o)}><Trash2 className="h-4 w-4" /></Button>}
+          {mozeEdytowac && <Button rozmiar="maly" title={t('Popraw')} onClick={() => void edytuj(o.id)}><Pencil className="h-4 w-4" /></Button>}
+          {mozeEdytowac && <Button rozmiar="maly" wariant="ostrzezenie" title={t('Przenieś do kosza')} onClick={() => void usun(o)}><Trash2 className="h-4 w-4" /></Button>}
         </div>
       ),
     },
@@ -108,13 +109,13 @@ export function ListaOfert({ mozeEdytowac }: { mozeEdytowac: boolean }) {
     <div className="space-y-3">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       <div className="flex items-end gap-3">
-        <label><span className="etykieta">Status</span>
+        <label><span className="etykieta">{t('Status')}</span>
           <select className="pole w-48" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">wszystkie</option>
             {Object.entries(STATUSY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select></label>
       </div>
-      <Tabela id="lista-ofert" kolumny={kolumny} wiersze={oferty} klucz={(o) => o.id} pusto="Brak ofert." />
+      <Tabela id="lista-ofert" kolumny={kolumny} wiersze={oferty} klucz={(o) => o.id} pusto={t('Brak ofert.')} />
     </div>
   )
 }

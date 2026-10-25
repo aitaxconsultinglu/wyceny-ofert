@@ -12,6 +12,7 @@ import {
   blok, blokiZArkusza, blokiZHtml, blokiZTekstuZwyklego, rodzajPliku, tekstyZDxf,
   type BlokDokumentu, type ElementZCzcionka, type RodzajPliku, type TrescPliku,
 } from './wersjeEdytowalne'
+import { t } from '@/i18n'
 
 export interface PlikEdytowalny {
   id: string; nazwa_pliku: string; mime: string | null; rozmiar: number | null; rodzaj: RodzajPliku; sciezka: string | null
@@ -29,12 +30,12 @@ const MIME: Record<string, string> = {
 
 /** Zapis pliku: wiersz w pliki_edytowalne, potem plik w Storage (uprawnienie wynika z wiersza). */
 export async function dodajPlik(plik: File, limitMb: number): Promise<PlikEdytowalny> {
-  if (plik.size > limitMb * 1024 * 1024) throw new Error(`${plik.name}: plik ma ${(plik.size / 1024 / 1024).toFixed(1)} MB - powyżej limitu ${limitMb} MB.`)
+  if (plik.size > limitMb * 1024 * 1024) throw new Error(t('{0}: plik ma {1} MB - powyżej limitu {2} MB.', plik.name, (plik.size / 1024 / 1024).toFixed(1), limitMb))
   const rodzaj = rodzajPliku(plik.name)
   const bajty = new Uint8Array(await plik.arrayBuffer())
   let stron: number | null = rodzaj === 'obraz' ? 1 : null
   if (rodzaj === 'pdf') {
-    try { stron = (await otworzRysunek(bajty)).numPages } catch { throw new Error(`${plik.name}: nie udało się otworzyć PDF (uszkodzony albo zaszyfrowany).`) }
+    try { stron = (await otworzRysunek(bajty)).numPages } catch { throw new Error(t('{0}: nie udało się otworzyć PDF (uszkodzony albo zaszyfrowany).', plik.name)) }
   }
   const mime = plik.type || MIME[plik.name.toLowerCase().split('.').pop() ?? ''] || 'application/octet-stream'
   const { data, error } = await supabase.from('pliki_edytowalne')
@@ -44,7 +45,7 @@ export async function dodajPlik(plik: File, limitMb: number): Promise<PlikEdytow
   const { error: bladPliku } = await supabase.storage.from(BUCKET).upload(sciezka, bajty, { contentType: mime, upsert: false })
   if (bladPliku) {
     await supabase.from('pliki_edytowalne').delete().eq('id', data.id)
-    throw new Error(`${plik.name}: nie udało się zapisać pliku (${komunikatPL(bladPliku.message)}).`)
+    throw new Error(t('{0}: nie udało się zapisać pliku ({1}).', plik.name, komunikatPL(bladPliku.message)))
   }
   await supabase.from('pliki_edytowalne').update({ sciezka }).eq('id', data.id)
   return { ...(data as PlikEdytowalny), sciezka }
@@ -181,12 +182,12 @@ export async function blokiZPliku(nazwa: string, rodzaj: RodzajPliku, bajty: Uin
   }
   if (rodzaj === 'tekst') return blokiZTekstuZwyklego(new TextDecoder().decode(bajty))
   if (rodzaj === 'cad') {
-    if (e !== 'dxf') throw new Error(`Plik .${e} to binarny format CAD - aplikacja go nie odczyta. Zapisz rysunek w programie CAD jako PDF albo DXF i dodaj ponownie.`)
+    if (e !== 'dxf') throw new Error(t('Plik .{0} to binarny format CAD - aplikacja go nie odczyta. Zapisz rysunek w programie CAD jako PDF albo DXF i dodaj ponownie.', e))
     const teksty = tekstyZDxf(new TextDecoder().decode(bajty))
-    if (!teksty.length) throw new Error('W pliku DXF nie ma tekstów (TEXT / MTEXT). Zapisz rysunek jako PDF, żeby odczytać go z podglądem.')
+    if (!teksty.length) throw new Error(t('W pliku DXF nie ma tekstów (TEXT / MTEXT). Zapisz rysunek jako PDF, żeby odczytać go z podglądem.'))
     return teksty.map((t) => blok({ typ: 'akapit', tekst: t }))
   }
-  throw new Error('Ten format nie jest obsługiwany. Dodaj PDF, skan / zdjęcie (JPG, PNG), DOCX, XLSX, CSV, TXT albo DXF.')
+  throw new Error(t('Ten format nie jest obsługiwany. Dodaj PDF, skan / zdjęcie (JPG, PNG), DOCX, XLSX, CSV, TXT albo DXF.'))
 }
 
 export async function pobierzPlikEdytowalny(sciezka: string): Promise<Uint8Array> {

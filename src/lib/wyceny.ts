@@ -6,11 +6,12 @@ import { gestoscGatunku } from './slowniki'
 import type { AparatKalk, ParametryKalk, PozycjaKalk, WynikWyceny } from './kalkulacja'
 import type { Gatunek, KategoriaMaterialu, RodzajStali } from './types'
 import type { RodzajAparatu, ZakresWymiennika } from './zapytania'
+import { t } from '@/i18n'
 
 export type StatusWyceny = 'robocza' | 'do_zatwierdzenia' | 'zwrocona' | 'zatwierdzona'
 
 export const ETYKIETY_STATUSU_WYCENY: Record<StatusWyceny, string> = {
-  robocza: 'robocza', do_zatwierdzenia: 'do zatwierdzenia', zwrocona: 'zwrócona do poprawy', zatwierdzona: 'zatwierdzona',
+  robocza: t('robocza'), do_zatwierdzenia: t('do zatwierdzenia'), zwrocona: t('zwrócona do poprawy'), zatwierdzona: t('zatwierdzona'),
 }
 export const KOLORY_STATUSU_WYCENY: Record<StatusWyceny, string> = {
   robocza: 'bg-slate-100 text-slate-700 ring-slate-300',
@@ -141,7 +142,7 @@ export async function zapiszWycene(s: StanWyceny, widziMarze: boolean, db: Supab
   const w = s.wycena
   const { data: biezaca } = await db.from('wyceny').select('zmodyfikowano, status').eq('id', w.id).single()
   if (biezaca && biezaca.zmodyfikowano > w.zmodyfikowano) {
-    throw new Error('Ktoś inny zapisał tę wycenę w międzyczasie. Odśwież stronę - Twoje zmiany trzeba będzie wprowadzić ponownie.')
+    throw new Error(t('Ktoś inny zapisał tę wycenę w międzyczasie. Odśwież stronę - Twoje zmiany trzeba będzie wprowadzić ponownie.'))
   }
   const { error: e1 } = await db.from('wyceny').update({
     nazwa: w.nazwa, narzut_zakupowy_proc: w.narzut_zakupowy_proc, narzut_kooperacja_proc: w.narzut_kooperacja_proc,

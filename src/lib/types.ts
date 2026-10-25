@@ -1,17 +1,18 @@
+import { t } from '@/i18n'
 export type Rola = 'technolog' | 'handlowy' | 'prezes' | 'administrator'
 
 export const ETYKIETY_ROLI: Record<Rola, string> = {
-  technolog: 'Dział technologów',
-  handlowy: 'Dział handlowy',
-  prezes: 'Prezes',
-  administrator: 'Administrator',
+  technolog: t('Dział technologów'),
+  handlowy: t('Dział handlowy'),
+  prezes: t('Prezes'),
+  administrator: t('Administrator'),
 }
 
 export const OPISY_ROLI: Record<Rola, string> = {
-  technolog: 'zapytania, analiza, listy materiałowe, wyceny (bez zatwierdzania)',
-  handlowy: 'zapytania, baza ofert, importy z Optimy, zapytania do dostawców, ceny i kooperacja w wycenie',
-  prezes: 'wszystko + zatwierdzanie wycen i korekta prezesa',
-  administrator: 'wszystko + użytkownicy, ustawienia, budżet AI',
+  technolog: t('zapytania, analiza, listy materiałowe, wyceny (bez zatwierdzania)'),
+  handlowy: t('zapytania, baza ofert, importy z Optimy, zapytania do dostawców, ceny i kooperacja w wycenie'),
+  prezes: t('wszystko + zatwierdzanie wycen i korekta prezesa'),
+  administrator: t('wszystko + użytkownicy, ustawienia, budżet AI'),
 }
 
 export interface Profil {
@@ -21,6 +22,8 @@ export interface Profil {
   rola: Rola
   widzi_marze: boolean
   wymaga_zmiany_hasla: boolean
+  /** Język interfejsu zapamiętany w profilu (pl / en). */
+  jezyk?: 'pl' | 'en'
 }
 
 /** Co wolno zalogowanemu użytkownikowi. Interfejs tylko ukrywa - reguły pilnuje baza (RLS). */
@@ -68,6 +71,8 @@ export interface StawkaRobocizny {
 export interface RodzajStali {
   kod: string
   nazwa: string
+  nazwa_en?: string | null
+  nazwa_pl?: string
   gestosc: number
 }
 
@@ -84,6 +89,8 @@ export type SposobMasy = 'blacha' | 'krazek' | 'rura' | 'pret' | 'brak'
 export interface KategoriaMaterialu {
   kod: string
   nazwa: string
+  nazwa_en?: string | null
+  nazwa_pl?: string
   naddatek_proc: number
   sposob_masy: SposobMasy
   jm_domyslna: string
@@ -97,6 +104,8 @@ export type ZakladkaUslugi = 'kooperacja' | 'projekt' | 'badania' | 'transport' 
 export interface KategoriaUslugi {
   kod: string
   nazwa: string
+  nazwa_en?: string | null
+  nazwa_pl?: string
   jednostka_odniesienia: string
   zakladka: ZakladkaUslugi
   kolejnosc: number

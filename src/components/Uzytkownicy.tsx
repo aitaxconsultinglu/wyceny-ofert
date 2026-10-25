@@ -8,6 +8,7 @@ import { Button } from './ui/button'
 import { Komunikat } from './ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog'
 import { Tabela, type KolumnaTabeli } from './ui/Tabela'
+import { t } from '@/i18n'
 
 interface WierszUzytkownika {
   id: string
@@ -65,7 +66,7 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
     })
     setZajety(false)
     if (error) { setBlad(komunikatPL(error.message)); return }
-    setKomunikat(`${doEdycji.email}: zapisano. Zmiana działa od następnego odświeżenia strony u tej osoby.`)
+    setKomunikat(t('{0}: zapisano. Zmiana działa od następnego odświeżenia strony u tej osoby.', doEdycji.email))
     setDoEdycji(null)
     await wczytaj()
   }
@@ -90,32 +91,32 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
   }
 
   const kolumny: KolumnaTabeli<WierszUzytkownika>[] = [
-    { id: 'login', naglowek: 'Login', typ: 'tekst', wartosc: (u) => u.email, className: 'font-medium', komorka: (u) => <>{u.email}{u.id === profil.id && <span className="ml-2 text-xs text-slate-400">(Ty)</span>}</> },
-    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (u) => u.nazwa, className: 'text-slate-600' },
+    { id: 'login', naglowek: t('Login'), typ: 'tekst', wartosc: (u) => u.email, className: 'font-medium', komorka: (u) => <>{u.email}{u.id === profil.id && <span className="ml-2 text-xs text-slate-400">{t('(Ty)')}</span>}</> },
+    { id: 'nazwa', naglowek: t('Nazwa'), typ: 'tekst', wartosc: (u) => u.nazwa, className: 'text-slate-600' },
     {
-      id: 'rola', naglowek: 'Rola', typ: 'lista', wartosc: (u) => ETYKIETY_ROLI[u.rola],
+      id: 'rola', naglowek: t('Rola'), typ: 'lista', wartosc: (u) => ETYKIETY_ROLI[u.rola],
       komorka: (u) => (u.chroniony ? (
-        <span title="Konto administratora aplikacji - nie można go usunąć ani zmienić mu roli" className="znacznik bg-limonka-jasna text-limonka-ciemna ring-limonka">
+        <span title={t('Konto administratora aplikacji - nie można go usunąć ani zmienić mu roli')} className="znacznik bg-limonka-jasna text-limonka-ciemna ring-limonka">
           <ShieldCheck className="h-3 w-3" /> {ETYKIETY_ROLI[u.rola]}
         </span>
       ) : ETYKIETY_ROLI[u.rola]),
     },
     {
-      id: 'marze', naglowek: 'Marże', typ: 'lista', wartosc: (u) => (marzeZRoli(u.rola) ? 'z roli' : u.widzi_marze ? 'tak' : 'nie'), className: 'text-sm',
-      komorka: (u) => (marzeZRoli(u.rola) ? <span className="text-slate-500">z roli</span> : u.widzi_marze ? 'tak' : <span className="text-slate-400">nie</span>),
+      id: 'marze', naglowek: t('Marże'), typ: 'lista', wartosc: (u) => (marzeZRoli(u.rola) ? 'z roli' : u.widzi_marze ? 'tak' : 'nie'), className: 'text-sm',
+      komorka: (u) => (marzeZRoli(u.rola) ? <span className="text-slate-500">{t('z roli')}</span> : u.widzi_marze ? 'tak' : <span className="text-slate-400">nie</span>),
     },
     {
-      id: 'logowanie', naglowek: 'Ostatnie logowanie', typ: 'data', wartosc: (u) => u.ostatnie_logowanie, className: 'text-sm text-slate-600',
-      komorka: (u) => <>{u.ostatnie_logowanie ? dataGodzinaPL(u.ostatnie_logowanie) : <span className="text-amber-700">nigdy</span>}{u.wymaga_zmiany_hasla && <span className="ml-2 text-xs text-amber-700">(hasło tymczasowe)</span>}</>,
+      id: 'logowanie', naglowek: t('Ostatnie logowanie'), typ: 'data', wartosc: (u) => u.ostatnie_logowanie, className: 'text-sm text-slate-600',
+      komorka: (u) => <>{u.ostatnie_logowanie ? dataGodzinaPL(u.ostatnie_logowanie) : <span className="text-amber-700">nigdy</span>}{u.wymaga_zmiany_hasla && <span className="ml-2 text-xs text-amber-700">{t('(hasło tymczasowe)')}</span>}</>,
     },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
       komorka: (u) => (
         <div className="flex justify-end gap-2">
-          <Button rozmiar="maly" title="Zmień rolę i uprawnienia" disabled={zajety} onClick={() => setDoEdycji({ ...u })}><Pencil className="h-4 w-4" /></Button>
-          <Button rozmiar="maly" wariant="akcent" title="Nadaj nowe hasło tymczasowe" disabled={zajety} onClick={() => setDoResetu(u)}><KeyRound className="h-4 w-4" /></Button>
+          <Button rozmiar="maly" title={t('Zmień rolę i uprawnienia')} disabled={zajety} onClick={() => setDoEdycji({ ...u })}><Pencil className="h-4 w-4" /></Button>
+          <Button rozmiar="maly" wariant="akcent" title={t('Nadaj nowe hasło tymczasowe')} disabled={zajety} onClick={() => setDoResetu(u)}><KeyRound className="h-4 w-4" /></Button>
           <Button rozmiar="maly" wariant="ostrzezenie" disabled={u.id === profil.id || u.chroniony || zajety}
-            title={u.chroniony ? 'Konta administratora aplikacji nie można usunąć' : u.id === profil.id ? 'Nie możesz usunąć własnego konta' : 'Usuń konto'}
+            title={u.chroniony ? t('Konta administratora aplikacji nie można usunąć') : u.id === profil.id ? t('Nie możesz usunąć własnego konta') : t('Usuń konto')}
             onClick={() => setDoUsuniecia(u)}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
@@ -124,25 +125,25 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
 
   return (
     <div className="space-y-5">
-      <h2 className="text-lg font-semibold">Użytkownicy</h2>
+      <h2 className="text-lg font-semibold">{t('Użytkownicy')}</h2>
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
 
       <form onSubmit={dodaj} className="sekcja">
-        <h3 className="text-sm font-semibold">Dodaj użytkownika</h3>
+        <h3 className="text-sm font-semibold">{t('Dodaj użytkownika')}</h3>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label>
-            <span className="etykieta">Adres e-mail</span>
+            <span className="etykieta">{t('Adres e-mail')}</span>
             <input type="email" required className="pole w-64" value={nowy.email}
               onChange={(e) => setNowy({ ...nowy, email: e.target.value })} />
           </label>
           <label>
-            <span className="etykieta">Nazwa wyświetlana (stanowisko, opcjonalnie)</span>
-            <input className="pole w-64" placeholder="np. Dział technologów" value={nowy.nazwa}
+            <span className="etykieta">{t('Nazwa wyświetlana (stanowisko, opcjonalnie)')}</span>
+            <input className="pole w-64" placeholder={t('np. Dział technologów')} value={nowy.nazwa}
               onChange={(e) => setNowy({ ...nowy, nazwa: e.target.value })} />
           </label>
           <label>
-            <span className="etykieta">Rola</span>
+            <span className="etykieta">{t('Rola')}</span>
             <select className="pole w-auto" value={nowy.rola} onChange={(e) => setNowy({ ...nowy, rola: e.target.value as Rola })}>
               {ROLE.map((r) => <option key={r} value={r}>{ETYKIETY_ROLI[r]}</option>)}
             </select>
@@ -150,47 +151,46 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
           <label className="flex items-center gap-2 pb-2 text-sm">
             <input type="checkbox" disabled={marzeZRoli(nowy.rola)} checked={nowy.widzi_marze || marzeZRoli(nowy.rola)}
               onChange={(e) => setNowy({ ...nowy, widzi_marze: e.target.checked })} />
-            widzi narzuty i marże
+            {t('widzi narzuty i marże')}
           </label>
-          <Button type="submit" wariant="glowny" disabled={zajety}>Dodaj konto</Button>
+          <Button type="submit" wariant="glowny" disabled={zajety}>{t('Dodaj konto')}</Button>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          {OPISY_ROLI[nowy.rola]}. Konto dostanie hasło tymczasowe, które pokażemy raz po utworzeniu.
-          Przy pierwszym logowaniu użytkownik musi ustawić własne.
+          {OPISY_ROLI[nowy.rola]}{t('. Konto dostanie hasło tymczasowe, które pokażemy raz po utworzeniu. Przy pierwszym logowaniu użytkownik musi ustawić własne.')}
         </p>
       </form>
 
-      <Tabela id="uzytkownicy" kolumny={kolumny} wiersze={uzytkownicy} klucz={(u) => u.id} pusto="Brak kont." />
+      <Tabela id="uzytkownicy" kolumny={kolumny} wiersze={uzytkownicy} klucz={(u) => u.id} pusto={t('Brak kont.')} />
 
 
       <Dialog open={!!hasloDoPrzekazania} onOpenChange={(o) => !o && setHasloDoPrzekazania(null)}>
         <DialogContent>
-          <DialogTitle>Hasło tymczasowe</DialogTitle>
+          <DialogTitle>{t('Hasło tymczasowe')}</DialogTitle>
           <DialogDescription>
-            Przekaż te dane pracownikowi. <strong>Hasło pokazujemy tylko teraz</strong> - później można je jedynie zresetować ponownie.
+            {t('Przekaż te dane pracownikowi.')}{' '}<strong>{t('Hasło pokazujemy tylko teraz')}</strong> {t('- później można je jedynie zresetować ponownie.')}
           </DialogDescription>
           <div className="mt-4 space-y-2 rounded-md bg-slate-50 p-4 font-mono text-sm">
-            <div><span className="text-slate-500">Adres aplikacji:</span> {window.location.origin}{import.meta.env.BASE_URL}</div>
-            <div><span className="text-slate-500">Login:</span> {hasloDoPrzekazania?.email}</div>
-            <div><span className="text-slate-500">Hasło:</span> {hasloDoPrzekazania?.haslo}</div>
+            <div><span className="text-slate-500">{t('Adres aplikacji:')}</span> {window.location.origin}{import.meta.env.BASE_URL}</div>
+            <div><span className="text-slate-500">{t('Login:')}</span> {hasloDoPrzekazania?.email}</div>
+            <div><span className="text-slate-500">{t('Hasło:')}</span> {hasloDoPrzekazania?.haslo}</div>
           </div>
           <div className="mt-4 flex justify-end">
-            <Button wariant="glowny" onClick={() => setHasloDoPrzekazania(null)}>Zapisałem, zamknij</Button>
+            <Button wariant="glowny" onClick={() => setHasloDoPrzekazania(null)}>{t('Zapisałem, zamknij')}</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!doEdycji} onOpenChange={(o) => !o && setDoEdycji(null)}>
         <DialogContent>
-          <DialogTitle>Uprawnienia: {doEdycji?.email}</DialogTitle>
+          <DialogTitle>{t('Uprawnienia:')}{' '}{doEdycji?.email}</DialogTitle>
           {doEdycji && (
             <div className="mt-4 space-y-3">
               <label className="block">
-                <span className="etykieta">Nazwa wyświetlana</span>
+                <span className="etykieta">{t('Nazwa wyświetlana')}</span>
                 <input className="pole" value={doEdycji.nazwa ?? ''} onChange={(e) => setDoEdycji({ ...doEdycji, nazwa: e.target.value })} />
               </label>
               <fieldset disabled={doEdycji.chroniony}>
-                <span className="etykieta">Rola {doEdycji.chroniony && '(konto chronione - roli nie można zmienić)'}</span>
+                <span className="etykieta">{t('Rola')}{' '}{doEdycji.chroniony && t('(konto chronione - roli nie można zmienić)')}</span>
                 <div className="space-y-1">
                   {ROLE.map((r) => (
                     <label key={r} className="flex items-start gap-2 text-sm">
@@ -204,11 +204,11 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" disabled={marzeZRoli(doEdycji.rola)} checked={doEdycji.widzi_marze || marzeZRoli(doEdycji.rola)}
                   onChange={(e) => setDoEdycji({ ...doEdycji, widzi_marze: e.target.checked })} />
-                widzi narzuty i marże (zysk, korekta prezesa)
+                {t('widzi narzuty i marże (zysk, korekta prezesa)')}
               </label>
               <div className="flex justify-end gap-2 pt-2">
-                <Button onClick={() => setDoEdycji(null)}>Anuluj</Button>
-                <Button wariant="glowny" disabled={zajety} onClick={() => void zapiszEdycje()}>Zapisz</Button>
+                <Button onClick={() => setDoEdycji(null)}>{t('Anuluj')}</Button>
+                <Button wariant="glowny" disabled={zajety} onClick={() => void zapiszEdycje()}>{t('Zapisz')}</Button>
               </div>
             </div>
           )}
@@ -217,26 +217,26 @@ export function Uzytkownicy({ profil }: { profil: Profil }) {
 
       <Dialog open={!!doResetu} onOpenChange={(o) => !o && setDoResetu(null)}>
         <DialogContent>
-          <DialogTitle>Zresetować hasło: {doResetu?.email}?</DialogTitle>
+          <DialogTitle>{t('Zresetować hasło:')}{' '}{doResetu?.email}?</DialogTitle>
           <DialogDescription>
-            Dotychczasowe hasło przestanie działać. Otrzymasz nowe hasło tymczasowe do przekazania tej osobie.
+            {t('Dotychczasowe hasło przestanie działać. Otrzymasz nowe hasło tymczasowe do przekazania tej osobie.')}
           </DialogDescription>
           <div className="mt-4 flex justify-end gap-2">
-            <Button onClick={() => setDoResetu(null)}>Anuluj</Button>
-            <Button wariant="glowny" disabled={zajety} onClick={() => void resetujHaslo()}>Resetuj hasło</Button>
+            <Button onClick={() => setDoResetu(null)}>{t('Anuluj')}</Button>
+            <Button wariant="glowny" disabled={zajety} onClick={() => void resetujHaslo()}>{t('Resetuj hasło')}</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!doUsuniecia} onOpenChange={(o) => !o && setDoUsuniecia(null)}>
         <DialogContent>
-          <DialogTitle>Usunąć konto {doUsuniecia?.email}?</DialogTitle>
+          <DialogTitle>{t('Usunąć konto')}{' '}{doUsuniecia?.email}?</DialogTitle>
           <DialogDescription>
-            Użytkownik straci dostęp do aplikacji. Jego zapytania, wyceny i historia zmian zostają nienaruszone.
+            {t('Użytkownik straci dostęp do aplikacji. Jego zapytania, wyceny i historia zmian zostają nienaruszone.')}
           </DialogDescription>
           <div className="mt-4 flex justify-end gap-2">
-            <Button onClick={() => setDoUsuniecia(null)}>Anuluj</Button>
-            <Button wariant="ostrzezenie" disabled={zajety} onClick={() => void usun()}>Usuń konto</Button>
+            <Button onClick={() => setDoUsuniecia(null)}>{t('Anuluj')}</Button>
+            <Button wariant="ostrzezenie" disabled={zajety} onClick={() => void usun()}>{t('Usuń konto')}</Button>
           </div>
         </DialogContent>
       </Dialog>

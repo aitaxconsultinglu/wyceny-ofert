@@ -7,6 +7,7 @@ import { klucz, type Aparat, type PozycjaWyceny } from '@/lib/wyceny'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { ZrodloCeny } from './ZrodloCeny'
+import { t } from '@/i18n'
 
 interface Props {
   aparat: Aparat
@@ -17,10 +18,10 @@ interface Props {
 }
 
 const SEKCJE_BADAN: { zakladka: Zakladka; tytul: string; podpowiedz: string; domyslne: string[] }[] = [
-  { zakladka: 'projekt', tytul: 'Projekt', podpowiedz: 'projekt, technologia, uzgodnienie i sprawdzenie dokumentacji, dokumentacja powykonawcza', domyslne: ['Projekt', 'Technologia', 'Uzgodnienie i sprawdzenie dokumentacji', 'Dokumentacja powykonawcza'] },
-  { zakladka: 'badania', tytul: 'Badania i odbiory', podpowiedz: 'RT [mb], PT, UT, NFT, próba ciśnieniowa, odbiory UDT/JN, dokumentacja KJ', domyslne: ['RT', 'PT', 'UT', 'Próba ciśnieniowa', 'Odbiory UDT / JN', 'Dokumentacja KJ'] },
-  { zakladka: 'transport', tytul: 'Transport i sprzęt ciężki', podpowiedz: 'trasa, km, liczba kursów, stawka zł/km, ponadgabaryt', domyslne: ['Dostawa do klienta'] },
-  { zakladka: 'inne', tytul: 'Inne', podpowiedz: 'pakowanie/skrzynia, zaślepki do prób, części zapasowe, próbki, montaż', domyslne: ['Pakowanie / skrzynia'] },
+  { zakladka: 'projekt', tytul: t('Projekt'), podpowiedz: t('projekt, technologia, uzgodnienie i sprawdzenie dokumentacji, dokumentacja powykonawcza'), domyslne: ['Projekt', 'Technologia', 'Uzgodnienie i sprawdzenie dokumentacji', 'Dokumentacja powykonawcza'] },
+  { zakladka: 'badania', tytul: t('Badania i odbiory'), podpowiedz: t('RT [mb], PT, UT, NFT, próba ciśnieniowa, odbiory UDT/JN, dokumentacja KJ'), domyslne: ['RT', 'PT', 'UT', 'Próba ciśnieniowa', 'Odbiory UDT / JN', 'Dokumentacja KJ'] },
+  { zakladka: 'transport', tytul: t('Transport i sprzęt ciężki'), podpowiedz: t('trasa, km, liczba kursów, stawka zł/km, ponadgabaryt'), domyslne: ['Dostawa do klienta'] },
+  { zakladka: 'inne', tytul: t('Inne'), podpowiedz: t('pakowanie/skrzynia, zaślepki do prób, części zapasowe, próbki, montaż'), domyslne: ['Pakowanie / skrzynia'] },
 ]
 
 function nowa(zakladka: Zakladka, nazwa = '', sekcja: string | null = null): PozycjaWyceny {
@@ -34,9 +35,9 @@ function Tabela({ aparat, par, tylkoOdczyt, zmien, znajdz, zakladka, kooperacja 
   const transport = zakladka === 'transport'
   const kategorie = s.kategorieUslug.filter((k) => (kooperacja ? k.zakladka === 'kooperacja' : true))
   const kolumny = [
-    'Lp', ...(kooperacja ? ['Kategoria usługi'] : []), transport ? 'Trasa' : kooperacja ? 'Nazwa elementu, robót' : 'Nazwa',
-    ...(kooperacja ? ['śr. 1', 'śr. 2', 'grubość', 'wys.'] : []), ...(transport ? ['km', 'Kursów', 'zł/km', 'Ponadgab.'] : ['Ilość', 'J.m.', 'Cena jedn.']),
-    'Wartość PLN', 'Źródło ceny', 'Opcj.', 'Uwagi', '',
+    t('Lp'), ...(kooperacja ? [t('Kategoria usługi')] : []), transport ? t('Trasa') : kooperacja ? t('Nazwa elementu, robót') : t('Nazwa'),
+    ...(kooperacja ? [t('śr. 1'), t('śr. 2'), t('grubość'), t('wys.')] : []), ...(transport ? ['km', t('Kursów'), 'zł/km', t('Ponadgab.')] : [t('Ilość'), t('J.m.'), t('Cena jedn.')]),
+    t('Wartość PLN'), t('Źródło ceny'), t('Opcj.'), t('Uwagi'), '',
   ]
   return (
     <div className="overflow-x-auto">
@@ -63,7 +64,7 @@ function Tabela({ aparat, par, tylkoOdczyt, zmien, znajdz, zakladka, kooperacja 
                   <>
                     <td className="komorka w-20"><PoleLiczby wartosc={Number(p.dodatkowe?.km ?? 0) || null} puste disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { dodatkowe: { ...p.dodatkowe, km: n } })} /></td>
                     <td className="komorka w-16"><PoleLiczby wartosc={p.ilosc} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { ilosc: n ?? 0 })} /></td>
-                    <td className="komorka w-20" title="Stawka zł/km (albo zł/kurs, gdy km puste)"><PoleLiczby wartosc={p.cena_jedn} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { cena_jedn: n ?? 0 })} /></td>
+                    <td className="komorka w-20" title={t('Stawka zł/km (albo zł/kurs, gdy km puste)')}><PoleLiczby wartosc={p.cena_jedn} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { cena_jedn: n ?? 0 })} /></td>
                     <td className="komorka w-16 text-center"><input type="checkbox" disabled={tylkoOdczyt} checked={!!p.dodatkowe?.ponadgabaryt} onChange={(e) => ustPoz(p.klucz, { dodatkowe: { ...p.dodatkowe, ponadgabaryt: e.target.checked } })} /></td>
                   </>
                 ) : (
@@ -77,7 +78,7 @@ function Tabela({ aparat, par, tylkoOdczyt, zmien, znajdz, zakladka, kooperacja 
                   <PoleLiczby wartosc={p.wartosc_reczna ?? Math.round(w.koszt * 100) / 100} puste disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { wartosc_reczna: n })} />
                 </td>
                 <td className="komorka w-40"><ZrodloCeny p={p} wiekMies={s.ustawienia.wiek_ceny_ostrzezenie_mies} tylkoOdczyt={tylkoOdczyt} onZnajdz={() => znajdz(p)} /></td>
-                <td className="komorka w-12 text-center"><input type="checkbox" title="Pozycja opcjonalna - wariant oferty bez niej" disabled={tylkoOdczyt} checked={!!p.opcjonalna} onChange={(e) => ustPoz(p.klucz, { opcjonalna: e.target.checked, wariant: e.target.checked ? p.wariant ?? 'wariant' : null })} /></td>
+                <td className="komorka w-12 text-center"><input type="checkbox" title={t('Pozycja opcjonalna - wariant oferty bez niej')} disabled={tylkoOdczyt} checked={!!p.opcjonalna} onChange={(e) => ustPoz(p.klucz, { opcjonalna: e.target.checked, wariant: e.target.checked ? p.wariant ?? 'wariant' : null })} /></td>
                 <td className="komorka min-w-[8rem]"><input className="pole-komorki" disabled={tylkoOdczyt} value={p.uwagi ?? ''} onChange={(e) => ustPoz(p.klucz, { uwagi: e.target.value || null })} /></td>
                 <td className="komorka w-8 text-center">{!tylkoOdczyt && <button className="text-slate-400 hover:text-red-600" onClick={() => zmien((a) => ({ ...a, pozycje: a.pozycje.filter((x) => x.klucz !== p.klucz) }))}><Trash2 className="h-4 w-4" /></button>}</td>
               </tr>
@@ -99,14 +100,13 @@ export function Kooperacja(props: Props) {
   return (
     <section className="sekcja space-y-2">
       <p className="text-xs text-slate-500">
-        Usługi kooperacyjne (zwijanie, obróbka, PWHT, malowanie, sekafenowanie, izolacja...). Ceny z ofert kooperantów - przycisk lupy.
-        Generator zapytań do kooperantów jest w karcie analizy zapytania (etap 4).
+        {t('Usługi kooperacyjne (zwijanie, obróbka, PWHT, malowanie, sekafenowanie, izolacja...). Ceny z ofert kooperantów - przycisk lupy. Generator zapytań do kooperantów jest w karcie analizy zapytania (etap 4).')}
       </p>
       <Tabela {...props} zakladka="kooperacja" kooperacja />
       <div className="flex justify-end gap-6 text-sm">
-        <span>Suma: <strong>{zl(k.kooperacja.koszt)}</strong></span>
-        <span>Narzut na kooperację {props.par.narzut_kooperacja_proc}%: <strong>{zl(k.kooperacja.narzut)}</strong></span>
-        <span>Razem: <strong>{zl(k.kooperacja.razem)} PLN</strong></span>
+        <span>{t('Suma:')}{' '}<strong>{zl(k.kooperacja.koszt)}</strong></span>
+        <span>{t('Narzut na kooperację')}{' '}{props.par.narzut_kooperacja_proc}%: <strong>{zl(k.kooperacja.narzut)}</strong></span>
+        <span>{t('Razem:')}{' '}<strong>{zl(k.kooperacja.razem)} PLN</strong></span>
       </div>
     </section>
   )
@@ -121,17 +121,17 @@ export function BadaniaOdbioryTransport(props: Props) {
         <section key={sek.zakladka} className="sekcja space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="text-sm font-semibold">{sek.tytul} <span className="font-normal text-slate-500">- {sek.podpowiedz}</span></h4>
-            <span className="text-sm">Razem: <strong>{zl(sumy[sek.zakladka])} PLN</strong></span>
+            <span className="text-sm">{t('Razem:')}{' '}<strong>{zl(sumy[sek.zakladka])} PLN</strong></span>
           </div>
           <Tabela {...props} zakladka={sek.zakladka} />
           {!props.tylkoOdczyt && props.aparat.pozycje.every((p) => p.zakladka !== sek.zakladka) && (
             <Button rozmiar="maly" onClick={() => props.zmien((a) => ({ ...a, pozycje: [...a.pozycje, ...sek.domyslne.map((n) => nowa(sek.zakladka, n, sek.zakladka === 'transport' ? 'transport' : null))] }))}>
-              Wstaw typowe pozycje
+              {t('Wstaw typowe pozycje')}
             </Button>
           )}
         </section>
       ))}
-      <p className="text-right text-sm">Badania, odbiory, projekt, transport i inne razem: <strong>{zl(k.badania.razem)} PLN</strong> (1 szt.)</p>
+      <p className="text-right text-sm">{t('Badania, odbiory, projekt, transport i inne razem:')}{' '}<strong>{zl(k.badania.razem)} PLN</strong> {t('(1 szt.)')}</p>
     </div>
   )
 }

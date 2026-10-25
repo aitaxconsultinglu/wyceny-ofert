@@ -5,6 +5,7 @@ import {
   filtrAktywny, filtrujISortuj, przelaczSort, wartosciListy, wczytajStan, zapiszStan, PUSTY_STAN,
   type DefinicjaKolumny, type Filtr, type StanTabeli,
 } from '@/lib/tabela'
+import { t } from '@/i18n'
 
 export interface KolumnaTabeli<T> extends DefinicjaKolumny<T> {
   naglowek: ReactNode
@@ -71,17 +72,17 @@ export function Tabela<T>({ id, kolumny, wiersze, klucz, onKlik, klasaWiersza, z
     <div className={cn('space-y-1', className)}>
       {!bezPaska && (aktywnych > 0 || stan.sort.length > 0 || serwer || (zaznaczanie && zaznaczanie.zaznaczone.size > 0)) && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-          <span>{serwer ? `${widoczne.length} z ${razem} wierszy (strona ${serwer.strona + 1})` : `${widoczne.length} z ${razem} wierszy`}</span>
-          {zaznaczanie && zaznaczanie.zaznaczone.size > 0 && <span>· zaznaczonych: {zaznaczanie.zaznaczone.size}</span>}
+          <span>{serwer ? t('{0} z {1} wierszy (strona {2})', widoczne.length, razem, serwer.strona + 1) : t('{0} z {1} wierszy', widoczne.length, razem)}</span>
+          {zaznaczanie && zaznaczanie.zaznaczone.size > 0 && <span>{t('· zaznaczonych:')}{' '}{zaznaczanie.zaznaczone.size}</span>}
           {(aktywnych > 0 || stan.sort.length > 0) && (
             <button className="inline-flex items-center gap-1 text-blekit-ciemny underline" onClick={() => zmienStan(PUSTY_STAN)}>
-              <X className="h-3 w-3" /> wyczyść filtry i sortowanie
+              <X className="h-3 w-3" /> {t('wyczyść filtry i sortowanie')}
             </button>
           )}
           {serwer && (
             <span className="ml-auto flex items-center gap-1">
-              <button className="rounded p-0.5 hover:bg-slate-100 disabled:opacity-40" disabled={serwer.strona === 0} onClick={() => serwer.zmienStrone(serwer.strona - 1)} title="Poprzednia strona"><ChevronLeft className="h-4 w-4" /></button>
-              <button className="rounded p-0.5 hover:bg-slate-100 disabled:opacity-40" disabled={(serwer.strona + 1) * serwer.naStronie >= razem} onClick={() => serwer.zmienStrone(serwer.strona + 1)} title="Następna strona"><ChevronRight className="h-4 w-4" /></button>
+              <button className="rounded p-0.5 hover:bg-slate-100 disabled:opacity-40" disabled={serwer.strona === 0} onClick={() => serwer.zmienStrone(serwer.strona - 1)} title={t('Poprzednia strona')}><ChevronLeft className="h-4 w-4" /></button>
+              <button className="rounded p-0.5 hover:bg-slate-100 disabled:opacity-40" disabled={(serwer.strona + 1) * serwer.naStronie >= razem} onClick={() => serwer.zmienStrone(serwer.strona + 1)} title={t('Następna strona')}><ChevronRight className="h-4 w-4" /></button>
             </span>
           )}
         </div>
@@ -92,7 +93,7 @@ export function Tabela<T>({ id, kolumny, wiersze, klucz, onKlik, klasaWiersza, z
             <tr>
               {zaznaczanie && (
                 <th className="komorka-naglowek w-8">
-                  <input type="checkbox" aria-label="Zaznacz wszystkie widoczne" checked={wszystkieZaznaczone} onChange={(e) => {
+                  <input type="checkbox" aria-label={t('Zaznacz wszystkie widoczne')} checked={wszystkieZaznaczone} onChange={(e) => {
                     const s = new Set(zaznaczanie.zaznaczone)
                     for (const k of kluczeWidocznych) { if (e.target.checked) s.add(k); else s.delete(k) }
                     zaznaczanie.zmien(s)
@@ -107,7 +108,7 @@ export function Tabela<T>({ id, kolumny, wiersze, klucz, onKlik, klasaWiersza, z
                   <th key={k.id} className={cn('komorka-naglowek relative whitespace-nowrap', k.naglowekClassName)} title={k.title}>
                     <div className="flex items-center gap-1">
                       {k.bezSortu ? <span>{k.naglowek}</span> : (
-                        <button className="inline-flex items-center gap-1 uppercase hover:text-slate-900" title="Sortuj (Shift - kilka kolumn)"
+                        <button className="inline-flex items-center gap-1 uppercase hover:text-slate-900" title={t('Sortuj (Shift - kilka kolumn)')}
                           onClick={(e) => zmienStan(przelaczSort(stan, k.id, e.shiftKey))}>
                           {k.naglowek}
                           {sort ? (sort.kier === 'rosnaco' ? <ArrowUp className="h-3 w-3 text-blekit-ciemny" /> : <ArrowDown className="h-3 w-3 text-blekit-ciemny" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
@@ -116,7 +117,7 @@ export function Tabela<T>({ id, kolumny, wiersze, klucz, onKlik, klasaWiersza, z
                       )}
                       {!k.bezFiltra && (
                         <button className={cn('ml-auto rounded p-0.5 hover:bg-slate-200', filtrAktywny(filtr) ? 'bg-blekit-jasny text-blekit-ciemny' : 'opacity-40 hover:opacity-100')}
-                          title="Filtr" aria-label={`Filtr kolumny`} aria-expanded={otwarty === k.id} onClick={() => setOtwarty(otwarty === k.id ? null : k.id)}>
+                          title={t('Filtr')} aria-label={t('Filtr kolumny')} aria-expanded={otwarty === k.id} onClick={() => setOtwarty(otwarty === k.id ? null : k.id)}>
                           <Filter className="h-3 w-3" />
                         </button>
                       )}
@@ -138,7 +139,7 @@ export function Tabela<T>({ id, kolumny, wiersze, klucz, onKlik, klasaWiersza, z
                   onClick={onKlik ? () => onKlik(w) : undefined}>
                   {zaznaczanie && (
                     <td className="komorka w-8" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" aria-label="Zaznacz wiersz" checked={zaznaczanie.zaznaczone.has(kl)} onChange={(e) => {
+                      <input type="checkbox" aria-label={t('Zaznacz wiersz')} checked={zaznaczanie.zaznaczone.has(kl)} onChange={(e) => {
                         const s = new Set(zaznaczanie.zaznaczone); if (e.target.checked) s.add(kl); else s.delete(kl); zaznaczanie.zmien(s)
                       }} />
                     </td>
@@ -151,7 +152,7 @@ export function Tabela<T>({ id, kolumny, wiersze, klucz, onKlik, klasaWiersza, z
             })}
             {widoczne.length === 0 && (
               <tr><td colSpan={kolumny.length + (zaznaczanie ? 1 : 0)} className="komorka text-center text-slate-500">
-                {wiersze.length || serwer ? (aktywnych ? 'Brak wierszy pasujących do filtrów.' : pusto ?? 'Brak danych.') : pusto ?? 'Brak danych.'}
+                {wiersze.length || serwer ? (aktywnych ? t('Brak wierszy pasujących do filtrów.') : pusto ?? t('Brak danych.')) : pusto ?? t('Brak danych.')}
               </td></tr>
             )}
           </tbody>
@@ -188,7 +189,7 @@ function PanelFiltra<T>({ kolumna, filtr, wiersze, zmien, zamknij }: {
         return (
           <>
             <select className="pole py-1 text-xs" value={f.tryb} onChange={(e) => zmien({ ...f, tryb: e.target.value as typeof f.tryb })}>
-              <option value="zawiera">zawiera</option><option value="zaczyna">zaczyna się od</option><option value="rowna">równa się</option>
+              <option value="zawiera">zawiera</option><option value="zaczyna">{t('zaczyna się od')}</option><option value="rowna">{t('równa się')}</option>
             </select>
             <input autoFocus className="pole py-1 text-xs" value={f.wartosc} onChange={(e) => zmien({ ...f, wartosc: e.target.value })} />
           </>
@@ -199,7 +200,7 @@ function PanelFiltra<T>({ kolumna, filtr, wiersze, zmien, zamknij }: {
         return (
           <>
             <select className="pole py-1 text-xs" value={f.tryb} onChange={(e) => zmien({ ...f, tryb: e.target.value as typeof f.tryb })}>
-              <option value="zakres">od - do</option><option value="wieksze">większe niż</option><option value="mniejsze">mniejsze niż</option>
+              <option value="zakres">{t('od - do')}</option><option value="wieksze">{t('większe niż')}</option><option value="mniejsze">{t('mniejsze niż')}</option>
             </select>
             <div className="flex gap-1">
               {f.tryb !== 'mniejsze' && <input autoFocus className="pole py-1 text-xs" inputMode="decimal" placeholder={f.tryb === 'wieksze' ? '>' : 'od'} defaultValue={f.od ?? ''} onChange={(e) => zmien({ ...f, od: liczba(e.target.value) })} />}
@@ -222,7 +223,7 @@ function PanelFiltra<T>({ kolumna, filtr, wiersze, zmien, zamknij }: {
         const widoczne = lista.filter((x) => !szukaj || x.wartosc.toLowerCase().includes(szukaj.toLowerCase()))
         return (
           <>
-            {lista.length > 8 && <input autoFocus className="pole py-1 text-xs" placeholder="szukaj..." value={szukaj} onChange={(e) => setSzukaj(e.target.value)} />}
+            {lista.length > 8 && <input autoFocus className="pole py-1 text-xs" placeholder={t('szukaj...')} value={szukaj} onChange={(e) => setSzukaj(e.target.value)} />}
             <div className="max-h-56 space-y-0.5 overflow-auto">
               {widoczne.map((x) => (
                 <label key={x.wartosc} className="flex items-center gap-1.5">
@@ -242,7 +243,7 @@ function PanelFiltra<T>({ kolumna, filtr, wiersze, zmien, zamknij }: {
         </div>
       )}
       <div className="flex justify-between border-t border-slate-100 pt-1">
-        <button className="text-blekit-ciemny underline" onClick={() => zmien(null)}>wyczyść</button>
+        <button className="text-blekit-ciemny underline" onClick={() => zmien(null)}>{t('wyczyść')}</button>
         <button className="underline" onClick={zamknij}>zamknij</button>
       </div>
     </div>

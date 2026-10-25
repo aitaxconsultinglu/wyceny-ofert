@@ -2,6 +2,7 @@
 // Rysunki złożeniowe mają zwykle trzy tabele: materiałów (element -> gatunek), króćców (poz, ilość, wielkość, PN...)
 // i danych projektowych; czasem także wykaz części z ilościami. Tabele są szukane po nagłówkach i słowach kluczowych
 // (po polsku i angielsku). Wynik ma ten sam kształt co odczyt AI (WynikRysunku), więc trafia do tej samej siatki i wyceny.
+import { nazwyPLEN } from './terminy'
 import { czesciZTabeli, klasyfikuj, krocceZTabeli, parametryZTabeli, ulozWTabele, type ElementTekstu, type KrociecRysunku, type ParametrRysunku, type PozycjaRysunku, type WynikRysunku } from './rysunki'
 
 const tekst = (e: ElementTekstu) => e.str.replace(/\s+/g, ' ').trim()
@@ -38,7 +39,7 @@ function tabelaMaterialow(linie: ElementTekstu[][]): PozycjaRysunku[] {
       if (widziane.has(k)) return
       widziane.add(k)
       wynik.push({
-        poz: '', nazwa, ilosc: null, jm: 'szt', material, norma: null, wymiary: null, masa_jedn: null, masa_calk: null,
+        poz: '', nazwa, ...nazwyPLEN(nazwa), ilosc: null, jm: 'szt', material, norma: null, wymiary: null, masa_jedn: null, masa_calk: null,
         uwagi: 'tabela materiałów rysunku', pewnosc: 0.9, sekcja: klasyfikuj(nazwa, null, material).sekcja, obszar_zrodlowy: null,
       })
     })
@@ -49,8 +50,8 @@ function tabelaMaterialow(linie: ElementTekstu[][]): PozycjaRysunku[] {
 // --- Tabele z nagłówkiem (wykaz części, króćce) -------------------------------------------------------
 
 const NAGL_POZ = /^(poz\.?|pozycja|item|lp\.?|l\.p\.?|nr|mark|ozn\.?|oznaczenie)$/i
-const NAGL_NAZWA = /^(nazwa|name|description|opis|przedmiot|denomination|nazwa części)/i
-const NAGL_ILOSC = /^(ilość|ilosc|il\.|qty|quantity|szt\.?)$/i
+const NAGL_NAZWA = /^(nazwa|name|description|opis|przedmiot|denomination|nazwa części|part name|component|element)/i
+const NAGL_ILOSC = /^(ilość|ilosc|il\.|qty\.?|quantity|szt\.?|pcs\.?|nos\.?|no\. of)$/i
 const NAGL_KROCCE = /^(poz\.?|mark|ozn\.?|ilość|ilosc|qty|wielkość|wielkosc|size|dn|pn|rating|class|typ|type|ø|sch|grub\.?|thk\.?|obsługa|obsluga|service|przeznaczenie|uwagi|remarks?)$/i
 
 /** Kolumny tabeli z nagłówka: komórki danych przypisane do najbliższego środka kolumny nagłówka. */

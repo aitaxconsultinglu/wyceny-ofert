@@ -4,6 +4,7 @@ import { komunikatPL } from './config'
 import type {
   Gatunek, KategoriaMaterialu, KategoriaUslugi, KursWaluty, Mpk, RodzajStali, StawkaRobocizny, Ustawienia,
 } from './types'
+import { nazwaWJezyku, t } from '@/i18n'
 
 interface Slowniki {
   gotowe: boolean
@@ -69,10 +70,10 @@ export function DostawcaSlownikow({ children }: { children: ReactNode }) {
       ustawienia,
       mpk: (mpk.data ?? []) as Mpk[],
       stawki: (stawki.data ?? []) as StawkaRobocizny[],
-      rodzajeStali: (rodzaje.data ?? []) as RodzajStali[],
+      rodzajeStali: wJezyku((rodzaje.data ?? []) as RodzajStali[]),
       gatunki: (gatunki.data ?? []) as Gatunek[],
-      kategorieMaterialow: (kmat.data ?? []) as KategoriaMaterialu[],
-      kategorieUslug: (kusl.data ?? []) as KategoriaUslugi[],
+      kategorieMaterialow: wJezyku((kmat.data ?? []) as KategoriaMaterialu[]),
+      kategorieUslug: wJezyku((kusl.data ?? []) as KategoriaUslugi[]),
       kursy: najnowsze,
     })
   }, [])
@@ -83,9 +84,14 @@ export function DostawcaSlownikow({ children }: { children: ReactNode }) {
   return <Kontekst.Provider value={wartosc}>{children}</Kontekst.Provider>
 }
 
+/** Nazwy słowników w języku interfejsu: nazwa = nazwa_en (gdy jest) po angielsku; polska zostaje w nazwa_pl (eksporty). */
+function wJezyku<T extends { nazwa: string; nazwa_en?: string | null }>(lista: T[]): (T & { nazwa_pl: string })[] {
+  return lista.map((x) => ({ ...x, nazwa_pl: x.nazwa, nazwa: nazwaWJezyku(x) }))
+}
+
 export function useSlowniki() {
   const s = useContext(Kontekst)
-  if (!s) throw new Error('useSlowniki poza DostawcaSlownikow')
+  if (!s) throw new Error(t('useSlowniki poza DostawcaSlownikow'))
   return s
 }
 

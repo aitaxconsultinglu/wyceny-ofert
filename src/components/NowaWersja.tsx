@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { t } from '@/i18n'
 
 const CO_ILE_MS = 5 * 60 * 1000
 
@@ -36,9 +37,9 @@ export function NowaWersja() {
   if (!jest) return null
   return (
     <div className="bez-druku flex flex-wrap items-center justify-center gap-3 bg-blekit-jasny px-4 py-2 text-sm text-blekit-ciemny">
-      Dostępna jest nowa wersja aplikacji. Zapisz bieżącą pracę i odśwież stronę.
+      {t('Dostępna jest nowa wersja aplikacji. Zapisz bieżącą pracę i odśwież stronę.')}
       <button onClick={() => window.location.reload()} className="inline-flex items-center gap-1 rounded bg-blekit px-3 py-1 font-medium text-slate-900 hover:bg-blekit-ciemny hover:text-white">
-        <RefreshCw className="h-4 w-4" /> Odśwież
+        <RefreshCw className="h-4 w-4" /> {t('Odśwież')}
       </button>
     </div>
   )

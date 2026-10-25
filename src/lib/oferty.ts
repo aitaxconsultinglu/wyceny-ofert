@@ -6,6 +6,7 @@ import { gestoscGatunku } from './slowniki'
 import { normalizujCene, uzupelnijMase } from './normalizacjaOfert'
 import type { OfertaAi, WymaganiaOferty } from './ai'
 import type { Gatunek, KategoriaMaterialu, RodzajStali } from './types'
+import { t } from '@/i18n'
 
 export interface Doplata { opis: string; kwota: number; za: 'oferta' | 'szt' | 'm' | 'kg' }
 
@@ -176,7 +177,7 @@ export async function zapiszOferte(f: FormularzOferty, s: Slowniki, status: 'zat
   let dostawcaId = f.dostawca_id
   if (!dostawcaId) {
     const nowy = f.dostawca_nowy
-    if (!nowy?.nazwa.trim()) throw new Error('Wybierz dostawcę z listy albo wpisz nazwę nowego.')
+    if (!nowy?.nazwa.trim()) throw new Error(t('Wybierz dostawcę z listy albo wpisz nazwę nowego.'))
     const kontakty = nowy.osoba || nowy.email || nowy.telefon ? [{ osoba: nowy.osoba, email: nowy.email, telefon: nowy.telefon }] : []
     const kategorie = [...new Set(f.pozycje.map((p) => p.kategoria_materialu ?? p.kategoria_uslugi).filter(Boolean))] as string[]
     const { data, error } = await db.from('dostawcy')

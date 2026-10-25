@@ -8,6 +8,7 @@ import { dataPL, liczba } from './format'
 import type { WynikRysunku } from './rysunki'
 import type { StanWyceny } from './wyceny'
 import type { UstawieniaZapytan, WymaganieZapytania } from './types'
+import { t } from '@/i18n'
 
 export type RodzajZapytania = 'material' | 'usluga'
 
@@ -157,7 +158,7 @@ export const poprawnyEmail = (s: string) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.t
 export type StatusOdbiorcy = 'przygotowane' | 'wyslane' | 'brak_odpowiedzi' | 'oferta' | 'odmowa'
 
 export const ETYKIETY_STATUSU_ODBIORCY: Record<StatusOdbiorcy, string> = {
-  przygotowane: 'nie wysłane', wyslane: 'wysłane', brak_odpowiedzi: 'brak odpowiedzi', oferta: 'jest oferta', odmowa: 'odmowa',
+  przygotowane: t('nie wysłane'), wyslane: t('wysłane'), brak_odpowiedzi: t('brak odpowiedzi'), oferta: t('jest oferta'), odmowa: t('odmowa'),
 }
 export const KOLORY_STATUSU_ODBIORCY: Record<StatusOdbiorcy, string> = {
   przygotowane: 'bg-slate-100 text-slate-600', wyslane: 'bg-sky-100 text-sky-800', brak_odpowiedzi: 'bg-amber-100 text-amber-800',

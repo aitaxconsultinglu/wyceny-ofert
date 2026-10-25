@@ -57,7 +57,17 @@ export function terminOfertZTresci(tekst: string): string | null {
   const t = (tekst ?? '').replace(/\s+/g, ' ')
   const m = /termin\w*\s+(?:składania|złożenia|przesłania|nadsyłania|na złożenie)\s+ofert\w*[^0-9]{0,60}?(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:[^0-9]{0,15}?(\d{1,2})[:.](\d{2}))?/i.exec(t)
     ?? /ofert\w*\s+(?:prosimy\s+)?(?:składać|złożyć|przesłać)\s+(?:do|w terminie do)\s+(?:dnia\s+)?(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:[^0-9]{0,15}?(\d{1,2})[:.](\d{2}))?/i.exec(t)
-  if (!m) return null
+    // Po angielsku: "Deadline for submission of quotations: 05.11.2026 12:00", "offers due by 05/11/2026", "closing date".
+    ?? /(?:deadline|due date|closing date|submission date|bid due)\b[^0-9]{0,60}?(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:[^0-9]{0,15}?(\d{1,2})[:.](\d{2}))?/i.exec(t)
+    ?? /(?:offers?|quotations?|quotes?|bids?|tenders?)\s+(?:shall\s+|should\s+|must\s+)?(?:be\s+)?(?:submitted|sent|received|due)\s+(?:by|before|until|no later than)\s+(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:[^0-9]{0,15}?(\d{1,2})[:.](\d{2}))?/i.exec(t)
+  if (!m) {
+    // Data ISO po słowach o terminie: "termin składania ofert: 2026-11-05", "deadline: 2026-11-05 12:00".
+    const iso = /(?:termin\w*\s+(?:składania|złożenia)\s+ofert\w*|deadline|due date|closing date)[^0-9]{0,40}?(\d{4})-(\d{2})-(\d{2})(?:[^0-9]{0,15}?(\d{1,2})[:.](\d{2}))?/i.exec(t)
+    if (!iso) return null
+    const [, r, mi, d, g, min] = iso
+    const data = new Date(Number(r), Number(mi) - 1, Number(d), g ? Number(g) : 12, min ? Number(min) : 0)
+    return Number.isNaN(data.getTime()) || data.getDate() !== Number(d) ? null : data.toISOString()
+  }
   const [, d, mi, r, g, min] = m
   const data = new Date(Number(r), Number(mi) - 1, Number(d), g ? Number(g) : 12, min ? Number(min) : 0)
   return Number.isNaN(data.getTime()) || data.getDate() !== Number(d) ? null : data.toISOString()
@@ -66,7 +76,7 @@ export function terminOfertZTresci(tekst: string): string | null {
 /** "Zapytanie ofertowe nr ZO-123/2026", "numer postępowania: 4500123" -> numer klienta. */
 export function nrZapytaniaZTresci(temat: string, tekst: string): string {
   for (const zrodlo of [temat, tekst]) {
-    const m = /(?:zapytani\w*(?:\s+ofertow\w*)?|postępowani\w*|rfq|request for quotation)\s*(?:nr|no\.?|numer|number)\.?\s*:?\s*([A-Z0-9][\w/.\-]{2,40})/i.exec(zrodlo ?? '')
+    const m = /(?:zapytani\w*(?:\s+ofertow\w*)?|postępowani\w*|rfq|request for (?:quotation|proposal)|inquiry|enquiry|tender)\s*(?:nr|no\.?|numer|number)\.?\s*:?\s*([A-Z0-9][\w/.\-]{2,40})/i.exec(zrodlo ?? '')
       ?? /(?:nr|numer)\s+(?:zapytania|postępowania|zapotrzebowania)\s*:?\s*([A-Z0-9][\w/.\-]{2,40})/i.exec(zrodlo ?? '')
     if (m) return m[1].replace(/[.,;:]+$/, '')
   }

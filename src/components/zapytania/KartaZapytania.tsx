@@ -21,6 +21,7 @@ import { ZapytaniaDoDostawcow } from '../zapytaniaDostawcow/ZapytaniaDoDostawcow
 import { PrzygotowanieAutomatyczne } from './PrzygotowanieAutomatyczne'
 import { FLAGA_PRZYGOTUJ } from './NoweZMaila'
 import { WycenaMaterialowa } from './WycenaMaterialowa'
+import { t } from '@/i18n'
 
 interface Zapytanie {
   id: string; numer: string; klient_id: string | null; przedmiot: string; nr_zapytania_klienta: string | null
@@ -94,7 +95,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
       .then(({ data }) => setHistoria((data ?? []) as typeof historia))
   }, [zakladka, id])
 
-  if (!z) return <p className="text-slate-500">{blad ?? 'Wczytywanie...'}</p>
+  if (!z) return <p className="text-slate-500">{blad ?? t('Wczytywanie...')}</p>
   const ust = (zm: Partial<Zapytanie>) => { setZ({ ...z, ...zm }); setZmieniony(true); setInfo(null) }
 
   async function zapisz() {
@@ -104,11 +105,11 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     void _id; void _m
     const { error } = await supabase.from('zapytania').update(dane).eq('id', z.id)
     if (error) { setBlad(komunikatPL(error.message)); return }
-    setInfo('Zapisano.'); await wczytaj()
+    setInfo(t('Zapisano.')); await wczytaj()
   }
 
   async function dodajKlienta() {
-    const nazwa = window.prompt('Nazwa nowego klienta:')
+    const nazwa = window.prompt(t('Nazwa nowego klienta:'))
     if (!nazwa?.trim()) return
     const { data, error } = await supabase.from('klienci').insert({ nazwa: nazwa.trim() }).select('id, nazwa').single()
     if (error) { setBlad(komunikatPL(error.message)); return }
@@ -124,12 +125,12 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   }
 
   async function usunZapytanie() {
-    if (!z || !window.confirm(`Przenieść zapytanie ${z.numer} do kosza razem z dokumentami, odczytami, analizą, wycenami i ofertami? Można je przywrócić z kosza.`)) return
-    try { await doKosza('zapytanie', [z.id], 'zapytania', `usunięcie zapytania ${z.numer}`); zamknij() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
+    if (!z || !window.confirm(t('Przenieść zapytanie {0} do kosza razem z dokumentami, odczytami, analizą, wycenami i ofertami? Można je przywrócić z kosza.', z.numer))) return
+    try { await doKosza('zapytanie', [z.id], 'zapytania', t('usunięcie zapytania {0}', z.numer)); zamknij() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
   async function usunWersje(w: WersjaWyceny) {
-    if (!window.confirm(`Przenieść wycenę v${w.wersja} do kosza?`)) return
-    try { await doKosza('wycena', [w.id], `zapytanie:${id}`, `usunięcie wyceny v${w.wersja}`); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
+    if (!window.confirm(t('Przenieść wycenę v{0} do kosza?', w.wersja))) return
+    try { await doKosza('wycena', [w.id], `zapytanie:${id}`, t('usunięcie wyceny v{0}', w.wersja)); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
   async function kopiuj(w: WersjaWyceny) {
@@ -141,23 +142,23 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   async function zapiszRodzaj(r: { rodzaj: RodzajAparatu | null; zakres: ZakresWymiennika | null; opis: string }) {
     if (!z || !r.rodzaj) return
     if (z.rodzaj_aparatu && (z.rodzaj_aparatu !== r.rodzaj || z.zakres_wymiennika !== r.zakres) && !window.confirm(
-      `Zmienić rodzaj na „${etykietaRodzaju(r.rodzaj, r.zakres, r.opis)}”? Zmieni się szablon elementów i kategorie tabel rysunków. Dane (dokumenty, odczyty, wyceny) zostają.`)) return
+      t('Zmienić rodzaj na „{0}”? Zmieni się szablon elementów i kategorie tabel rysunków. Dane (dokumenty, odczyty, wyceny) zostają.', etykietaRodzaju(r.rodzaj, r.zakres, r.opis)))) return
     const { error } = await supabase.from('zapytania').update({
       rodzaj_aparatu: r.rodzaj, zakres_wymiennika: r.rodzaj === 'wymiennik' ? r.zakres ?? 'kompletny' : null,
       zakres_opis: r.rodzaj === 'wymiennik' && r.zakres === 'czesc' ? r.opis.trim() || null : null,
     }).eq('id', z.id)
     if (error) { setBlad(komunikatPL(error.message)); return }
-    setZmianaRodzaju(false); setInfo('Zapisano rodzaj aparatu.'); await wczytaj()
+    setZmianaRodzaju(false); setInfo(t('Zapisano rodzaj aparatu.')); await wczytaj()
   }
 
   // Stare zapytanie bez rodzaju: najpierw wybór (od rodzaju zależą szablony, tabele rysunków i wymagania).
   if (!z.rodzaj_aparatu) {
     return (
       <div className="mx-auto max-w-xl space-y-4">
-        <Button rozmiar="maly" wariant="cichy" onClick={zamknij}><ArrowLeft className="h-4 w-4" /> Lista</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={zamknij}><ArrowLeft className="h-4 w-4" /> {t('Lista')}</Button>
         <section className="sekcja space-y-3">
           <h2 className="text-lg font-semibold">{z.numer} · {z.przedmiot}</h2>
-          <p className="text-sm text-slate-600">To zapytanie nie ma jeszcze rodzaju aparatu. Wybierz go - od rodzaju zależą szablon elementów, kategorie tabel rysunków i wymagania.</p>
+          <p className="text-sm text-slate-600">{t('To zapytanie nie ma jeszcze rodzaju aparatu. Wybierz go - od rodzaju zależą szablon elementów, kategorie tabel rysunków i wymagania.')}</p>
           {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
           <ZmianaRodzaju poczatkowy={{ rodzaj: null, zakres: null, opis: '' }} zapisz={(r) => void zapiszRodzaj(r)} />
         </section>
@@ -166,29 +167,29 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   }
 
   const kolumnyWycen: KolumnaTabeli<WersjaWyceny>[] = [
-    { id: 'wersja', naglowek: 'Wersja', typ: 'liczba', wartosc: (w) => w.wersja, className: 'font-medium text-left', komorka: (w) => <>v{w.wersja}{w.skopiowana_z && <span className="ml-1 text-xs text-slate-400">(kopia)</span>}</> },
-    { id: 'nazwa', naglowek: 'Nazwa', typ: 'tekst', wartosc: (w) => w.nazwa },
-    { id: 'status', naglowek: 'Status', typ: 'lista', wartosc: (w) => ETYKIETY_STATUSU_WYCENY[w.status], komorka: (w) => <span className={cn('znacznik', KOLORY_STATUSU_WYCENY[w.status])}>{ETYKIETY_STATUSU_WYCENY[w.status]}</span> },
-    { id: 'utworzono', naglowek: 'Utworzono', typ: 'data', wartosc: (w) => w.utworzono, komorka: (w) => dataGodzinaPL(w.utworzono), className: 'text-sm' },
-    { id: 'zatwierdzono', naglowek: 'Zatwierdzono', typ: 'data', wartosc: (w) => w.zatwierdzono, komorka: (w) => dataGodzinaPL(w.zatwierdzono), className: 'text-sm' },
-    { id: 'cena', naglowek: 'Cena końcowa', typ: 'liczba', wartosc: (w) => ceny[w.id] ?? null, komorka: (w) => (ceny[w.id] != null ? `${zl(ceny[w.id])} zł` : '') },
+    { id: 'wersja', naglowek: t('Wersja'), typ: 'liczba', wartosc: (w) => w.wersja, className: 'font-medium text-left', komorka: (w) => <>v{w.wersja}{w.skopiowana_z && <span className="ml-1 text-xs text-slate-400">{t('(kopia)')}</span>}</> },
+    { id: 'nazwa', naglowek: t('Nazwa'), typ: 'tekst', wartosc: (w) => w.nazwa },
+    { id: 'status', naglowek: t('Status'), typ: 'lista', wartosc: (w) => ETYKIETY_STATUSU_WYCENY[w.status], komorka: (w) => <span className={cn('znacznik', KOLORY_STATUSU_WYCENY[w.status])}>{ETYKIETY_STATUSU_WYCENY[w.status]}</span> },
+    { id: 'utworzono', naglowek: t('Utworzono'), typ: 'data', wartosc: (w) => w.utworzono, komorka: (w) => dataGodzinaPL(w.utworzono), className: 'text-sm' },
+    { id: 'zatwierdzono', naglowek: t('Zatwierdzono'), typ: 'data', wartosc: (w) => w.zatwierdzono, komorka: (w) => dataGodzinaPL(w.zatwierdzono), className: 'text-sm' },
+    { id: 'cena', naglowek: t('Cena końcowa'), typ: 'liczba', wartosc: (w) => ceny[w.id] ?? null, komorka: (w) => (ceny[w.id] != null ? `${zl(ceny[w.id])} zł` : '') },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true,
       komorka: (w) => (
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button rozmiar="maly" title="Skopiuj jako nową wersję" onClick={() => void kopiuj(w)}><Copy className="h-4 w-4" /> Kopiuj</Button>
-          <Button rozmiar="maly" wariant="cichy" title="Przenieś wersję do kosza" onClick={() => void usunWersje(w)}><Trash2 className="h-4 w-4" /></Button>
+          <Button rozmiar="maly" title={t('Skopiuj jako nową wersję')} onClick={() => void kopiuj(w)}><Copy className="h-4 w-4" /> {t('Kopiuj')}</Button>
+          <Button rozmiar="maly" wariant="cichy" title={t('Przenieś wersję do kosza')} onClick={() => void usunWersje(w)}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
     },
   ]
   type WpisHistorii = (typeof historia)[number]
   const kolumnyHistorii: KolumnaTabeli<WpisHistorii>[] = [
-    { id: 'czas', naglowek: 'Kiedy', typ: 'data', wartosc: (h) => h.czas, komorka: (h) => dataGodzinaPL(h.czas), className: 'whitespace-nowrap text-sm' },
-    { id: 'kto', naglowek: 'Kto', typ: 'lista', wartosc: (h) => h.user_email ?? 'system', className: 'text-sm' },
-    { id: 'co', naglowek: 'Co', typ: 'lista', wartosc: (h) => `${h.tabela} - ${h.akcja}`, className: 'text-sm' },
+    { id: 'czas', naglowek: t('Kiedy'), typ: 'data', wartosc: (h) => h.czas, komorka: (h) => dataGodzinaPL(h.czas), className: 'whitespace-nowrap text-sm' },
+    { id: 'kto', naglowek: t('Kto'), typ: 'lista', wartosc: (h) => h.user_email ?? 'system', className: 'text-sm' },
+    { id: 'co', naglowek: t('Co'), typ: 'lista', wartosc: (h) => `${h.tabela} - ${h.akcja}`, className: 'text-sm' },
     {
-      id: 'zmiany', naglowek: 'Zmiany', typ: 'tekst', className: 'font-mono text-xs text-slate-600',
+      id: 'zmiany', naglowek: t('Zmiany'), typ: 'tekst', className: 'font-mono text-xs text-slate-600',
       wartosc: (h) => (h.akcja === 'update' ? Object.entries(h.zmiany ?? {}).map(([k, v]) => `${k}: ${JSON.stringify((v as { z: unknown }).z)} → ${JSON.stringify((v as { na: unknown }).na)}`).join('; ').slice(0, 300) : ''),
     },
   ]
@@ -197,23 +198,23 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button rozmiar="maly" wariant="cichy" onClick={zamknij}><ArrowLeft className="h-4 w-4" /> Lista</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={zamknij}><ArrowLeft className="h-4 w-4" /> {t('Lista')}</Button>
         <h2 className="text-lg font-semibold">{z.numer}</h2>
         <span className="text-slate-600">{z.przedmiot}</span>
         <ZnacznikRodzaju rodzaj={z.rodzaj_aparatu} zakres={z.zakres_wymiennika} opis={z.zakres_opis} />
-        <button className="text-xs text-slate-500 underline" onClick={() => setZmianaRodzaju(!zmianaRodzaju)}>zmień rodzaj</button>
+        <button className="text-xs text-slate-500 underline" onClick={() => setZmianaRodzaju(!zmianaRodzaju)}>{t('zmień rodzaj')}</button>
         <span className="ml-auto" />
-        <Button rozmiar="maly" wariant="cichy" title="Przenieś zapytanie do kosza" onClick={() => void usunZapytanie()}><Trash2 className="h-4 w-4" /> Usuń</Button>
+        <Button rozmiar="maly" wariant="cichy" title={t('Przenieś zapytanie do kosza')} onClick={() => void usunZapytanie()}><Trash2 className="h-4 w-4" /> {t('Usuń')}</Button>
         {(
           <Button rozmiar="maly" wariant="akcent" onClick={() => setMaterialowa(true)}
-            title="Lista materiałów i parametry z rysunków, ceny z kart dostawy Optimy i ofert do tego zapytania">
-            <Sparkles className="h-4 w-4" /> Wycena materiałowa
+            title={t('Lista materiałów i parametry z rysunków, ceny z kart dostawy Optimy i ofert do tego zapytania')}>
+            <Sparkles className="h-4 w-4" /> {t('Wycena materiałowa')}
           </Button>
         )}
         {(
           <Button rozmiar="maly" wariant="akcent" onClick={() => setPrzygotowanie('reczne')}
-            title="Analiza zapytania, listy z rysunków, wstępna wycena i projekt oferty - do weryfikacji">
-            <Sparkles className="h-4 w-4" /> Przygotuj automatycznie
+            title={t('Analiza zapytania, listy z rysunków, wstępna wycena i projekt oferty - do weryfikacji')}>
+            <Sparkles className="h-4 w-4" /> {t('Przygotuj automatycznie')}
           </Button>
         )}
       </div>
@@ -231,50 +232,50 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
       {info && <Komunikat rodzaj="sukces">{info}</Komunikat>}
       {zmianaRodzaju && (
         <section className="sekcja space-y-2">
-          <p className="text-sm text-slate-600">Zmiana rodzaju zmienia szablon elementów i kategorie tabel rysunków (dane nie są kasowane).</p>
+          <p className="text-sm text-slate-600">{t('Zmiana rodzaju zmienia szablon elementów i kategorie tabel rysunków (dane nie są kasowane).')}</p>
           <ZmianaRodzaju poczatkowy={{ rodzaj: z.rodzaj_aparatu, zakres: z.zakres_wymiennika, opis: z.zakres_opis ?? '' }} zapisz={(r) => void zapiszRodzaj(r)} />
         </section>
       )}
 
       <section className="sekcja space-y-3">
         <div className="flex flex-wrap gap-3">
-          <label className="w-40"><span className="etykieta">Numer ZO</span><input className={pole} value={z.numer} onChange={(e) => ust({ numer: e.target.value })} /></label>
-          <label className="min-w-[20rem] flex-1"><span className="etykieta">Przedmiot zapytania</span><input className={pole} value={z.przedmiot} onChange={(e) => ust({ przedmiot: e.target.value })} /></label>
-          <label className="w-64"><span className="etykieta">Klient</span>
+          <label className="w-40"><span className="etykieta">{t('Numer ZO')}</span><input className={pole} value={z.numer} onChange={(e) => ust({ numer: e.target.value })} /></label>
+          <label className="min-w-[20rem] flex-1"><span className="etykieta">{t('Przedmiot zapytania')}</span><input className={pole} value={z.przedmiot} onChange={(e) => ust({ przedmiot: e.target.value })} /></label>
+          <label className="w-64"><span className="etykieta">{t('Klient')}</span>
             <div className="flex gap-1">
               <select className={pole} value={z.klient_id ?? ''} onChange={(e) => ust({ klient_id: e.target.value || null })}>
                 <option value="">-</option>{klienci.map((k) => <option key={k.id} value={k.id}>{k.nazwa}</option>)}
               </select>
-              <Button rozmiar="maly" title="Nowy klient" onClick={() => void dodajKlienta()}><Plus className="h-3 w-3" /></Button>
+              <Button rozmiar="maly" title={t('Nowy klient')} onClick={() => void dodajKlienta()}><Plus className="h-3 w-3" /></Button>
             </div></label>
-          <label className="w-48"><span className="etykieta">Status</span>
+          <label className="w-48"><span className="etykieta">{t('Status')}</span>
             <select className={pole} value={z.status} onChange={(e) => ust({ status: e.target.value as StatusZapytania })}>
               {STATUSY_ZAPYTANIA.map((s) => <option key={s.id} value={s.id}>{s.etykieta}</option>)}
             </select></label>
         </div>
         <div className="flex flex-wrap gap-3">
-          <label className="w-48"><span className="etykieta">Nr zapytania klienta</span><input className={pole} value={z.nr_zapytania_klienta ?? ''} onChange={(e) => ust({ nr_zapytania_klienta: e.target.value || null })} /></label>
-          <label className="w-48"><span className="etykieta">Nr zapotrzebowania</span><input className={pole} value={z.nr_zapotrzebowania ?? ''} onChange={(e) => ust({ nr_zapotrzebowania: e.target.value || null })} /></label>
-          <label className="w-44"><span className="etykieta">Źródło</span>
+          <label className="w-48"><span className="etykieta">{t('Nr zapytania klienta')}</span><input className={pole} value={z.nr_zapytania_klienta ?? ''} onChange={(e) => ust({ nr_zapytania_klienta: e.target.value || null })} /></label>
+          <label className="w-48"><span className="etykieta">{t('Nr zapotrzebowania')}</span><input className={pole} value={z.nr_zapotrzebowania ?? ''} onChange={(e) => ust({ nr_zapotrzebowania: e.target.value || null })} /></label>
+          <label className="w-44"><span className="etykieta">{t('Źródło')}</span>
             <select className={pole} value={z.zrodlo} onChange={(e) => ust({ zrodlo: e.target.value })}>
               {Object.entries(ZRODLA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select></label>
           {z.zrodlo === 'platforma' && (
-            <label className="w-72"><span className="etykieta">Link do platformy</span><input className={pole} value={z.link_platformy ?? ''} onChange={(e) => ust({ link_platformy: e.target.value || null })} /></label>
+            <label className="w-72"><span className="etykieta">{t('Link do platformy')}</span><input className={pole} value={z.link_platformy ?? ''} onChange={(e) => ust({ link_platformy: e.target.value || null })} /></label>
           )}
-          <label className="w-56"><span className="etykieta">Termin złożenia oferty</span><input type="datetime-local" className={pole} value={doPola(z.termin_oferty)} onChange={(e) => ust({ termin_oferty: zPola(e.target.value) })} /></label>
-          <label className="w-56"><span className="etykieta">Termin zadawania pytań</span><input type="datetime-local" className={pole} value={doPola(z.termin_pytan)} onChange={(e) => ust({ termin_pytan: zPola(e.target.value) })} /></label>
-          <label className="w-56"><span className="etykieta">Osoba prowadząca</span>
+          <label className="w-56"><span className="etykieta">{t('Termin złożenia oferty')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_oferty)} onChange={(e) => ust({ termin_oferty: zPola(e.target.value) })} /></label>
+          <label className="w-56"><span className="etykieta">{t('Termin zadawania pytań')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_pytan)} onChange={(e) => ust({ termin_pytan: zPola(e.target.value) })} /></label>
+          <label className="w-56"><span className="etykieta">{t('Osoba prowadząca')}</span>
             <select className={pole} value={z.prowadzacy ?? ''} onChange={(e) => ust({ prowadzacy: e.target.value || null })}>
               <option value="">-</option>{ludzie.map((l) => <option key={l.id} value={l.id}>{l.nazwa}</option>)}
             </select></label>
         </div>
-        <label className="block"><span className="etykieta">Uwagi</span><textarea className="pole h-16" value={z.uwagi ?? ''} onChange={(e) => ust({ uwagi: e.target.value || null })} /></label>
-        <Button wariant="glowny" disabled={!zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> Zapisz zapytanie</Button>
+        <label className="block"><span className="etykieta">{t('Uwagi')}</span><textarea className="pole h-16" value={z.uwagi ?? ''} onChange={(e) => ust({ uwagi: e.target.value || null })} /></label>
+        <Button wariant="glowny" disabled={!zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> {t('Zapisz zapytanie')}</Button>
       </section>
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {([['dokumenty', 'Dokumenty'], ['rysunki', 'Rysunki i listy'], ['analiza', 'Karta analizy'], ['wyceny', `Wyceny (${wersje.length})`], ['dostawcy', 'Zapytania do dostawców'], ['oferty', 'Oferty dostawców'], ['historia', 'Historia zmian']] as [Zakladka, string][]).map(([k, et]) => (
+        {([['dokumenty', t('Dokumenty')], ['rysunki', t('Rysunki i listy')], ['analiza', t('Karta analizy')], ['wyceny', t('Wyceny ({0})', wersje.length)], ['dostawcy', t('Zapytania do dostawców')], ['oferty', t('Oferty dostawców')], ['historia', t('Historia zmian')]] as [Zakladka, string][]).map(([k, et]) => (
           <button key={k} onClick={() => { setZakladka(k); setGeneratorZAnalizy(false) }}
             className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
         ))}
@@ -293,13 +294,13 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
       {zakladka === 'oferty' && <OfertyDoZapytania zapytanieId={id} />}
       {zakladka === 'wyceny' && (
         <div className="space-y-3">
-          <Button wariant="glowny" onClick={() => void nowaWycena()}><Plus className="h-4 w-4" /> Nowa wycena</Button>
-          <Tabela id="wersje-wycen" kolumny={kolumnyWycen} wiersze={wersje} klucz={(w) => w.id} onKlik={(w) => otworzWycene(w.id)} pusto="Brak wycen - kliknij „Nowa wycena”." />
-          {!up.widziMarze && <p className="text-xs text-slate-500">Cenę końcową widać dopiero po zatwierdzeniu przez prezesa.</p>}
+          <Button wariant="glowny" onClick={() => void nowaWycena()}><Plus className="h-4 w-4" /> {t('Nowa wycena')}</Button>
+          <Tabela id="wersje-wycen" kolumny={kolumnyWycen} wiersze={wersje} klucz={(w) => w.id} onKlik={(w) => otworzWycene(w.id)} pusto={t('Brak wycen - kliknij „Nowa wycena”.')} />
+          {!up.widziMarze && <p className="text-xs text-slate-500">{t('Cenę końcową widać dopiero po zatwierdzeniu przez prezesa.')}</p>}
         </div>
       )}
       {zakladka === 'historia' && (
-        <Tabela id="historia-zapytania" kolumny={kolumnyHistorii} wiersze={historia} klucz={(h) => h.id} pusto="Brak zmian." />
+        <Tabela id="historia-zapytania" kolumny={kolumnyHistorii} wiersze={historia} klucz={(h) => h.id} pusto={t('Brak zmian.')} />
       )}
     </div>
   )

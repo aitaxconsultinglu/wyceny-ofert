@@ -6,6 +6,7 @@ import type { StanWyceny } from './wyceny'
 import { policzPozycje, type ParametryKalk } from './kalkulacja'
 import { PROG_PEWNOSCI } from './rysunki'
 import { wiekMiesiecy } from './bazaCen'
+import { t } from '@/i18n'
 
 /** Aparaty z karty analizy; bez nich - jeden aparat z przedmiotu zapytania. */
 export function aparatyZKarty(k: KartaAnalizy | null, przedmiot: string): AparatAnalizy[] {
@@ -141,23 +142,23 @@ export function punktyWeryfikacji(stan: StanWyceny, par: ParametryKalk, k: Karta
   const pkt: PunktWeryfikacji[] = []
   for (const a of stan.aparaty) {
     const pref = stan.aparaty.length > 1 ? `${a.nazwa}: ` : ''
-    if (!a.masa_netto_kg) pkt.push({ rodzaj: 'masa', opis: `${pref}brak masy netto aparatu - robocizna wskaźnikowa i zł/kg nie policzą się`, gdzie: 'wycena' })
-    if (a.metoda_robocizny === 'wskaznikowa' && (!a.wskaznik_rbh_t || !a.stawka_wskaznikowa)) pkt.push({ rodzaj: 'robocizna', opis: `${pref}uzupełnij wskaźnik rbh/t i stawkę (brak podobnych zleceń w bazie)`, gdzie: 'wycena' })
-    else if (a.metoda_robocizny === 'wskaznikowa') pkt.push({ rodzaj: 'robocizna', opis: `${pref}robocizna wskaźnikowa ${a.wskaznik_rbh_t} rbh/t z podobnych zleceń - sprawdź`, gdzie: 'wycena' })
+    if (!a.masa_netto_kg) pkt.push({ rodzaj: 'masa', opis: t('{0}brak masy netto aparatu - robocizna wskaźnikowa i zł/kg nie policzą się', pref), gdzie: 'wycena' })
+    if (a.metoda_robocizny === 'wskaznikowa' && (!a.wskaznik_rbh_t || !a.stawka_wskaznikowa)) pkt.push({ rodzaj: 'robocizna', opis: t('{0}uzupełnij wskaźnik rbh/t i stawkę (brak podobnych zleceń w bazie)', pref), gdzie: 'wycena' })
+    else if (a.metoda_robocizny === 'wskaznikowa') pkt.push({ rodzaj: 'robocizna', opis: t('{0}robocizna wskaźnikowa {1} rbh/t z podobnych zleceń - sprawdź', pref, a.wskaznik_rbh_t), gdzie: 'wycena' })
     const bezCeny = a.pozycje.filter((p) => (p.zakladka === 'materialy' || p.zakladka === 'kooperacja') && !p.wartosc_reczna && policzPozycje(p, par).koszt === 0)
-    if (bezCeny.length) pkt.push({ rodzaj: 'cena', opis: `${pref}${bezCeny.length} poz. bez ceny (${bezCeny.slice(0, 4).map((p) => p.nazwa).join(', ')}${bezCeny.length > 4 ? '...' : ''})`, gdzie: 'wycena' })
+    if (bezCeny.length) pkt.push({ rodzaj: 'cena', opis: t('{0}{1} poz. bez ceny ({2}{3})', pref, bezCeny.length, bezCeny.slice(0, 4).map((p) => p.nazwa).join(', '), bezCeny.length > 4 ? '...' : ''), gdzie: 'wycena' })
     const stare = a.pozycje.filter((p) => p.zrodlo_data && (wiekMiesiecy(p.zrodlo_data, dzis) ?? 0) >= wiekOstrzezenieMies)
-    if (stare.length) pkt.push({ rodzaj: 'stara_cena', opis: `${pref}${stare.length} poz. z ceną starszą niż ${wiekOstrzezenieMies} mies.`, gdzie: 'wycena' })
+    if (stare.length) pkt.push({ rodzaj: 'stara_cena', opis: t('{0}{1} poz. z ceną starszą niż {2} mies.', pref, stare.length, wiekOstrzezenieMies), gdzie: 'wycena' })
     const przybl = a.pozycje.filter((p) => /przybliżon/.test(p.uwagi ?? ''))
-    if (przybl.length) pkt.push({ rodzaj: 'cena_przyblizona', opis: `${pref}${przybl.length} poz. z ceną przybliżoną (kategoria + gatunek, bez wymiarów)`, gdzie: 'wycena' })
+    if (przybl.length) pkt.push({ rodzaj: 'cena_przyblizona', opis: t('{0}{1} poz. z ceną przybliżoną (kategoria + gatunek, bez wymiarów)', pref, przybl.length), gdzie: 'wycena' })
     const niepewne = a.pozycje.filter((p) => p.pewnosc !== null && p.pewnosc !== undefined && Number(p.pewnosc) < PROG_PEWNOSCI)
-    if (niepewne.length) pkt.push({ rodzaj: 'odczyt', opis: `${pref}${niepewne.length} poz. z niepewnym odczytem z rysunku "(?)"`, gdzie: 'rysunki' })
+    if (niepewne.length) pkt.push({ rodzaj: 'odczyt', opis: t('{0}{1} poz. z niepewnym odczytem z rysunku "(?)"', pref, niepewne.length), gdzie: 'rysunki' })
   }
   if (k) {
-    for (const w of k.wymagania.filter((x) => x.stan === 'do_wyjasnienia')) pkt.push({ rodzaj: 'wymaganie', opis: `do wyjaśnienia: ${w.nazwa}${w.opis ? ` - ${w.opis}` : ''}`, gdzie: 'karta' })
+    for (const w of k.wymagania.filter((x) => x.stan === 'do_wyjasnienia')) pkt.push({ rodzaj: 'wymaganie', opis: t('do wyjaśnienia: {0}{1}', w.nazwa, w.opis ? ` - ${w.opis}` : ''), gdzie: 'karta' })
     for (const n of k.niespojnosci) pkt.push({ rodzaj: 'niespojnosc', opis: n.opis, gdzie: 'karta' })
     const pytania = k.pytania.filter((p) => !p.odpowiedz.trim())
-    if (pytania.length) pkt.push({ rodzaj: 'pytanie', opis: `${pytania.length} pytań do klienta bez odpowiedzi`, gdzie: 'karta' })
+    if (pytania.length) pkt.push({ rodzaj: 'pytanie', opis: t('{0} pytań do klienta bez odpowiedzi', pytania.length), gdzie: 'karta' })
   }
   return pkt
 }

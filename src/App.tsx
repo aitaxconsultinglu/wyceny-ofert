@@ -24,6 +24,7 @@ import { Kosz } from './components/kosz/Kosz'
 import { Button } from './components/ui/button'
 import { PasekHistorii } from './components/ui/PasekHistorii'
 import { ustawUzytkownikaTabel } from '@/lib/tabela'
+import { JEZYKI, jezyk, t, ustawJezyk, type Jezyk } from '@/i18n'
 
 type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'kosz' | 'zatwierdzanie' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
 
@@ -53,8 +54,11 @@ export default function App() {
 
   const wczytajProfil = useCallback(async (userId: string) => {
     const { data } = await supabase.from('profiles')
-      .select('id, email, nazwa, rola, widzi_marze, wymaga_zmiany_hasla').eq('id', userId).maybeSingle()
-    setProfil((data as Profil | null) ?? null)
+      .select('id, email, nazwa, rola, widzi_marze, wymaga_zmiany_hasla, jezyk').eq('id', userId).maybeSingle()
+    const p = (data as Profil | null) ?? null
+    // Język z profilu ma pierwszeństwo przed zapamiętanym w tej przeglądarce (inny komputer, inne konto).
+    if (p?.jezyk && p.jezyk !== jezyk()) { ustawJezyk(p.jezyk); return }
+    setProfil(p)
   }, [])
 
   useEffect(() => {
@@ -79,7 +83,7 @@ export default function App() {
   }, [sesja?.user.id, wczytajProfil]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (ladowanie) {
-    return <div className="flex min-h-screen items-center justify-center text-slate-500">Wczytywanie...</div>
+    return <div className="flex min-h-screen items-center justify-center text-slate-500">{t('Wczytywanie...')}</div>
   }
   if (!sesja) return <Logowanie />
 
@@ -98,16 +102,15 @@ export default function App() {
     )
   }
   if (profil === undefined) {
-    return <div className="flex min-h-screen items-center justify-center text-slate-500">Wczytywanie profilu...</div>
+    return <div className="flex min-h-screen items-center justify-center text-slate-500">{t('Wczytywanie profilu...')}</div>
   }
   if (profil === null) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="max-w-md text-slate-700">
-          Konto <strong>{sesja.user.email}</strong> nie ma nadanych uprawnień w aplikacji.
-          Poproś administratora o dodanie konta.
+          {t('Konto')}{' '}<strong>{sesja.user.email}</strong> {t('nie ma nadanych uprawnień w aplikacji. Poproś administratora o dodanie konta.')}
         </p>
-        <Button onClick={() => supabase.auth.signOut()}>Wyloguj</Button>
+        <Button onClick={() => supabase.auth.signOut()}>{t('Wyloguj')}</Button>
       </div>
     )
   }
@@ -128,24 +131,29 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
   const [{ widok, id }, ustawWidok] = useWidok()
   const up = uprawnienia(profil)
   ustawUzytkownikaTabel(profil.id)
+  async function zmienJezyk(j: Jezyk) {
+    if (j === jezyk()) return
+    await supabase.rpc('ustaw_jezyk', { p_jezyk: j })
+    ustawJezyk(j)
+  }
 
   // Dwa moduły: proces od zapytania do wyceny i dane historyczne (cennik). Ustawienia, użytkownicy, instrukcja - osobno.
   const modul1: { id: Widok; etykieta: string }[] = [
-    { id: 'zapytania', etykieta: 'Zapytania' },
-    { id: 'edytowalne', etykieta: 'Wersje edytowalne' },
-    { id: 'oferty', etykieta: 'Oferty dostawców' },
-    ...(profil.rola === 'prezes' ? [{ id: 'zatwierdzanie' as Widok, etykieta: 'Do zatwierdzenia' }] : []),
+    { id: 'zapytania', etykieta: t('Zapytania') },
+    { id: 'edytowalne', etykieta: t('Wersje edytowalne') },
+    { id: 'oferty', etykieta: t('Oferty dostawców') },
+    ...(profil.rola === 'prezes' ? [{ id: 'zatwierdzanie' as Widok, etykieta: t('Do zatwierdzenia') }] : []),
   ]
   const modul2: { id: Widok; etykieta: string }[] = [
-    { id: 'zakupy', etykieta: 'Zakupy (Optima)' },
-    { id: 'uslugi', etykieta: 'Usługi kooperacyjne' },
-    { id: 'projekty', etykieta: 'Projekty zrealizowane' },
+    { id: 'zakupy', etykieta: t('Zakupy (Optima)') },
+    { id: 'uslugi', etykieta: t('Usługi kooperacyjne') },
+    { id: 'projekty', etykieta: t('Projekty zrealizowane') },
   ]
   const poza: { id: Widok; etykieta: string; ikona: typeof Settings }[] = [
-    ...(up.ustawienia ? [{ id: 'ustawienia' as Widok, etykieta: 'Ustawienia', ikona: Settings }] : []),
-    ...(up.uzytkownicy ? [{ id: 'uzytkownicy' as Widok, etykieta: 'Użytkownicy', ikona: Users }] : []),
-    { id: 'kosz', etykieta: 'Kosz', ikona: Trash2 },
-    { id: 'instrukcja', etykieta: 'Instrukcja', ikona: BookOpen },
+    ...(up.ustawienia ? [{ id: 'ustawienia' as Widok, etykieta: t('Ustawienia'), ikona: Settings }] : []),
+    ...(up.uzytkownicy ? [{ id: 'uzytkownicy' as Widok, etykieta: t('Użytkownicy'), ikona: Users }] : []),
+    { id: 'kosz', etykieta: t('Kosz'), ikona: Trash2 },
+    { id: 'instrukcja', etykieta: t('Instrukcja'), ikona: BookOpen },
   ]
   // Widok niedostępny dla roli (np. technolog wpisał #/ustawienia) - pokazujemy start.
   // Edytor wyceny (#/wyceny/<id>) należy do modułu zapytań.
@@ -163,12 +171,12 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             {/* Logo i nazwa firmy z ustawień (baza) - w repozytorium nie ma danych firmy. */}
             <img src={firma?.logo || `${import.meta.env.BASE_URL}ikona.svg`} alt="" className="h-7 w-auto" />
             <div className="border-l border-slate-200 pl-3">
-              <h1 className="text-sm font-semibold leading-tight">Wyceny i oferty</h1>
+              <h1 className="text-sm font-semibold leading-tight">{t('Wyceny i oferty')}</h1>
               {firma?.nazwa && <p className="text-xs text-slate-500">{firma.nazwa}</p>}
             </div>
           </div>
-          <nav className="flex rounded-lg bg-slate-100 p-0.5" aria-label="Moduły">
-            {([['zapytania', 'Zapytania ofertowe i wyceny', !wModule2 && zakladki.length > 0], ['zakupy', 'Historyczny cennik', wModule2]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
+          <nav className="flex rounded-lg bg-slate-100 p-0.5" aria-label={t('Moduły')}>
+            {([['zapytania', t('Zapytania ofertowe i wyceny'), !wModule2 && zakladki.length > 0], ['zakupy', t('Historyczny cennik'), wModule2]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
               <button key={cel} onClick={() => ustawWidok(cel)}
                 className={cn('rounded-md px-3 py-1.5 text-sm font-semibold', akt ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
                 {et}
@@ -177,6 +185,12 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <PasekHistorii />
+            <div className="flex rounded-md border border-slate-200 text-xs" role="group" aria-label={t('Język')}>
+              {JEZYKI.map((j) => (
+                <button key={j.id} title={j.id === 'pl' ? t('Polski') : t('English')} onClick={() => void zmienJezyk(j.id)}
+                  className={cn('px-2 py-1 font-semibold', jezyk() === j.id ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100')}>{j.etykieta}</button>
+              ))}
+            </div>
             {poza.map((z) => (
               <Button key={z.id} wariant="cichy" rozmiar="maly" title={z.etykieta} onClick={() => ustawWidok(z.id)}
                 className={cn(aktywny === z.id && 'bg-limonka-jasna')}><z.ikona className="h-4 w-4" /><span className="hidden xl:inline">{z.etykieta}</span></Button>
@@ -185,11 +199,11 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             <div className="text-right">
               <p className="text-sm font-medium leading-tight">{profil.nazwa || profil.email}</p>
               <p className="text-xs text-slate-500">
-                {ETYKIETY_ROLI[profil.rola]}{up.widziMarze && profil.rola !== 'prezes' && profil.rola !== 'administrator' ? ' · widzi marże' : ''}
+                {ETYKIETY_ROLI[profil.rola]}{up.widziMarze && profil.rola !== 'prezes' && profil.rola !== 'administrator' ? t(' · widzi marże') : ''}
               </p>
             </div>
-            <Button wariant="cichy" rozmiar="maly" onClick={zmienHaslo} title="Zmień hasło"><KeyRound className="h-4 w-4" /></Button>
-            <Button wariant="cichy" rozmiar="maly" onClick={() => supabase.auth.signOut()} title="Wyloguj"><LogOut className="h-4 w-4" /></Button>
+            <Button wariant="cichy" rozmiar="maly" onClick={zmienHaslo} title={t('Zmień hasło')}><KeyRound className="h-4 w-4" /></Button>
+            <Button wariant="cichy" rozmiar="maly" onClick={() => supabase.auth.signOut()} title={t('Wyloguj')}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
         {zakladki.length > 0 && (
@@ -208,11 +222,11 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
       <main className="mx-auto max-w-[1500px] px-4 py-6">
         {blad ? (
           <div className="sekcja text-center">
-            <p className="text-red-700">Nie udało się wczytać słowników: {blad}</p>
-            <Button className="mt-3" onClick={() => void odswiez()}>Spróbuj ponownie</Button>
+            <p className="text-red-700">{t('Nie udało się wczytać słowników:')}{' '}{blad}</p>
+            <Button className="mt-3" onClick={() => void odswiez()}>{t('Spróbuj ponownie')}</Button>
           </div>
         ) : !gotowe ? (
-          <p className="text-center text-slate-500">Wczytywanie słowników...</p>
+          <p className="text-center text-slate-500">{t('Wczytywanie słowników...')}</p>
         ) : aktywny === 'ustawienia' ? (
           <Ustawienia />
         ) : aktywny === 'uzytkownicy' ? (
@@ -238,10 +252,9 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
           <Zakupy profil={profil} />
         ) : aktywny === 'uslugi' ? (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Usługi kooperacyjne</h2>
+            <h2 className="text-lg font-semibold">{t('Usługi kooperacyjne')}</h2>
             <p className="text-sm text-slate-600">
-              Oferty kooperantów i usługi z kart dostawy. Porównanie wg wielkości odniesienia kategorii (malowanie zł/m², PWHT kwota za aparat,
-              NDT zł/mb, transport kwota za kurs). Nowe oferty usług dodajesz w zakładce Oferty dostawców.
+              {t('Oferty kooperantów i usługi z kart dostawy. Porównanie wg wielkości odniesienia kategorii (malowanie zł/m², PWHT kwota za aparat, NDT zł/mb, transport kwota za kurs). Nowe oferty usług dodajesz w zakładce Oferty dostawców.')}
             </p>
             <Porownywarka tylkoUslugi />
           </div>

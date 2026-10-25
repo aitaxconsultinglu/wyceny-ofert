@@ -2,6 +2,7 @@
 // Materiały+, Dokum, Badania, UDT, Robocizna Rbh, Montaż) do nowej metody. Narzut zakupowy i stawkę
 // robocizny odczytujemy z formuł (=Q5*1.05, =Z5+(AA5*120)+AB5).
 import type { AparatKalk, PozycjaKalk, Zakladka } from './kalkulacja'
+import { t } from '@/i18n'
 
 export interface Komorka { v: unknown; f?: string }
 export type Wiersz = (Komorka | null)[]
@@ -39,7 +40,7 @@ export interface StaraKalkulacja {
 
 export function importujStaraKalkulacje(wiersze: Wiersz[]): StaraKalkulacja {
   const idxNagl = wiersze.findIndex((w) => w.some((k) => /^Urządzenie$/i.test(tekst(k))))
-  if (idxNagl < 0) throw new Error('To nie jest stara Kalkulacja.xlsx (brak nagłówka "Urządzenie").')
+  if (idxNagl < 0) throw new Error(t('To nie jest stara Kalkulacja.xlsx (brak nagłówka "Urządzenie").'))
   const nagl = wiersze[idxNagl].map(tekst)
   const kol = (wzor: RegExp) => nagl.findIndex((n) => wzor.test(n))
   const kIlosc = kol(/^Ilość/i); const kMat = kol(/^Mat\./i); const kMasaAp = kol(/^Q apar/i)

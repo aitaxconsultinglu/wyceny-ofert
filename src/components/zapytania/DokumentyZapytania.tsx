@@ -12,6 +12,7 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { doKosza } from '@/lib/kosz'
 import { Tabela, type KolumnaTabeli } from '../ui/Tabela'
+import { t } from '@/i18n'
 
 export interface Dokument {
   id: string; nazwa_pliku: string; typ: TypDokumentu; mime: string | null; rozmiar: number | null; sciezka: string | null
@@ -20,7 +21,7 @@ export interface Dokument {
 }
 
 const STANY: Record<Dokument['stan'], string> = {
-  zapisany: '', tylko_tekst: 'tylko tekst', pominiety_limit: 'pominięty - limit planu', zarchiwizowany: 'zarchiwizowany (oryginał w ZIP)',
+  zapisany: '', tylko_tekst: t('tylko tekst'), pominiety_limit: t('pominięty - limit planu'), zarchiwizowany: t('zarchiwizowany (oryginał w ZIP)'),
 }
 
 export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId: string; numer: string; profil: Profil }) {
@@ -51,11 +52,11 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
     const ostrz: string[] = []
     let ile = 0
     for (const f of [...pliki]) {
-      setZajety(`Wczytywanie ${f.name}...`)
+      setZajety(t('Wczytywanie {0}...', f.name))
       try {
         const wczytane = splaszczArchiwa([await wczytajPlik(f)])
         for (const w of wczytane) {
-          setZajety(`Zapisywanie ${w.nazwa}...`)
+          setZajety(t('Zapisywanie {0}...', w.nazwa))
           const { ostrzezenia } = await zapiszDokument(w, { zapytanie_id: zapytanieId }, { limitMb: s.ustawienia.limity_planu.plik_mb })
           ostrz.push(...ostrzezenia)
           ile += 1 + w.zalaczniki.length
@@ -63,7 +64,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
       } catch (e) { ostrz.push(e instanceof Error ? e.message : String(e)) }
     }
     setZajety(null)
-    setInfo(`Dodano ${ile} dokumentów.${ostrz.length ? ' Uwagi: ' + ostrz.join(' ') : ''}`)
+    setInfo(t('Dodano {0} dokumentów.{1}', ile, ostrz.length ? ' Uwagi: ' + ostrz.join(' ') : ''))
     await wczytaj()
   }
 
@@ -74,21 +75,21 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
   }
 
   async function usun(d: Dokument) {
-    if (!window.confirm(`Przenieść dokument ${d.nazwa_pliku}${d.nadrzedny_id ? '' : ' (razem z załącznikami)'} do kosza?`)) return
+    if (!window.confirm(t('Przenieść dokument {0}{1} do kosza?', d.nazwa_pliku, d.nadrzedny_id ? '' : ' (razem z załącznikami)'))) return
     try { await doKosza('dokument', [d.id], `zapytanie:${zapytanieId}`); await wczytaj() } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
   /** ZIP z oryginałami, potem usunięcie plików ze Storage - zostają teksty i wyniki analiz. */
   async function archiwizuj() {
     const zPlikami = dokumenty.filter((d) => d.sciezka && d.stan === 'zapisany')
-    if (!zPlikami.length) { setInfo('Brak plików do archiwizacji.'); return }
-    if (!window.confirm(`Pobrać ZIP z ${zPlikami.length} oryginałami i usunąć je z bazy? Teksty dokumentów i wyniki analiz zostaną w aplikacji.`)) return
+    if (!zPlikami.length) { setInfo(t('Brak plików do archiwizacji.')); return }
+    if (!window.confirm(t('Pobrać ZIP z {0} oryginałami i usunąć je z bazy? Teksty dokumentów i wyniki analiz zostaną w aplikacji.', zPlikami.length))) return
     setBlad(null)
     try {
       const { zipSync } = await import('fflate')
       const pliki: Record<string, Uint8Array> = {}
       for (const [i, d] of zPlikami.entries()) {
-        setZajety(`Pobieranie ${i + 1}/${zPlikami.length}: ${d.nazwa_pliku}`)
+        setZajety(t('Pobieranie {0}/{1}: {2}', i + 1, zPlikami.length, d.nazwa_pliku))
         pliki[`${String(i + 1).padStart(2, '0')}_${bezpiecznaNazwa(d.nazwa_pliku)}`] = await pobierzBajty(d.sciezka!)
       }
       const zip = zipSync(pliki, { level: 6 })
@@ -96,7 +97,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
       const a = document.createElement('a')
       a.href = url; a.download = `${numer.replace(/\//g, '-')}_dokumenty.zip`; a.click()
       URL.revokeObjectURL(url)
-      setZajety('Usuwanie oryginałów z bazy...')
+      setZajety(t('Usuwanie oryginałów z bazy...'))
       for (const d of zPlikami) {
         const { error } = await supabase.from('dokumenty').update({ stan: 'zarchiwizowany' }).eq('id', d.id)
         if (error) throw new Error(komunikatPL(error.message))
@@ -104,7 +105,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
       const { error } = await supabase.storage.from('dokumenty').remove(zPlikami.map((d) => d.sciezka!))
       if (error) throw new Error(komunikatPL(error.message))
       await supabase.from('dokumenty').update({ sciezka: null }).in('id', zPlikami.map((d) => d.id))
-      setInfo(`Zarchiwizowano ${zPlikami.length} plików (ZIP pobrany). Zwolniono ${rozmiar(zPlikami.reduce((a, d) => a + (d.rozmiar ?? 0), 0))}.`)
+      setInfo(t('Zarchiwizowano {0} plików (ZIP pobrany). Zwolniono {1}.', zPlikami.length, rozmiar(zPlikami.reduce((a, d) => a + (d.rozmiar ?? 0), 0))))
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
     setZajety(null)
     await wczytaj()
@@ -115,7 +116,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
   const uporzadkowane = glowne.flatMap((d) => [d, ...dokumenty.filter((x) => x.nadrzedny_id === d.id)])
   const kolumny: KolumnaTabeli<Dokument>[] = [
     {
-      id: 'nazwa', naglowek: 'Dokument', typ: 'tekst', wartosc: (d) => d.nazwa_pliku,
+      id: 'nazwa', naglowek: t('Dokument'), typ: 'tekst', wartosc: (d) => d.nazwa_pliku,
       komorka: (d) => {
         const zalacznik = !!d.nadrzedny_id && dokumenty.some((x) => x.id === d.nadrzedny_id)
         return (
@@ -132,7 +133,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
       },
     },
     {
-      id: 'typ', naglowek: 'Typ', typ: 'lista', wartosc: (d) => ETYKIETY_TYPU[d.typ], className: 'w-44',
+      id: 'typ', naglowek: t('Typ'), typ: 'lista', wartosc: (d) => ETYKIETY_TYPU[d.typ], className: 'w-44',
       komorka: (d) => (
         <select className="pole-komorki text-sm" value={d.typ} onChange={(e) => void zmien(d, { typ: e.target.value as TypDokumentu })}>
           {Object.entries(ETYKIETY_TYPU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -140,19 +141,19 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
       ),
     },
     {
-      id: 'istotny', naglowek: 'Istotny', typ: 'tak_nie', wartosc: (d) => d.istotny, className: 'text-center',
-      komorka: (d) => <input type="checkbox" checked={d.istotny} title="Istotny dla wyceny (idzie do analizy AI)" onChange={(e) => void zmien(d, { istotny: e.target.checked })} />,
+      id: 'istotny', naglowek: t('Istotny'), typ: 'tak_nie', wartosc: (d) => d.istotny, className: 'text-center',
+      komorka: (d) => <input type="checkbox" checked={d.istotny} title={t('Istotny dla wyceny (idzie do analizy AI)')} onChange={(e) => void zmien(d, { istotny: e.target.checked })} />,
     },
     {
-      id: 'rozmiar', naglowek: 'Rozmiar', typ: 'liczba', wartosc: (d) => d.rozmiar, className: 'whitespace-nowrap text-xs text-left',
+      id: 'rozmiar', naglowek: t('Rozmiar'), typ: 'liczba', wartosc: (d) => d.rozmiar, className: 'whitespace-nowrap text-xs text-left',
       komorka: (d) => `${rozmiar(d.rozmiar)}${d.metadane?.stron ? `, ${String(d.metadane.stron)} str.` : ''}${d.metadane?.skan ? ', skan' : ''}`,
     },
-    { id: 'stan', naglowek: 'Stan', typ: 'lista', wartosc: (d) => STANY[d.stan] ?? null, className: 'text-xs text-amber-800' },
-    { id: 'dodano', naglowek: 'Dodano', typ: 'data', wartosc: (d) => d.utworzono, komorka: (d) => dataGodzinaPL(d.utworzono), className: 'whitespace-nowrap text-xs text-slate-500' },
+    { id: 'stan', naglowek: t('Stan'), typ: 'lista', wartosc: (d) => STANY[d.stan] ?? null, className: 'text-xs text-amber-800' },
+    { id: 'dodano', naglowek: t('Dodano'), typ: 'data', wartosc: (d) => d.utworzono, komorka: (d) => dataGodzinaPL(d.utworzono), className: 'whitespace-nowrap text-xs text-slate-500' },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true, className: 'text-center',
       komorka: (d) => (profil.rola === 'administrator' || d.utworzyl === profil.id) && (
-        <button className="text-slate-400 hover:text-red-600" title="Przenieś do kosza" onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></button>
+        <button className="text-slate-400 hover:text-red-600" title={t('Przenieś do kosza')} onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></button>
       ),
     },
   ]
@@ -169,13 +170,13 @@ export function DokumentyZapytania({ zapytanieId, numer, profil }: { zapytanieId
         className={cn('flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed bg-white p-4', przeciaganie ? 'border-blekit bg-blekit-jasny' : 'border-slate-300 hover:border-blekit')}
       >
         <Upload className="h-6 w-6 text-slate-400" />
-        <span className="text-sm">Przeciągnij pliki (PDF, DOCX, XLSX, maile .msg / .eml, ZIP) albo kliknij. Z maili wyciągamy załączniki jako osobne dokumenty, ZIP rozpakowujemy. Limit pliku: {s.ustawienia.limity_planu.plik_mb} MB.</span>
+        <span className="text-sm">{t('Przeciągnij pliki (PDF, DOCX, XLSX, maile .msg / .eml, ZIP) albo kliknij. Z maili wyciągamy załączniki jako osobne dokumenty, ZIP rozpakowujemy. Limit pliku:')}{' '}{s.ustawienia.limity_planu.plik_mb} {t('MB.')}</span>
         <input type="file" multiple className="hidden" onChange={(e) => e.target.files && void dodaj(e.target.files)} />
       </label>
-      <Tabela id="dokumenty-zapytania" kolumny={kolumny} wiersze={uporzadkowane} klucz={(d) => d.id} pusto="Brak dokumentów." />
+      <Tabela id="dokumenty-zapytania" kolumny={kolumny} wiersze={uporzadkowane} klucz={(d) => d.id} pusto={t('Brak dokumentów.')} />
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">„Istotny” = dokument idzie do analizy AI. Standardy klienta po kilkadziesiąt stron domyślnie są pomijane.</p>
-        <Button rozmiar="maly" onClick={() => void archiwizuj()} disabled={!!zajety}><Archive className="h-4 w-4" /> Archiwizuj dokumenty zapytania (ZIP)</Button>
+        <p className="text-xs text-slate-500">{t('„Istotny” = dokument idzie do analizy AI. Standardy klienta po kilkadziesiąt stron domyślnie są pomijane.')}</p>
+        <Button rozmiar="maly" onClick={() => void archiwizuj()} disabled={!!zajety}><Archive className="h-4 w-4" /> {t('Archiwizuj dokumenty zapytania (ZIP)')}</Button>
       </div>
     </div>
   )

@@ -1,22 +1,23 @@
+import { t } from '@/i18n'
 export type StatusZapytania =
   | 'nowe' | 'w_analizie' | 'zapytania_do_dostawcow' | 'kalkulacja' | 'do_zatwierdzenia'
   | 'zatwierdzona' | 'wyslana' | 'wygrana' | 'przegrana' | 'rezygnacja'
 
 export const STATUSY_ZAPYTANIA: { id: StatusZapytania; etykieta: string; kolor: string }[] = [
-  { id: 'nowe', etykieta: 'nowe', kolor: 'bg-white text-slate-700 ring-slate-300' },
-  { id: 'w_analizie', etykieta: 'w analizie', kolor: 'bg-blekit-jasny text-blekit-ciemny ring-blekit' },
-  { id: 'zapytania_do_dostawcow', etykieta: 'zapytania do dostawców', kolor: 'bg-blekit-jasny text-blekit-ciemny ring-blekit' },
-  { id: 'kalkulacja', etykieta: 'kalkulacja', kolor: 'bg-blekit-jasny text-blekit-ciemny ring-blekit' },
-  { id: 'do_zatwierdzenia', etykieta: 'do zatwierdzenia', kolor: 'bg-amber-50 text-amber-800 ring-amber-400' },
-  { id: 'zatwierdzona', etykieta: 'zatwierdzona', kolor: 'bg-limonka-jasna text-limonka-ciemna ring-limonka' },
-  { id: 'wyslana', etykieta: 'wysłana', kolor: 'bg-limonka-jasna text-limonka-ciemna ring-limonka' },
-  { id: 'wygrana', etykieta: 'wygrana', kolor: 'bg-limonka text-slate-900 ring-limonka-ciemna' },
-  { id: 'przegrana', etykieta: 'przegrana', kolor: 'bg-slate-200 text-slate-600 ring-slate-300' },
-  { id: 'rezygnacja', etykieta: 'rezygnacja', kolor: 'bg-slate-200 text-slate-600 ring-slate-300' },
+  { id: 'nowe', etykieta: t('nowe'), kolor: 'bg-white text-slate-700 ring-slate-300' },
+  { id: 'w_analizie', etykieta: t('w analizie'), kolor: 'bg-blekit-jasny text-blekit-ciemny ring-blekit' },
+  { id: 'zapytania_do_dostawcow', etykieta: t('zapytania do dostawców'), kolor: 'bg-blekit-jasny text-blekit-ciemny ring-blekit' },
+  { id: 'kalkulacja', etykieta: t('kalkulacja'), kolor: 'bg-blekit-jasny text-blekit-ciemny ring-blekit' },
+  { id: 'do_zatwierdzenia', etykieta: t('do zatwierdzenia'), kolor: 'bg-amber-50 text-amber-800 ring-amber-400' },
+  { id: 'zatwierdzona', etykieta: t('zatwierdzona'), kolor: 'bg-limonka-jasna text-limonka-ciemna ring-limonka' },
+  { id: 'wyslana', etykieta: t('wysłana'), kolor: 'bg-limonka-jasna text-limonka-ciemna ring-limonka' },
+  { id: 'wygrana', etykieta: t('wygrana'), kolor: 'bg-limonka text-slate-900 ring-limonka-ciemna' },
+  { id: 'przegrana', etykieta: t('przegrana'), kolor: 'bg-slate-200 text-slate-600 ring-slate-300' },
+  { id: 'rezygnacja', etykieta: t('rezygnacja'), kolor: 'bg-slate-200 text-slate-600 ring-slate-300' },
 ]
 export const statusZapytania = (s: StatusZapytania) => STATUSY_ZAPYTANIA.find((x) => x.id === s) ?? STATUSY_ZAPYTANIA[0]
 
-export const ZRODLA: Record<string, string> = { mail: 'mail', platforma: 'platforma zakupowa', wizja_lokalna: 'wizja lokalna', inne: 'inne' }
+export const ZRODLA: Record<string, string> = { mail: t('mail'), platforma: t('platforma zakupowa'), wizja_lokalna: t('wizja lokalna'), inne: t('inne') }
 
 /** Ile dni do terminu złożenia oferty (ujemne = po terminie), null gdy brak terminu. */
 export function dniDoTerminu(termin: string | null, teraz = new Date()) {
@@ -38,13 +39,13 @@ export type RodzajAparatu = 'zbiornik' | 'wymiennik'
 export type ZakresWymiennika = 'kompletny' | 'wiazka' | 'czesc'
 
 export const RODZAJE_APARATU: { id: RodzajAparatu; etykieta: string }[] = [
-  { id: 'zbiornik', etykieta: 'Zbiornik' },
-  { id: 'wymiennik', etykieta: 'Wymiennik ciepła' },
+  { id: 'zbiornik', etykieta: t('Zbiornik') },
+  { id: 'wymiennik', etykieta: t('Wymiennik ciepła') },
 ]
 export const ZAKRESY_WYMIENNIKA: { id: ZakresWymiennika; etykieta: string; opis: string }[] = [
-  { id: 'kompletny', etykieta: 'wymiennik kompletny', opis: 'płaszcz, komory, wiązka rurowa, podpory' },
-  { id: 'wiazka', etykieta: 'wkład rurowy (wiązka)', opis: 'ściany sitowe, rurki, przegrody, ściągi, głowica pływająca - bez płaszcza i podpór' },
-  { id: 'czesc', etykieta: 'część wymiennika - inna', opis: 'np. komora, pokrywa, wężownica - wszystkie elementy szablonu opcjonalne' },
+  { id: 'kompletny', etykieta: t('wymiennik kompletny'), opis: t('płaszcz, komory, wiązka rurowa, podpory') },
+  { id: 'wiazka', etykieta: t('wkład rurowy (wiązka)'), opis: t('ściany sitowe, rurki, przegrody, ściągi, głowica pływająca - bez płaszcza i podpór') },
+  { id: 'czesc', etykieta: t('część wymiennika - inna'), opis: t('np. komora, pokrywa, wężownica - wszystkie elementy szablonu opcjonalne') },
 ]
 
 /** Etykieta rodzaju z zakresem: "Wymiennik ciepła - wkład rurowy (wiązka)". */

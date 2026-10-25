@@ -15,6 +15,8 @@ tryb w **Ustawienia → Narzuty i parametry → Tryb aplikacji**; widoczność m
 | Wycena materiałowa jednym przyciskiem (odczyt CAD bez AI + zapisane odczyty, szablon, ceny) | karta zapytania → Wycena materiałowa | `lib/wycenaMaterialowa.ts`, `zapytania/WycenaMaterialowa.tsx` |
 | Cennik: zakupy z kart dostawy Optimy + oferty na materiały zebrane do tego zapytania | Zakupy (Optima), Oferty na materiały, wycena → Znajdź cenę | `lib/bazaCen.ts` (`cennikEtapu1`, `dobierzCene` z ceną zastępczą tej samej grupy stali), `lib/importOptima.ts`, `oferty/*` |
 | Kalkulacja materiałów (masa z wymiarów, naddatki, narzut zakupowy), eksport Excel | wycena | `lib/kalkulacja.ts`, `lib/eksportExcel.ts` |
+| Wersje edytowalne: odczyt plików (PDF, skany, zdjęcia, DOCX, XLSX, TXT, DXF) bez AI albo przez AI, wykrycie języka, tłumaczenie na polski, Word z formatowaniem, dziennik odczytów i kosztów | menu → Wersje edytowalne (moduł `wersjeEdytowalne`) | `edytowalne/*`, `lib/wersjeEdytowalne*.ts`, tryby AI `odczytaj_dokument`, `przetlumacz_dokument`, migracja `0020` |
+| Zaznaczanie obszarów z automatycznym przewijaniem (tabele dłuższe niż ekran) | Rysunki i listy, Wersje edytowalne | `ui/ZaznaczanieObszarow.tsx` |
 
 ## Ukryte w etapie 1 (gotowe, do włączenia później)
 

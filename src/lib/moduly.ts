@@ -15,8 +15,9 @@ export type Modul =
   | 'zatwierdzanie'       // zatwierdzanie przez prezesa
   | 'projekty'            // projekty zrealizowane, Registo
   | 'wycenaMaterialowa'   // etap 1: wycena materiałowa jednym przyciskiem
+  | 'wersjeEdytowalne'    // odczyt plików do wersji edytowalnych (Word), język, tłumaczenie na polski
 
-const ETAP1: Modul[] = ['wycenaMaterialowa']
+const ETAP1: Modul[] = ['wycenaMaterialowa', 'wersjeEdytowalne']
 
 export function modulWidoczny(tryb: TrybAplikacji, m: Modul): boolean {
   if (tryb === 'pelny') return true

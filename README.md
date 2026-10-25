@@ -23,6 +23,15 @@ Pełna wersja: tag `wersja-pelna-2026-10-20`, spis funkcji: [`docs/FUNKCJE.md`](
 - Cennik etapu 1: `cennikEtapu1` i `dobierzCene(..., innyGatunek)` w `src/lib/bazaCen.ts` (kolejność: oferty do zapytania →
   zakupy Optimy z równoważnikami gatunku i tą samą wielkością DN → cena zastępcza tego samego rodzaju stali, z dopiskiem).
 
+## Wersje edytowalne (od 2026-10-25)
+
+Osobny moduł w menu, niezależny od zapytań i wycen: pliki (PDF, skany, JPG / PNG, DOCX, XLSX / CSV, TXT, DXF) w tabeli
+`pliki_edytowalne` i w bucket `dokumenty` pod `edytowalne/<id>/`. Odczyt bez AI (warstwa tekstowa PDF z czcionkami,
+struktura DOCX / arkuszy, teksty DXF) albo przez AI (tryb `odczytaj_dokument`, wycinki ~200 DPI, koszt przed wywołaniem),
+język wykrywany lokalnie, tłumaczenie na polski (`przetlumacz_dokument` albo razem z odczytem), eksport do Worda
+(`src/lib/wersjeEdytowalneWord.ts`). Dziennik `odczyty_plikow` (kto, co, strony, koszt) + `ai_uzycie.plik_id`.
+Podgląd deweloperski: `edytowalne-dev.html?plik=<ścieżka w folderze materiałów>`.
+
 ## Stan prac
 
 | Etap | Zakres | Stan |

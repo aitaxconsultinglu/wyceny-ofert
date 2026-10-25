@@ -7,7 +7,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs'
 /**
  * Tylko serwer deweloperski (npm run dev): rysunki PDF i maile z lokalnego folderu materiałów (FOLDER_MATERIALOW
  * w .env) dla stron *-dev.html - podgląd modułów bez logowania. Nie trafia do buildu; serwuje wyłącznie
- * pliki .pdf / .msg / .eml z wnętrza tego folderu.
+ * pliki dokumentów (.pdf, .msg, .eml, .docx, .xlsx, .csv, .txt, .dxf, .jpg, .png) z wnętrza tego folderu.
  */
 function materialyDev(folder: string | undefined, base: string): Plugin {
   const prefiks = `${base}__materialy/`
@@ -21,9 +21,9 @@ function materialyDev(folder: string | undefined, base: string): Plugin {
         const korzen = folder ? path.resolve(folder) : ''
         const plik = korzen ? path.resolve(korzen, wzgledna) : ''
         const wSrodku = korzen && plik.startsWith(korzen + path.sep)
-        if (!wSrodku || !/\.(pdf|msg|eml)$/i.test(plik) || !existsSync(plik) || !statSync(plik).isFile()) {
+        if (!wSrodku || !/\.(pdf|msg|eml|docx|xlsx|xls|csv|txt|dxf|jpe?g|png|webp)$/i.test(plik) || !existsSync(plik) || !statSync(plik).isFile()) {
           res.statusCode = 404
-          res.end('Brak pliku (tylko .pdf, .msg, .eml z folderu materiałów).')
+          res.end('Brak pliku (tylko dokumenty: pdf, msg, eml, docx, xlsx, csv, txt, dxf, jpg, png z folderu materiałów).')
           return
         }
         res.setHeader('Content-Type', /\.pdf$/i.test(plik) ? 'application/pdf' : 'application/octet-stream')

@@ -20,11 +20,12 @@ import { ListaZapytan } from './components/zapytania/ListaZapytan'
 import { KartaZapytania } from './components/zapytania/KartaZapytania'
 import { EdytorWyceny } from './components/wycena/EdytorWyceny'
 import { KolejkaZatwierdzania } from './components/wycena/KolejkaZatwierdzania'
+import { WersjeEdytowalne } from './components/edytowalne/WersjeEdytowalne'
 import { Button } from './components/ui/button'
 
-type Widok = 'zapytania' | 'wyceny' | 'zatwierdzanie' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
+type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'zatwierdzanie' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
 
-const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'zatwierdzanie', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
+const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'zatwierdzanie', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
 
 /** Widok w adresie (#/zapytania/<id>, #/wyceny/<id>) - odświeżenie strony nie wyrzuca na start. */
 function useWidok(): [{ widok: Widok; id: string | null }, (w: Widok, id?: string | null) => void] {
@@ -128,6 +129,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
 
   const zakladki: { id: Widok; etykieta: string; grupa?: string }[] = [
     { id: 'zapytania', etykieta: 'Zapytania i wyceny' },
+    ...(widac('wersjeEdytowalne') ? [{ id: 'edytowalne' as Widok, etykieta: 'Wersje edytowalne' }] : []),
     ...(profil.rola === 'prezes' && widac('zatwierdzanie') ? [{ id: 'zatwierdzanie' as Widok, etykieta: 'Do zatwierdzenia' }] : []),
     { id: 'zakupy', etykieta: 'Zakupy (Optima)', grupa: 'Baza cen' },
     { id: 'oferty', etykieta: widac('uslugi') ? 'Oferty dostawców' : 'Oferty na materiały', grupa: 'Baza cen' },
@@ -206,6 +208,8 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
         ) : aktywny === 'wyceny' && id ? (
           <EdytorWyceny key={id} id={id} profil={profil} otworzWycene={(w) => ustawWidok('wyceny', w)}
             zamknij={() => { window.history.length > 1 ? window.history.back() : ustawWidok('zapytania') }} />
+        ) : aktywny === 'edytowalne' ? (
+          <WersjeEdytowalne profil={profil} id={id} otworz={(p) => ustawWidok('edytowalne', p)} />
         ) : aktywny === 'zatwierdzanie' ? (
           <KolejkaZatwierdzania otworz={(w) => ustawWidok('wyceny', w)} />
         ) : aktywny === 'oferty' ? (

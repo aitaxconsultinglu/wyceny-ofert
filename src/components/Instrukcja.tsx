@@ -63,6 +63,25 @@ export function Instrukcja({ profil }: { profil: Profil }) {
         </Rozdzial>
       )}
 
+      <Rozdzial tytul="Wersje edytowalne (odczyt plików, tłumaczenie, Word)">
+        <p>
+          Osobny moduł, niezwiązany z zapytaniami i wycenami: dodaj plik (PDF, skan, zdjęcie JPG / PNG, DOCX, XLSX / CSV, TXT, DXF),
+          odczytaj go i pobierz <strong>wersję edytowalną w Wordzie</strong> - z nagłówkami, akapitami, listami i tabelami. Aplikacja rozpoznaje język
+          dokumentu i może przetłumaczyć go na polski.
+        </p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><strong>Odczytaj bez AI</strong> - bez kosztów: PDF z warstwą tekstową (z programu, nie skan), DOCX, arkusze, TXT i teksty z DXF.
+            Rysunki DWG / STEP zapisz w programie CAD jako PDF.</li>
+          <li><strong>Odczytaj przez AI</strong> - skany i zdjęcia, albo gdy odczyt bez AI gubi układ. Koszt i pozostały budżet widać przed odczytem;
+            można od razu zaznaczyć tłumaczenie na polski.</li>
+          <li><strong>Zaznaczanie fragmentów</strong>: przeciągnij myszą po podglądzie (Tekst albo Tabela). Gdy tabela nie mieści się na ekranie,
+            przeciągnij do krawędzi podglądu - sam się przewinie (działa też kółko myszy w trakcie zaznaczania). Tak samo w Rysunkach.</li>
+          <li><strong>Przetłumacz na polski</strong> - tłumaczy odczytaną treść (taniej niż ponowny odczyt). Numery, normy, gatunki i jednostki
+            zostają bez zmian.</li>
+          <li><strong>Historia i budżet</strong> - kto, który plik, co odczytał (bez AI / AI / tłumaczenie) i ile to kosztowało, z podsumowaniem miesiąca na osobę.</li>
+        </ul>
+      </Rozdzial>
+
       <Rozdzial tytul="Role">
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>Dział technologów</strong> - zapytania, analiza, listy materiałowe, wyceny (bez zatwierdzania).</li>

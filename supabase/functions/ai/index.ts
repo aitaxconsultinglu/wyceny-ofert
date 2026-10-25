@@ -32,6 +32,8 @@ interface Zadanie {
   metadane?: Record<string, unknown>
   zapytanie_id?: string | null
   dokument_id?: string | null
+  /** Plik modułu "Wersje edytowalne" - koszt przypisany do pliku w ai_uzycie. */
+  plik_id?: string | null
 }
 
 /**
@@ -95,7 +97,7 @@ Deno.serve(async (req) => {
   const zapisz = (dane: Record<string, unknown>) =>
     serwisowy.from('ai_uzycie').insert({
       user_id: kto.id, tryb: zadanie.tryb, model, obrazow: obrazy.length,
-      zapytanie_id: zadanie.zapytanie_id ?? null, dokument_id: zadanie.dokument_id ?? null,
+      zapytanie_id: zadanie.zapytanie_id ?? null, dokument_id: zadanie.dokument_id ?? null, plik_id: zadanie.plik_id ?? null,
       czas_ms: Date.now() - start, ...dane,
     })
 
@@ -143,9 +145,11 @@ Deno.serve(async (req) => {
   if (zadanie.szacuj) {
     try {
       const licz = await claude.messages.countTokens({ model, system, messages: wiadomosci })
-      const usd = koszt({ input_tokens: licz.input_tokens, output_tokens: definicja.szacunekWyjscia }, ceny)
+      // Odczyt z tłumaczeniem w tym samym wywołaniu zwraca treść dwa razy.
+      const wyjscie = definicja.szacunekWyjscia * (zadanie.metadane?.tlumacz_na_polski ? 2 : 1)
+      const usd = koszt({ input_tokens: licz.input_tokens, output_tokens: wyjscie }, ceny)
       return odpowiedz({
-        szacunek: true, model, tokeny_wejscie: licz.input_tokens, tokeny_wyjscie_szac: definicja.szacunekWyjscia,
+        szacunek: true, model, tokeny_wejscie: licz.input_tokens, tokeny_wyjscie_szac: wyjscie,
         koszt_usd: usd, koszt_pln: usd * kursUsd,
         pozostalo_miesiac_pln: ai.limit_miesieczny_pln - Number(z.miesiac_pln),
       })

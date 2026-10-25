@@ -2,6 +2,7 @@
 import { wywolajFunkcje } from './supabase'
 
 export type TrybAi = 'klasyfikuj_mail' | 'wyciagnij_oferte' | 'analizuj_zapytanie' | 'wyciagnij_liste_z_rysunku' | 'normalizuj_pozycje' | 'zaproponuj_klauzule'
+  | 'odczytaj_dokument' | 'przetlumacz_dokument'
 
 export interface DaneAi {
   tekst?: string
@@ -9,6 +10,7 @@ export interface DaneAi {
   metadane?: Record<string, unknown>
   zapytanie_id?: string | null
   dokument_id?: string | null
+  plik_id?: string | null
   model?: 'tani' | 'standard' | 'najlepszy'
 }
 

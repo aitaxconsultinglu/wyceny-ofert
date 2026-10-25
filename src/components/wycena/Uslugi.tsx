@@ -88,7 +88,7 @@ function Tabela({ aparat, par, tylkoOdczyt, zmien, znajdz, zakladka, kooperacja 
       </table>
       {!tylkoOdczyt && (
         <Button rozmiar="maly" wariant="cichy" className="mt-1" onClick={() => zmien((a) => ({ ...a, pozycje: [...a.pozycje, nowa(zakladka, '', transport ? 'transport' : null)] }))}>
-          <Plus className="h-3 w-3" /> wiersz
+          <Plus className="h-3 w-3" /> {t('wiersz')}
         </Button>
       )}
     </div>
@@ -100,7 +100,7 @@ export function Kooperacja(props: Props) {
   return (
     <section className="sekcja space-y-2">
       <p className="text-xs text-slate-500">
-        {t('Usługi kooperacyjne (zwijanie, obróbka, PWHT, malowanie, sekafenowanie, izolacja...). Ceny z ofert kooperantów - przycisk lupy. Generator zapytań do kooperantów jest w karcie analizy zapytania (etap 4).')}
+        {t('Usługi kooperacyjne (zwijanie, obróbka, PWHT, malowanie, sekafenowanie, izolacja...). Ceny tylko z ofert kooperantów zebranych do tego zapytania - przycisk lupy; zapytania do kooperantów w karcie zapytania.')}
       </p>
       <Tabela {...props} zakladka="kooperacja" kooperacja />
       <div className="flex justify-end gap-6 text-sm">

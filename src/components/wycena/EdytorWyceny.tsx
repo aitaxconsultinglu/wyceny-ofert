@@ -25,23 +25,28 @@ import { Podsumowanie } from './Podsumowanie'
 import { ZnajdzCene, type WybranaCena } from './ZnajdzCene'
 import { ImportListy } from './ImportListy'
 import { EdytorOferty } from './EdytorOferty'
-import { t } from '@/i18n'
+import { Opinia } from './Opinia'
+import { adresWidoku, useZakladkaWAdresie } from '@/lib/adres'
+import { JEZYKI, jezyk, t, type Jezyk } from '@/i18n'
 
-type Zakladka = 'materialy' | 'robocizna' | 'kooperacja' | 'badania' | 'podsumowanie' | 'oferta'
+// Kolejność zakładek jak w arkuszu wzorcowym wyceny: Opinia, Materiały, Pracochłonność, Kooperacja, Badania, Podsumowanie, Oferta.
+const ZAKLADKI_WYCENY = ['wycena', 'materialy', 'robocizna', 'kooperacja', 'badania', 'podsumowanie', 'oferta'] as const
+type Zakladka = typeof ZAKLADKI_WYCENY[number]
 
-export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string; profil: Profil; zamknij: () => void; otworzWycene: (id: string) => void }) {
+export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil: Profil; otworzWycene: (id: string) => void }) {
   const s = useSlowniki()
   const up = uprawnienia(profil)
   const jestPrezesem = profil.rola === 'prezes'
   const [stan, setStan] = useState<StanWyceny | null>(null)
   const [aktywny, setAktywny] = useState(0)
-  const [zakladka, setZakladka] = useState<Zakladka>('materialy')
+  const [zakladka, setZakladka] = useZakladkaWAdresie<Zakladka>(ZAKLADKI_WYCENY, 'wycena')
   const [zmieniony, setZmieniony] = useState(false)
   const [blad, setBlad] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [zajety, setZajety] = useState(false)
   const [szukana, setSzukana] = useState<{ aparat: string; pozycja: PozycjaWyceny; uslugi: boolean } | null>(null)
   const [importOtwarty, setImportOtwarty] = useState(false)
+  const [jezykEksportu, setJezykEksportu] = useState<Jezyk>(jezyk())
   // Cofnij / Ponów: każda zmiana stanu wyceny to krok (różnica), stos per wycena w IndexedDB.
   const ustawZHistorii = useCallback((f: (s: StanWyceny) => StanWyceny) => { setStan((x) => (x ? f(x) : x)); setZmieniony(true) }, [])
   const zapiszKrok = useHistoriaStanu<StanWyceny>(`wycena:${id}`, ustawZHistorii)
@@ -164,7 +169,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
           import('@/lib/eksportExcel'), import('@/lib/analiza'),
           supabase.from('analizy_zapytan').select('dane').eq('zapytanie_id', stan.zapytanie.id).maybeSingle(),
         ])
-        await eksportujKalkulacje(stan, wynik, par!, s, up.widziMarze, an ? uzupelnijKarte(an.dane) : null)
+        await eksportujKalkulacje(stan, wynik, par!, s, up.widziMarze, an ? uzupelnijKarte(an.dane) : null, jezykEksportu)
       } else {
         const { notatkaDlaPrezesa } = await import('@/lib/eksportWord')
         await notatkaDlaPrezesa(stan, wynik, par!, s)
@@ -173,15 +178,22 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
   }
 
   const ZAKLADKI = ([
-    ['materialy', t('Materiały')], ['robocizna', t('Pracochłonność')], ['kooperacja', t('Kooperacja')], ['badania', t('Badania, odbiory, projekt, transport')],
-    ['podsumowanie', t('Podsumowanie')], ['oferta', t('Oferta dla klienta')],
+    ['wycena', t('Wycena')], ['materialy', t('Materiały')], ['robocizna', t('Robocizna')], ['kooperacja', t('Kooperacja')], ['badania', t('Badania, odbiory, transport')],
+    ['podsumowanie', t('Podsumowanie')], ['oferta', t('Oferta')],
   ] as [Zakladka, string][])
+  const doZapytania = () => { if (!zmieniony || window.confirm(t('Porzucić niezapisane zmiany?'))) window.location.hash = adresWidoku('zapytania', stan.zapytanie.id, 'wyceny').slice(1) }
   const koszt = wynik.aparaty[Math.min(aktywny, wynik.aparaty.length - 1)]
 
   return (
     <div className="space-y-4">
+      <nav className="flex flex-wrap items-center gap-1 text-xs text-slate-500" aria-label={t('Ścieżka')}>
+        <a className="hover:underline" href={adresWidoku('zapytania')}>{t('Zapytania')}</a><span>›</span>
+        <button className="hover:underline" onClick={doZapytania}>{stan.zapytanie.numer} - {stan.zapytanie.przedmiot}</button><span>›</span>
+        <span>{t('Wycena v{0}', w.wersja)}</span><span>›</span>
+        <span className="font-medium text-slate-700">{ZAKLADKI.find(([k]) => k === zakladka)?.[1]}</span>
+      </nav>
       <div className="flex flex-wrap items-center gap-3">
-        <Button rozmiar="maly" wariant="cichy" onClick={() => { if (!zmieniony || window.confirm(t('Porzucić niezapisane zmiany?'))) zamknij() }}><ArrowLeft className="h-4 w-4" /> {t('Zapytanie')}</Button>
+        <Button rozmiar="maly" wariant="cichy" onClick={doZapytania}><ArrowLeft className="h-4 w-4" /> {t('Wstecz do zapytania')}</Button>
         <h2 className="text-lg font-semibold">{stan.zapytanie.numer} {t('· wycena v')}{w.wersja}</h2>
         <span className={cn('znacznik', KOLORY_STATUSU_WYCENY[w.status])}>{ETYKIETY_STATUSU_WYCENY[w.status]}</span>
         <span className="text-sm text-slate-600">{stan.zapytanie.przedmiot}{stan.zapytanie.klient ? ` · ${stan.zapytanie.klient}` : ''}</span>
@@ -196,7 +208,12 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
           )}
           {w.status === 'do_zatwierdzenia' && !jestPrezesem && <Button disabled={zajety} onClick={() => void zmienStatus('robocza')}><Undo2 className="h-4 w-4" /> {t('Wycofaj')}</Button>}
           <Button onClick={() => void kopiuj()}><Copy className="h-4 w-4" /> {t('Kopiuj wersję')}</Button>
-          <Button onClick={() => void eksport('excel')}><FileSpreadsheet className="h-4 w-4" /> {t('Excel')}</Button>
+          <span className="inline-flex items-center">
+            <Button onClick={() => void eksport('excel')}><FileSpreadsheet className="h-4 w-4" /> {t('Excel')}</Button>
+            <select className="pole ml-1 w-16 py-1 text-xs" title={t('Język eksportu')} value={jezykEksportu} onChange={(e) => setJezykEksportu(e.target.value as Jezyk)}>
+              {JEZYKI.map((x) => <option key={x.id} value={x.id}>{x.etykieta}</option>)}
+            </select>
+          </span>
           {up.widziMarze && <Button onClick={() => void eksport('notatka')}><FileText className="h-4 w-4" /> {t('Notatka')}</Button>}
         </div>
       </div>
@@ -270,9 +287,10 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
         ))}
       </div>
 
+      {zakladka === 'wycena' && <Opinia stan={stan} wynik={wynik} profil={profil} widziMarze={up.widziMarze} zajety={zajety} zmienStatus={(st) => void zmienStatus(st)} />}
       {zakladka === 'materialy' && <Materialy aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} importuj={() => setImportOtwarty(true)} zapytanieId={stan.zapytanie.id}
         znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: false })} />}
-      {zakladka === 'robocizna' && <Pracochlonnosc aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} wycenaId={w.id} />}
+      {zakladka === 'robocizna' && <Pracochlonnosc aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} wycenaId={w.id} kto={profil.nazwa ?? profil.email} />}
       {zakladka === 'kooperacja' && <Kooperacja aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
       {zakladka === 'badania' && <BadaniaOdbioryTransport aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
       {zakladka === 'podsumowanie' && (
@@ -280,7 +298,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
           jestPrezesem={jestPrezesem} zmienMarze={ustMarze} zmienWycene={ustWycene} pobierzKurs={() => void pobierzKurs()} />
       )}
       {zakladka === 'oferta' && (
-        <EdytorOferty stan={stan} wynik={wynik} zmienWycene={ustWycene} widziMarze={up.widziMarze} zapisz={() => zapisz()} zmieniony={zmieniony} />
+        <EdytorOferty stan={stan} wynik={wynik} zmienWycene={ustWycene} widziMarze={up.widziMarze} zapisz={() => zapisz()} zmieniony={zmieniony} kto={profil.nazwa ?? profil.email} />
       )}
 
       <ZnajdzCene pozycja={szukana?.pozycja ?? null} uslugi={szukana?.uslugi} zamknij={() => setSzukana(null)} wybierz={wstawCene}

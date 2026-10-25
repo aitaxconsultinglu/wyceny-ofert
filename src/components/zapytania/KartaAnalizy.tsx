@@ -171,6 +171,7 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
       )}
 
       <KartaAnalizyWidok
+        kto={profil.nazwa ?? profil.email}
         karta={karta} zmien={zmien} dokumenty={dokumenty} ustawIstotny={(z) => void ustawIstotny(z)} liczbaOdczytow={odczytow}
         otworzRysunki={() => otworzZakladke('rysunki')}
         akcjePodsumowania={<>

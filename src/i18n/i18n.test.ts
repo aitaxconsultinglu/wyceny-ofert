@@ -6,7 +6,7 @@ import { EN } from './en'
 import { EN_BAZA } from './en-baza'
 import { t, tj } from './index'
 
-/** Klucze t('…') i tj(j, '…') użyte w kodzie aplikacji (bez testów i podglądów deweloperskich). */
+/** Klucze t('…'), L('…') i tj(j, '…') użyte w kodzie aplikacji (bez testów i podglądów deweloperskich). */
 function kluczeZKodu(): Set<string> {
   const pliki: string[] = []
   const chodz = (d: string) => {
@@ -21,7 +21,8 @@ function kluczeZKodu(): Set<string> {
     const sf = ts.createSourceFile(p, readFileSync(p, 'utf8'), ts.ScriptTarget.Latest, true, p.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
     const odw = (n: ts.Node) => {
       if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) {
-        const a = n.expression.text === 't' ? n.arguments[0] : n.expression.text === 'tj' ? n.arguments[1] : undefined
+        // L(...) - skrót tj(j, ...) w eksportach w wybranym języku.
+        const a = ['t', 'L'].includes(n.expression.text) ? n.arguments[0] : n.expression.text === 'tj' ? n.arguments[1] : undefined
         if (a && (ts.isStringLiteral(a) || ts.isNoSubstitutionTemplateLiteral(a))) klucze.add(a.text)
       }
       ts.forEachChild(n, odw)

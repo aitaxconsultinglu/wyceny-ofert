@@ -9,6 +9,7 @@ import {
 } from '@/lib/analiza'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
+import { OcenaDzialow } from './OcenaDzialow'
 import { t } from '@/i18n'
 
 const KOLOR_STANU: Record<StanWymagania, string> = {
@@ -37,7 +38,9 @@ const usun = (f: () => void) => (
 )
 
 /** Widok i edycja karty analizy (bez pobierania danych). */
-export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczbaOdczytow, akcjePodsumowania, akcjeUslug, otworzRysunki }: {
+export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczbaOdczytow, akcjePodsumowania, akcjeUslug, otworzRysunki, kto }: {
+  /** Zalogowana osoba - do zatwierdzeń bloków oceny działów. */
+  kto?: string
   karta: KartaAnalizy
   zmien: (k: KartaAnalizy) => void
   dokumenty: DokumentKarty[]
@@ -247,43 +250,7 @@ export function KartaAnalizyWidok({ karta, zmien, dokumenty, ustawIstotny, liczb
       </Sekcja>
 
       <Sekcja tytul={t('7. Ocena działów (opinia o zapytaniu)')}>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-2 text-sm">
-            <span className="etykieta">{t('Kompletność dokumentacji do zakupu materiałów')}</span>
-            {([['arkusz_danych', t('arkusz danych')], ['dokumentacja_wykonawcza', t('dokumentacja wykonawcza')], ['dokumentacja_koncesyjna', t('dokumentacja koncesyjna')], ['szkic', t('szkic / rysunek założeniowy')]] as const).map(([k, et]) => (
-              <label key={k} className="mr-4 inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.kompletnosc[k]} onChange={(e) => ustO({ kompletnosc: { ...karta.ocena.kompletnosc, [k]: e.target.checked } })} /> {et}</label>
-            ))}
-            <div>
-              <span className="etykieta">{t('Ocena technologiczna')}</span>
-              {(['pozytywna', 'negatywna'] as const).map((o) => (
-                <label key={o} className="mr-4 inline-flex items-center gap-1"><input type="radio" name="ocena-techn" checked={karta.ocena.technologiczna === o} onChange={() => ustO({ technologiczna: o })} /> {o}</label>
-              ))}
-              <input className="pole mt-1 text-sm" placeholder={t('uwagi technologiczne')} value={karta.ocena.uwagi_technologiczne} onChange={(e) => ustO({ uwagi_technologiczne: e.target.value })} />
-            </div>
-            <label className="block"><span className="etykieta">{t('Ocena spawalnicza (WPS, dodatkowe uprawnienia)')}</span>
-              <input className="pole text-sm" value={karta.ocena.spawalnicza} onChange={(e) => ustO({ spawalnicza: e.target.value })} /></label>
-            <div className="flex gap-4">
-              <label className="inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.plan_jakosci} onChange={(e) => ustO({ plan_jakosci: e.target.checked })} /> {t('plan jakości')}</label>
-              <label className="inline-flex items-center gap-1"><input type="checkbox" checked={karta.ocena.zmiana_terminu} onChange={(e) => ustO({ zmiana_terminu: e.target.checked })} /> {t('proponujemy zmianę terminu')}</label>
-            </div>
-          </div>
-          <div className="space-y-2 text-sm">
-            <span className="etykieta">{t('Terminy zakupu materiałów')}</span>
-            <table className="w-full border-collapse">
-              <tbody>
-                {karta.ocena.terminy_materialow.map((tm, i) => (
-                  <tr key={tm.grupa}>
-                    <td className="komorka w-48 text-xs">{tm.grupa}</td>
-                    <td className="komorka"><input className="pole-komorki w-full" placeholder={t('np. 8-10 tyg.')} value={tm.termin}
-                      onChange={(e) => ustO({ terminy_materialow: karta.ocena.terminy_materialow.map((x, j) => (j === i ? { ...x, termin: e.target.value } : x)) })} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <label className="block"><span className="etykieta">{t('Uwagi do przygotowania oferty')}</span>
-              <textarea className="pole h-16 text-sm" value={karta.ocena.uwagi} onChange={(e) => ustO({ uwagi: e.target.value })} /></label>
-          </div>
-        </div>
+        <OcenaDzialow ocena={karta.ocena} zmien={ustO} kto={kto} />
       </Sekcja>
 
       <Sekcja tytul={t('Najważniejsze ryzyka i uwagi')}>

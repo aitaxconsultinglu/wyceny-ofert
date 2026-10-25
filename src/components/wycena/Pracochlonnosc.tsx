@@ -7,9 +7,11 @@ import { policzAparat, type ParametryKalk } from '@/lib/kalkulacja'
 import { klucz, type Aparat, type PozycjaWyceny } from '@/lib/wyceny'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
+import { cn } from '@/lib/utils'
+import { odchylenieStawki, PRZEDZIALY_CZASU, type DodatkoweRobocizny } from '@/lib/robocizna'
 import { t } from '@/i18n'
 
-interface Props { aparat: Aparat; par: ParametryKalk; tylkoOdczyt: boolean; zmien: (f: (a: Aparat) => Aparat) => void; wycenaId: string }
+interface Props { aparat: Aparat; par: ParametryKalk; tylkoOdczyt: boolean; zmien: (f: (a: Aparat) => Aparat) => void; wycenaId: string; kto: string }
 
 interface Podobny { zrodlo: string; nazwa: string; typ: string | null; masa: number | null; material: string | null; rbh_t_wycena: number | null; rbh_t_rzecz: number | null; zl_kg: number | null }
 
@@ -72,7 +74,7 @@ function PodobneZlecenia({ aparat, wycenaId, przyjmij, tylkoOdczyt }: { aparat: 
                 <td className="komorka liczba">{p.zl_kg !== null ? liczba(p.zl_kg, 2) : ''}</td>
                 <td className="komorka">
                   {!tylkoOdczyt && aparat.metoda_robocizny === 'wskaznikowa' && (p.rbh_t_rzecz ?? p.rbh_t_wycena) !== null && (
-                    <Button rozmiar="maly" wariant="cichy" onClick={() => przyjmij(Math.round((p.rbh_t_rzecz ?? p.rbh_t_wycena)!))}>przyjmij</Button>
+                    <Button rozmiar="maly" wariant="cichy" onClick={() => przyjmij(Math.round((p.rbh_t_rzecz ?? p.rbh_t_wycena)!))}>{t('przyjmij')}</Button>
                   )}
                 </td>
               </tr>
@@ -85,7 +87,7 @@ function PodobneZlecenia({ aparat, wycenaId, przyjmij, tylkoOdczyt }: { aparat: 
   )
 }
 
-export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId }: Props) {
+export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto }: Props) {
   const s = useSlowniki()
   const k = policzAparat(aparat, par)
   const wiersze = aparat.pozycje.filter((p) => p.zakladka === 'robocizna')
@@ -93,6 +95,9 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId }: Pr
   const domyslna = aktywne.find((x) => x.domyslna)
   const ust = (zm: Partial<Aparat>) => zmien((a) => ({ ...a, ...zm }))
   const ustPoz = (kl: string, zm: Partial<PozycjaWyceny>) => zmien((a) => ({ ...a, pozycje: a.pozycje.map((p) => (p.klucz === kl ? { ...p, ...zm } : p)) }))
+  const wzorcowa = (p: PozycjaWyceny) => { const st = s.stawki.find((x) => x.id === p.stawka_id); return st ? Number(st.stawka) : null }
+  const zOdchyleniem = wiersze.filter((p) => { const o = odchylenieStawki(p.cena_jedn, wzorcowa(p)); return o !== null && o !== 0 })
+  const ustDod = (p: PozycjaWyceny, zm: DodatkoweRobocizny) => ustPoz(p.klucz, { dodatkowe: { ...p.dodatkowe, ...zm } })
 
   return (
     <div className="space-y-4">
@@ -100,7 +105,7 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId }: Pr
         {(['wskaznikowa', 'szczegolowa'] as const).map((m) => (
           <label key={m} className="flex items-center gap-1">
             <input type="radio" disabled={tylkoOdczyt} checked={aparat.metoda_robocizny === m} onChange={() => ust({ metoda_robocizny: m })} />
-            {m === 'wskaznikowa' ? t('Wskaźnikowa (masa × rbh/t × stawka)') : t('Szczegółowa (MPK × rbh × stawka)')}
+            {m === 'wskaznikowa' ? t('Wskaźnikowa (ciężar netto × rbh/t × stawka średnia)') : t('Szczegółowa - wg wyceny technologa (stanowisko × rbh × stawka)')}
           </label>
         ))}
       </div>
@@ -124,47 +129,62 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId }: Pr
       ) : (
         <section className="sekcja space-y-2">
           <table className="w-full border-collapse">
-            <thead><tr>{[t('Lp'), 'MPK', t('Rodzaj pracy / stanowisko'), t('Ilość rbh'), t('Stawka PLN/rbh'), t('Wartość PLN'), t('Uwagi'), ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
+            <thead><tr>{[t('Lp'), t('Stanowisko'), t('Przedział czasu'), t('Ilość rbh'), t('Stawka PLN/rbh'), t('Wartość PLN'), 'MPK', t('Technolog'), t('Uwagi'), ''].map((n) => <th key={n} className="komorka-naglowek">{n}</th>)}</tr></thead>
             <tbody>
-              {wiersze.map((p, i) => (
-                <tr key={p.klucz}>
-                  <td className="komorka w-8 text-center text-xs">{i + 1}</td>
-                  <td className="komorka w-24">
-                    <select className="pole-komorki" disabled={tylkoOdczyt} value={p.mpk ?? ''} onChange={(e) => ustPoz(p.klucz, { mpk: e.target.value || null })}>
-                      <option value="">-</option>{s.mpk.map((m) => <option key={m.kod} value={m.kod}>{m.kod}{m.opis ? ` ${m.opis}` : ''}</option>)}
-                    </select>
-                  </td>
-                  <td className="komorka min-w-[14rem]">
-                    <div className="flex gap-1">
-                      <input className="pole-komorki" disabled={tylkoOdczyt} value={p.nazwa} onChange={(e) => ustPoz(p.klucz, { nazwa: e.target.value })} />
-                      {!tylkoOdczyt && (
-                        <select className="pole-komorki w-8" title={t('Wybierz ze słownika stawek')} value="" onChange={(e) => {
-                          const st = aktywne.find((x) => String(x.id) === e.target.value)
-                          if (st) ustPoz(p.klucz, { nazwa: st.rodzaj_pracy, stawka_id: st.id, cena_jedn: Number(st.stawka), mpk: st.mpk_kod ?? p.mpk })
-                        }}>
-                          <option value="">▾</option>{aktywne.map((x) => <option key={x.id} value={x.id}>{x.rodzaj_pracy} - {zl(x.stawka)}</option>)}
-                        </select>
-                      )}
-                    </div>
-                  </td>
-                  <td className="komorka w-24"><PoleLiczby wartosc={p.ilosc} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { ilosc: n ?? 0 })} /></td>
-                  <td className="komorka w-24" title={p.stawka_id ? t('Stawka ze słownika - można nadpisać dla tego projektu') : undefined}>
-                    <PoleLiczby wartosc={p.cena_jedn} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { cena_jedn: n ?? 0 })} />
-                  </td>
-                  <td className="komorka liczba w-28">{zl(p.wartosc_reczna ?? p.ilosc * p.cena_jedn)}</td>
-                  <td className="komorka"><input className="pole-komorki" disabled={tylkoOdczyt} value={p.uwagi ?? ''} onChange={(e) => ustPoz(p.klucz, { uwagi: e.target.value || null })} /></td>
-                  <td className="komorka w-8 text-center">{!tylkoOdczyt && <button className="text-slate-400 hover:text-red-600" onClick={() => zmien((a) => ({ ...a, pozycje: a.pozycje.filter((x) => x.klucz !== p.klucz) }))}><Trash2 className="h-4 w-4" /></button>}</td>
-                </tr>
-              ))}
+              {wiersze.map((p, i) => {
+                const dod = (p.dodatkowe ?? {}) as DodatkoweRobocizny
+                const odch = odchylenieStawki(p.cena_jedn, wzorcowa(p))
+                return (
+                  <tr key={p.klucz}>
+                    <td className="komorka w-8 text-center text-xs">{i + 1}</td>
+                    <td className="komorka min-w-[14rem]">
+                      <div className="flex gap-1">
+                        <input className="pole-komorki" disabled={tylkoOdczyt} value={p.nazwa} onChange={(e) => ustPoz(p.klucz, { nazwa: e.target.value })} />
+                        {!tylkoOdczyt && (
+                          <select className="pole-komorki w-8" title={t('Wybierz ze słownika stawek')} value="" onChange={(e) => {
+                            const st = aktywne.find((x) => String(x.id) === e.target.value)
+                            if (st) ustPoz(p.klucz, { nazwa: st.rodzaj_pracy, stawka_id: st.id, cena_jedn: Number(st.stawka), mpk: st.mpk_kod ?? p.mpk })
+                          }}>
+                            <option value="">▾</option>{aktywne.map((x) => <option key={x.id} value={x.id}>{x.rodzaj_pracy} - {zl(x.stawka)}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </td>
+                    <td className="komorka w-32">
+                      <select className="pole-komorki" disabled={tylkoOdczyt} value={dod.przedzial ?? ''} onChange={(e) => ustDod(p, { przedzial: e.target.value || null })}>
+                        <option value="">-</option>{PRZEDZIALY_CZASU.map((x) => <option key={x.kod} value={x.kod}>{x.nazwa}</option>)}
+                      </select>
+                    </td>
+                    <td className="komorka w-24"><PoleLiczby wartosc={p.ilosc} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { ilosc: n ?? 0 })} /></td>
+                    <td className={cn('komorka w-24', odch && 'bg-amber-50')} title={odch ? t('Odchylenie od stawki słownikowej: {0} PLN', liczba(odch, 2)) : p.stawka_id ? t('Stawka ze słownika - można nadpisać dla tej wyceny') : undefined}>
+                      <PoleLiczby wartosc={p.cena_jedn} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { cena_jedn: n ?? 0 })} />
+                    </td>
+                    <td className="komorka liczba w-28">{zl(p.wartosc_reczna ?? p.ilosc * p.cena_jedn)}</td>
+                    <td className="komorka w-24">
+                      <select className="pole-komorki" disabled={tylkoOdczyt} value={p.mpk ?? ''} onChange={(e) => ustPoz(p.klucz, { mpk: e.target.value || null })}>
+                        <option value="">-</option>{s.mpk.map((m) => <option key={m.kod} value={m.kod}>{m.kod}{m.opis ? ` ${m.opis}` : ''}</option>)}
+                      </select>
+                    </td>
+                    <td className="komorka w-32"><input className="pole-komorki text-xs" disabled={tylkoOdczyt} value={dod.technolog ?? ''} onChange={(e) => ustDod(p, { technolog: e.target.value || null })} /></td>
+                    <td className="komorka"><input className="pole-komorki" disabled={tylkoOdczyt} value={p.uwagi ?? ''} onChange={(e) => ustPoz(p.klucz, { uwagi: e.target.value || null })} /></td>
+                    <td className="komorka w-8 text-center">{!tylkoOdczyt && <button className="text-slate-400 hover:text-red-600" onClick={() => zmien((a) => ({ ...a, pozycje: a.pozycje.filter((x) => x.klucz !== p.klucz) }))}><Trash2 className="h-4 w-4" /></button>}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             {!tylkoOdczyt ? (
               <Button rozmiar="maly" wariant="cichy" onClick={() => zmien((a) => ({ ...a, pozycje: [...a.pozycje, {
                 klucz: klucz(), lp: 0, zakladka: 'robocizna', sekcja: null, nazwa: domyslna?.rodzaj_pracy ?? '', ilosc: 0, jm: 'rbh',
-                cena_jedn: Number(domyslna?.stawka ?? 0), stawka_id: domyslna?.id ?? null, jednostka_ceny: 'jm', zrodlo_ceny: 'recznie', dodatkowe: {},
-              }] }))}><Plus className="h-3 w-3" /> wiersz</Button>
+                cena_jedn: Number(domyslna?.stawka ?? 0), stawka_id: domyslna?.id ?? null, jednostka_ceny: 'jm', zrodlo_ceny: 'recznie', dodatkowe: { przedzial: PRZEDZIALY_CZASU[0].kod, technolog: kto },
+              }] }))}><Plus className="h-3 w-3" /> {t('wiersz')}</Button>
             ) : <span />}
+            {!tylkoOdczyt && zOdchyleniem.length > 0 && (
+              <button className="text-xs text-blekit-ciemny underline" onClick={() => zmien((a) => ({ ...a, pozycje: a.pozycje.map((p) => { const wz = p.zakladka === 'robocizna' ? wzorcowa(p) : null; return wz === null ? p : { ...p, cena_jedn: wz } }) }))}>
+                {t('przywróć stawki ze słownika ({0})', zOdchyleniem.length)}
+              </button>
+            )}
             <div className="flex gap-4">
               <span>{t('Razem:')}{' '}<strong>{liczba(k.robocizna.rbh, 1)} rbh</strong></span>
               <span><strong>{zl(k.robocizna.wartosc)} PLN</strong></span>
@@ -174,6 +194,11 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId }: Pr
           </div>
         </section>
       )}
+
+      <section className="sekcja flex flex-wrap gap-6 text-sm">
+        <span>{t('Pracochłonność 1 szt.:')}{' '}<strong>{liczba(k.robocizna.rbh, 1)} rbh</strong> · <strong>{zl(k.robocizna.wartosc)} PLN</strong></span>
+        {aparat.ilosc !== 1 && <span>{t('dla {0} szt.:', liczba(aparat.ilosc))}{' '}<strong>{liczba(k.robocizna.rbh * aparat.ilosc, 1)} rbh</strong> · <strong>{zl(k.robocizna.wartosc * aparat.ilosc)} PLN</strong></span>}
+      </section>
 
       <PodobneZlecenia aparat={aparat} wycenaId={wycenaId} tylkoOdczyt={tylkoOdczyt} przyjmij={(n) => ust({ wskaznik_rbh_t: n })} />
     </div>

@@ -75,7 +75,7 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1500px] border-collapse">
                 <thead><tr>
-                  {[t('Lp'), t('Przeznaczenie'), t('Rodzaj'), t('Gatunek'), t('φ zew'), t('φ wew'), 'g', 'b', 'l', 'DN', 'PN', t('Ilość'), t('J.m.'), t('Masa jedn. kg'), t('Masa całk. kg'), t('Cena'), 'za', t('Koszt PLN'), t('Źródło ceny'), t('Opcj.'), t('Uwagi'), ''].map((n) => (
+                  {[t('Lp'), t('Przeznaczenie'), t('Rodzaj'), t('Gatunek'), t('φ zew'), t('φ wew'), 'g', 'b', 'l', 'DN', 'PN', t('Ilość'), t('J.m.'), t('Masa jedn. kg'), t('Masa całk. kg'), t('Cena'), t('za'), t('Koszt PLN'), t('Źródło ceny'), t('Opcj.'), t('Uwagi'), ''].map((n) => (
                     <th key={n} className="komorka-naglowek whitespace-nowrap">{n}</th>
                   ))}
                 </tr></thead>
@@ -129,16 +129,16 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
               </table>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              {!tylkoOdczyt ? <Button rozmiar="maly" wariant="cichy" onClick={() => dodaj(sekcja)}><Plus className="h-3 w-3" /> wiersz</Button> : <span />}
+              {!tylkoOdczyt ? <Button rozmiar="maly" wariant="cichy" onClick={() => dodaj(sekcja)}><Plus className="h-3 w-3" /> {t('wiersz')}</Button> : <span />}
               {podsum && (
                 <div className="flex flex-wrap items-center gap-4">
                   <span>{t('Suma:')}{' '}<strong>{zl(podsum.koszt)}</strong></span>
-                  <span className="flex items-center gap-1">naddatek
+                  <span className="flex items-center gap-1">{t('naddatek')}
                     <span className="w-14 rounded border border-slate-300 px-1"><PoleLiczby wartosc={podsum.naddatek_proc} disabled={tylkoOdczyt}
                       zmien={(n) => zmien((a) => ({ ...a, naddatki: { ...a.naddatki, [sekcja]: n ?? 0 } }))} /></span>% = {zl(podsum.naddatek)}
                   </span>
                   <span>{t('Razem:')}{' '}<strong>{zl(podsum.razem)}</strong></span>
-                  <span className="text-slate-500">masa {liczba(podsum.masa, 1)} kg</span>
+                  <span className="text-slate-500">{t('masa {0} kg', liczba(podsum.masa, 1))}</span>
                 </div>
               )}
             </div>
@@ -152,6 +152,7 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
         <span>{t('Masa brutto:')}{' '}<strong>{liczba(koszty.materialy.masa_brutto, 1)} kg</strong> ({liczba(koszty.materialy.masa_brutto / 1000, 3)} {t('t)')}</span>
         <span>{t('Narzut zakupowy')}{' '}{liczba(par.narzut_zakupowy_proc)}%: <strong>{zl(koszty.materialy.narzut_zakupowy)}</strong></span>
         <span>{t('Materiały z narzutem:')}{' '}<strong>{zl(koszty.materialy.razem)} PLN</strong> {t('(1 szt.)')}</span>
+        {aparat.ilosc !== 1 && <span>{t('dla {0} szt.:', liczba(aparat.ilosc))}{' '}<strong>{zl(koszty.materialy.razem * aparat.ilosc)} PLN</strong>{' · '}{t('masa brutto {0} kg', liczba(koszty.materialy.masa_brutto * aparat.ilosc, 1))}</span>}
       </section>
     </div>
   )

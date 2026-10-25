@@ -238,8 +238,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             ? <KartaZapytania key={id} id={id} profil={profil} zamknij={() => ustawWidok('zapytania')} otworzWycene={(w) => ustawWidok('wyceny', w)} />
             : <ListaZapytan otworz={(z) => ustawWidok('zapytania', z)} />
         ) : aktywny === 'wyceny' && id ? (
-          <EdytorWyceny key={id} id={id} profil={profil} otworzWycene={(w) => ustawWidok('wyceny', w)}
-            zamknij={() => { window.history.length > 1 ? window.history.back() : ustawWidok('zapytania') }} />
+          <EdytorWyceny key={id} id={id} profil={profil} otworzWycene={(w) => ustawWidok('wyceny', w)} />
         ) : aktywny === 'kosz' ? (
           <Kosz profil={profil} />
         ) : aktywny === 'edytowalne' ? (

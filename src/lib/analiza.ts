@@ -91,7 +91,13 @@ export interface OcenaAnalizy {
   plan_jakosci: boolean
   zmiana_terminu: boolean
   uwagi: string
+  /** Istotne problemy i ich wpływ na termin (wyżarzanie, transport ponadgabarytowy...). */
+  problemy: string
+  /** Zatwierdzenia bloków oceny ("data i podpis"): kto i kiedy - bez podpisu elektronicznego. */
+  podpisy: Partial<Record<BlokOceny, { kto: string; kiedy: string }>>
 }
+
+export type BlokOceny = 'kompletnosc' | 'technologiczna' | 'spawalnicza' | 'terminy'
 
 /** Punkt do sprawdzenia przez pracownika po automatycznym przygotowaniu. */
 export interface PunktWeryfikacji {
@@ -146,6 +152,7 @@ export function pustaKarta(): KartaAnalizy {
       kompletnosc: { arkusz_danych: false, dokumentacja_wykonawcza: false, dokumentacja_koncesyjna: false, szkic: false },
       technologiczna: null, uwagi_technologiczne: '', spawalnicza: '',
       terminy_materialow: GRUPY_TERMINOW.map((grupa) => ({ grupa, termin: '' })), plan_jakosci: false, zmiana_terminu: false, uwagi: '',
+      problemy: '', podpisy: {},
     },
     uwagi: '',
   }

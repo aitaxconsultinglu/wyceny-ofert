@@ -21,6 +21,7 @@ import { ZapytaniaDoDostawcow } from '../zapytaniaDostawcow/ZapytaniaDoDostawcow
 import { PrzygotowanieAutomatyczne } from './PrzygotowanieAutomatyczne'
 import { FLAGA_PRZYGOTUJ } from './NoweZMaila'
 import { WycenaMaterialowa } from './WycenaMaterialowa'
+import { useZakladkaWAdresie } from '@/lib/adres'
 import { t } from '@/i18n'
 
 interface Zapytanie {
@@ -31,7 +32,8 @@ interface Zapytanie {
 }
 interface WersjaWyceny { id: string; wersja: number; nazwa: string | null; status: StatusWyceny; utworzono: string; zatwierdzono: string | null; skopiowana_z: string | null }
 
-type Zakladka = 'dokumenty' | 'rysunki' | 'analiza' | 'wyceny' | 'dostawcy' | 'oferty' | 'historia'
+const ZAKLADKI_ZAPYTANIA = ['dokumenty', 'rysunki', 'analiza', 'wyceny', 'dostawcy', 'oferty', 'historia'] as const
+type Zakladka = typeof ZAKLADKI_ZAPYTANIA[number]
 
 /** "2026-11-09T12:00:00+01:00" -> wartość pola datetime-local w czasie lokalnym. */
 function doPola(iso: string | null) {
@@ -49,7 +51,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   const [ludzie, setLudzie] = useState<{ id: string; nazwa: string }[]>([])
   const [wersje, setWersje] = useState<WersjaWyceny[]>([])
   const [ceny, setCeny] = useState<Record<string, number | null>>({})
-  const [zakladka, setZakladka] = useState<Zakladka>('dokumenty')
+  const [zakladka, setZakladka] = useZakladkaWAdresie<Zakladka>(ZAKLADKI_ZAPYTANIA, 'dokumenty')
   // Przejście z karty analizy do zapytań do dostawców otwiera generator z usługami z karty.
   const [generatorZAnalizy, setGeneratorZAnalizy] = useState(false)
   // Zapytanie założone z maila z opcją "od razu przygotuj" - okno otwiera się samo.

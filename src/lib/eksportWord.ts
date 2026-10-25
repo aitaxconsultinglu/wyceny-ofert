@@ -6,6 +6,8 @@ import { policzPozycje, type ParametryKalk, type WynikWyceny } from './kalkulacj
 import type { StanWyceny } from './wyceny'
 import type { DaneFirmy, KategoriaMaterialu, OfertaDomyslne } from './types'
 import { logoFirmy, nazwaPliku, pobierzPlik } from './pobierz'
+import { rozbierzTekst, tytulSekcji, type RodzajSekcji } from './ofertaKlienta'
+import { lokalizacja, tj, type Jezyk } from '@/i18n'
 
 const fmt = (n: number | null | undefined, miejsc = 2) =>
   new Intl.NumberFormat('pl-PL', { minimumFractionDigits: miejsc, maximumFractionDigits: miejsc }).format(Number(n ?? 0))
@@ -100,6 +102,13 @@ export async function zbudujNotatke(stan: StanWyceny, wynik: WynikWyceny, par: P
   })
 }
 
+export interface SekcjaDoWydruku {
+  rodzaj: RodzajSekcji
+  tytul: string
+  /** Tekst sekcji po podstawieniu zmiennych (formatowanie: "- " punkt, **pogrubienie**). */
+  tekst: string
+}
+
 export interface DaneOferty {
   numer: string
   data: string
@@ -122,51 +131,123 @@ export interface DaneOferty {
   platnosc: string
   podpis: string
   projekt: boolean    // cena niezatwierdzona - znak "PROJEKT"
+  /** Język dokumentu (domyślnie polski). */
+  jezyk?: Jezyk
+  /** Sekcje w kolejności z edytora (tylko widoczne w wydruku); brak = układ domyślny. */
+  sekcje?: SekcjaDoWydruku[]
+  numer_oferty?: string
+  osoba_kontaktowa?: string
+  nazwa_projektu?: string
+  incoterms?: string
+  miejsce_dostawy?: string
+  kary?: string
+  zaliczki?: string
+  zalaczniki?: string[]
 }
 
 export async function ofertaDlaKlienta(d: DaneOferty, firma: DaneFirmy) {
-  pobierzPlik(await Packer.toBlob(await zbudujOferte(d, firma)), `${nazwaPliku(`Oferta ${d.numer}`)}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+  const nazwa = d.jezyk === 'en' ? `Offer ${d.numer_oferty || d.numer}` : `Oferta ${d.numer_oferty || d.numer}`
+  pobierzPlik(await Packer.toBlob(await zbudujOferte(d, firma)), `${nazwaPliku(nazwa)}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+}
+
+/** Tekst z prostym formatowaniem -> akapity Word (punkty, pogrubienia). */
+function akapity(tekst: string): Paragraph[] {
+  return rozbierzTekst(tekst).map((l) => new Paragraph({
+    bullet: l.punkt ? { level: 0 } : undefined, spacing: { after: 40 },
+    children: l.fragmenty.map((f) => new TextRun({ text: f.tekst, bold: f.pogrubiony })),
+  }))
 }
 
 export async function zbudujOferte(d: DaneOferty, firma: DaneFirmy): Promise<Document> {
+  const j: Jezyk = d.jezyk ?? 'pl'
+  const fj = (n: number | null | undefined, miejsc = 2) =>
+    new Intl.NumberFormat(lokalizacja(j), { minimumFractionDigits: miejsc, maximumFractionDigits: miejsc }).format(Number(n ?? 0))
   const przelicz = (n: number) => (d.waluta === 'EUR' && d.kurs_eur ? n / d.kurs_eur : n)
-  const jedn = d.waluta === 'EUR' ? 'EUR' : 'zł'
+  const jedn = d.waluta === 'EUR' ? 'EUR' : j === 'en' ? 'PLN' : 'zł'
   const tresc: (Paragraph | Table)[] = []
-  if (d.projekt) tresc.push(P('PROJEKT OFERTY - cena niezatwierdzona', { bold: true, size: 20, wyrownanie: AlignmentType.CENTER }))
-  tresc.push(P([firma.miejscowosc?.trim(), d.data].filter(Boolean).join(', '), { wyrownanie: AlignmentType.RIGHT }))
-  tresc.push(P(d.klient, { bold: true, po: 40 }))
-  if (d.nr_zapytania_klienta) tresc.push(P(`Dotyczy: zapytanie nr ${d.nr_zapytania_klienta}`, { po: 200 }))
-  tresc.push(P(`OFERTA nr ${d.numer}`, { bold: true, size: 28, wyrownanie: AlignmentType.CENTER, po: 200 }))
-  tresc.push(P(`Przedmiot oferty: ${d.przedmiot}`, { po: 160 }))
-
-  tresc.push(new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [
-      new TableRow({ tableHeader: true, children: ['Aparat', 'Ilość szt.', 'Materiał', 'Masa [kg]', `Cena netto [${jedn}]`].map((t) => komorka(t, { bold: true, tlo: 'EEF9C4' })) }),
-      ...d.pozycje.map((p) => new TableRow({ children: [
-        komorka(p.nazwa, { szer: 40 }), komorka(fmt(p.ilosc, 0), { prawo: true }), komorka(p.material), komorka(p.masa_kg ? fmt(p.masa_kg, 0) : '', { prawo: true }),
-        komorka(p.cena !== null ? fmt(przelicz(p.cena)) : '', { prawo: true }),
-      ] })),
-    ],
-  }))
-  tresc.push(P('', { po: 120 }))
-  const vat = d.cena_netto * d.vat_proc / 100
-  tresc.push(P(`Cena netto: ${fmt(przelicz(d.cena_netto))} ${jedn}`, { bold: true, size: 24 }))
-  tresc.push(P(`VAT ${d.vat_proc}%: ${fmt(przelicz(vat))} ${jedn}   ·   Cena brutto: ${fmt(przelicz(d.cena_netto + vat))} ${jedn}`))
-  if (d.cena_bez_opcji !== null) tresc.push(P(`Wariant ${d.opis_wariantu}: ${fmt(przelicz(d.cena_bez_opcji))} ${jedn} netto + VAT`))
-  if (d.waluta === 'EUR' && d.kurs_eur) tresc.push(P(`Ceny w EUR przeliczone po kursie ${fmt(d.kurs_eur, 4)} PLN/EUR.`, { size: 18 }))
-  tresc.push(P('', { po: 120 }))
-  for (const [tytul, lista] of [['Oferta obejmuje:', d.obejmuje], ['Oferta nie obejmuje:', d.nie_obejmuje], ['Uwagi:', d.uwagi]] as const) {
-    if (!lista.length) continue
-    tresc.push(P(tytul, { bold: true, po: 60 }))
-    lista.forEach((t) => tresc.push(punkt(t)))
+  const tytul = (s: string) => tresc.push(P(s, { bold: true, size: 24, po: 80 }))
+  const wiersz = (k: string, v: string | undefined) => { if (v?.trim()) tresc.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `${k}: `, bold: true }), new TextRun(v)] })) }
+  const lista = (naglowek: string, l: string[]) => {
+    if (!l.length) return
+    tresc.push(P(naglowek, { bold: true, po: 60 }))
+    l.forEach((x) => tresc.push(punkt(x)))
     tresc.push(P('', { po: 80 }))
   }
-  for (const [k, v] of [['Termin realizacji', d.termin_realizacji], ['Gwarancja', d.gwarancja], ['Ważność oferty', d.waznosc], ['Płatność', d.platnosc]]) {
-    if (v) tresc.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `${k}: `, bold: true }), new TextRun(v)] }))
+
+  if (d.projekt) tresc.push(P(tj(j, 'PROJEKT OFERTY - cena niezatwierdzona'), { bold: true, size: 20, wyrownanie: AlignmentType.CENTER }))
+  tresc.push(P([firma.miejscowosc?.trim(), d.data].filter(Boolean).join(', '), { wyrownanie: AlignmentType.RIGHT }))
+  tresc.push(P(d.klient, { bold: true, po: 40 }))
+  if (d.osoba_kontaktowa) tresc.push(P(d.osoba_kontaktowa, { po: 40 }))
+  if (d.nr_zapytania_klienta) tresc.push(P(tj(j, 'Dotyczy: zapytanie nr {0}', d.nr_zapytania_klienta), { po: 200 }))
+  tresc.push(P(tj(j, 'OFERTA nr {0}', d.numer_oferty || d.numer), { bold: true, size: 28, wyrownanie: AlignmentType.CENTER, po: 200 }))
+
+  const sekcje: SekcjaDoWydruku[] = d.sekcje ?? (['dane', 'przedmiot', 'cena', 'zakres', 'uwagi', 'warunki'] as RodzajSekcji[]).map((rodzaj) => ({ rodzaj, tytul: '', tekst: '' }))
+  for (const s of sekcje) {
+    const nagl = s.tytul || tytulSekcji({ rodzaj: s.rodzaj, tytul: '' }, j)
+    switch (s.rodzaj) {
+      case 'dane':
+        if (d.sekcje) tytul(nagl)
+        wiersz(tj(j, 'Projekt'), d.nazwa_projektu)
+        wiersz(tj(j, 'Przedmiot oferty'), d.przedmiot)
+        break
+      case 'przedmiot':
+        if (d.sekcje) tytul(nagl)
+        tresc.push(new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({ tableHeader: true, children: [tj(j, 'Aparat'), tj(j, 'Ilość szt.'), tj(j, 'Materiał'), tj(j, 'Masa [kg]'), tj(j, 'Cena netto [{0}]', jedn)].map((x) => komorka(x, { bold: true, tlo: 'EEF9C4' })) }),
+            ...d.pozycje.map((p) => new TableRow({ children: [
+              komorka(p.nazwa, { szer: 40 }), komorka(fj(p.ilosc, 0), { prawo: true }), komorka(p.material), komorka(p.masa_kg ? fj(p.masa_kg, 0) : '', { prawo: true }),
+              komorka(p.cena !== null ? fj(przelicz(p.cena)) : '', { prawo: true }),
+            ] })),
+          ],
+        }))
+        tresc.push(P('', { po: 120 }))
+        break
+      case 'cena': {
+        if (d.sekcje) tytul(nagl)
+        const vat = d.cena_netto * d.vat_proc / 100
+        tresc.push(P(tj(j, 'Cena netto: {0} {1}', fj(przelicz(d.cena_netto)), jedn), { bold: true, size: 24 }))
+        tresc.push(P(tj(j, 'VAT {0}%: {1} {2}   ·   Cena brutto: {3} {2}', d.vat_proc, fj(przelicz(vat)), jedn, fj(przelicz(d.cena_netto + vat)))))
+        if (d.cena_bez_opcji !== null) tresc.push(P(tj(j, 'Wariant {0}: {1} {2} netto + VAT', d.opis_wariantu, fj(przelicz(d.cena_bez_opcji)), jedn)))
+        if (d.waluta === 'EUR' && d.kurs_eur) tresc.push(P(tj(j, 'Ceny w EUR przeliczone po kursie {0} PLN/EUR.', fj(d.kurs_eur, 4)), { size: 18 }))
+        tresc.push(P('', { po: 120 }))
+        break
+      }
+      case 'zakres':
+        if (d.sekcje) tytul(nagl)
+        lista(tj(j, 'Oferta obejmuje:'), d.obejmuje)
+        lista(tj(j, 'Oferta nie obejmuje:'), d.nie_obejmuje)
+        break
+      case 'uwagi':
+        if (d.sekcje) tytul(nagl)
+        lista(tj(j, 'Uwagi:'), d.uwagi)
+        break
+      case 'warunki':
+        if (d.sekcje) tytul(nagl)
+        wiersz(tj(j, 'Termin realizacji'), d.termin_realizacji)
+        wiersz(tj(j, 'Gwarancja'), d.gwarancja)
+        wiersz(tj(j, 'Ważność oferty'), d.waznosc)
+        wiersz(tj(j, 'Płatność'), d.platnosc)
+        wiersz(tj(j, 'Zaliczki'), d.zaliczki)
+        wiersz(tj(j, 'Warunki dostawy (Incoterms)'), d.incoterms)
+        wiersz(tj(j, 'Miejsce dostawy'), d.miejsce_dostawy)
+        wiersz(tj(j, 'Kary umowne'), d.kary)
+        break
+      case 'zalaczniki':
+        if (!d.zalaczniki?.length && !s.tekst.trim()) continue
+        tytul(nagl)
+        d.zalaczniki?.forEach((x) => tresc.push(punkt(x)))
+        break
+      case 'wlasna':
+        tytul(nagl)
+        break
+    }
+    if (s.tekst.trim()) tresc.push(...akapity(s.tekst), P('', { po: 80 }))
   }
+
   tresc.push(P('', { po: 400 }))
-  tresc.push(P('Z poważaniem', { wyrownanie: AlignmentType.RIGHT }))
+  tresc.push(P(tj(j, 'Z poważaniem'), { wyrownanie: AlignmentType.RIGHT }))
   if (d.podpis) tresc.push(P(d.podpis, { wyrownanie: AlignmentType.RIGHT }))
 
   return new Document({

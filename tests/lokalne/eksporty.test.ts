@@ -23,7 +23,11 @@ async function tekstDocx(doc: Parameters<typeof Packer.toBuffer>[0]) {
 
 function wartoscWiersza(ws: ExcelJS.Worksheet, etykieta: string): number | null {
   let wynik: number | null = null
-  ws.eachRow((r) => { if (r.getCell(1).value === etykieta) wynik = Number(r.getCell(2).value) })
+  ws.eachRow((r) => {
+    const v = r.getCell(2).value
+    // Formuły mają zapisany wynik: { formula, result }.
+    if (r.getCell(1).value === etykieta) wynik = Number(v && typeof v === 'object' && 'result' in v ? v.result : v)
+  })
   return wynik
 }
 
@@ -69,31 +73,31 @@ describe.skipIf(!maSupabase)('etap 3: eksport Excel / notatka / oferta z zatwier
       expect(wynik.koszty.koszt, przedmiot).toBeCloseTo(Number(stan.marze!.koszt_calkowity), 2)
       expect(wynik.cena_koncowa!, przedmiot).toBeCloseTo(Number(stan.marze!.cena_koncowa), 2)
 
-      // Excel z marżami: zakładki per aparat + podsumowanie z kosztem i ceną.
+      // Excel z marżami: zakładka Wycena (opinia + ocena ekonomiczna) i zakładki per aparat w układzie arkusza wzorcowego.
       const wb = new ExcelJS.Workbook()
       await wb.xlsx.load(await zbudujKalkulacje(stan, wynik, par, s, true))
       const nazwy = wb.worksheets.map((x) => x.name)
-      expect(nazwy[0]).toBe('Analiza')
-      expect(nazwy.at(-1)).toBe('Podsumowanie')
+      expect(nazwy[0]).toBe('Wycena')
+      expect(nazwy.filter((n) => n.endsWith('Robocizna')).length).toBe(stan.aparaty.length)
       expect(nazwy.filter((n) => n.endsWith('Materiały')).length).toBe(stan.aparaty.length)
-      const ps = wb.getWorksheet('Podsumowanie')!
+      const ps = wb.getWorksheet('Wycena')!
       expect(wartoscWiersza(ps, 'Koszty całkowite')!).toBeCloseTo(wynik.koszty.koszt, 2)
       expect(wartoscWiersza(ps, 'CENA KOŃCOWA (netto)')!).toBeCloseTo(wynik.cena_koncowa!, 2)
 
-      // Karta analizy (dane fikcyjne) trafia do zakładki "Analiza" - wymagania i niespójności.
+      // Karta analizy (dane fikcyjne) trafia do zakładki "Wycena" - wymagania i niespójności.
       const karta = pustaKarta()
       karta.wymagania = karta.wymagania.map((x) => (x.kod === 'pwht' ? { ...x, stan: 'wymagane', opis: 'PWHT testowe', zrodlo: 'spec.docx, str. 1' } : x))
       karta.niespojnosci = [{ opis: 'Niespójność testowa', zrodla: 'spec.docx' }]
       const wbA = new ExcelJS.Workbook()
       await wbA.xlsx.load(await zbudujKalkulacje(stan, wynik, par, s, true, karta))
       const teksty: string[] = []
-      wbA.getWorksheet('Analiza')!.eachRow((row) => row.eachCell((c) => teksty.push(String(c.value ?? ''))))
+      wbA.getWorksheet('Wycena')!.eachRow((row) => row.eachCell((c) => teksty.push(String(c.value ?? ''))))
       expect(teksty).toEqual(expect.arrayContaining(['KARTA ANALIZY ZAPYTANIA', 'PWHT (obróbka cieplna)', 'PWHT testowe (spec.docx, str. 1)', 'Niespójność testowa']))
 
       // Excel bez prawa do marż: koszty tak, ceny i zysku nie ma.
       const wb2 = new ExcelJS.Workbook()
       await wb2.xlsx.load(await zbudujKalkulacje(stan, wynik, par, s, false))
-      const ps2 = wb2.getWorksheet('Podsumowanie')!
+      const ps2 = wb2.getWorksheet('Wycena')!
       expect(wartoscWiersza(ps2, 'Koszty całkowite')!).toBeCloseTo(wynik.koszty.koszt, 2)
       expect(wartoscWiersza(ps2, 'CENA KOŃCOWA (netto)')).toBeNull()
 

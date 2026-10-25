@@ -1,10 +1,10 @@
-# Funkcje aplikacji - pełna wersja i etapy
+# Funkcje aplikacji
 
-Pełna wersja jest zachowana w kodzie i oznaczona tagiem git **`wersja-pelna-2026-10-20`**. Od tej daty aplikacja działa
-domyślnie w trybie **Etap 1 - wycena materiałowa**: moduły spoza etapu są ukryte (nie usunięte). Administrator przełącza
-tryb w **Ustawienia → Narzuty i parametry → Tryb aplikacji**; widoczność modułów: `src/lib/moduly.ts`.
+Od rundy 2 (2026-10-25) aplikacja ma **jedną wersję** - tryb „Etap 1” i przełącznik w Ustawieniach usunięte, wszystkie moduły
+widoczne. Stan sprzed etapu 1 jest pod tagiem git `wersja-pelna-2026-10-20`. Nawigacja: dwa moduły - **Zapytania ofertowe
+i wyceny** oraz **Historyczny cennik**; Ustawienia, Użytkownicy i Instrukcja osobno. Funkcje uśpione: `src/lib/funkcje.ts`.
 
-## Etap 1 - wycena materiałowa (widoczne)
+## Moduł „Zapytania ofertowe i wyceny” - wycena materiałowa
 
 | Funkcja | Gdzie w aplikacji | Kod |
 |---|---|---|
@@ -18,9 +18,9 @@ tryb w **Ustawienia → Narzuty i parametry → Tryb aplikacji**; widoczność m
 | Wersje edytowalne: odczyt plików (PDF, skany, zdjęcia, DOCX, XLSX, TXT, DXF) bez AI albo przez AI, wykrycie języka, tłumaczenie na polski, Word z formatowaniem, dziennik odczytów i kosztów | menu → Wersje edytowalne (moduł `wersjeEdytowalne`) | `edytowalne/*`, `lib/wersjeEdytowalne*.ts`, tryby AI `odczytaj_dokument`, `przetlumacz_dokument`, migracja `0020` |
 | Zaznaczanie obszarów z automatycznym przewijaniem (tabele dłuższe niż ekran) | Rysunki i listy, Wersje edytowalne | `ui/ZaznaczanieObszarow.tsx` |
 
-## Ukryte w etapie 1 (gotowe, do włączenia później)
+## Moduły przywrócone z wersji pełnej (widoczne zawsze)
 
-| Funkcja | Moduł (`lib/moduly.ts`) | Kod |
+| Funkcja | Dawny moduł etapu 1 | Kod |
 |---|---|---|
 | Karta analizy zapytania (wymagania kosztotwórcze, usługi, pytania, niespójności; AI `analizuj_zapytanie`) | `analiza` | `zapytania/KartaAnalizy*.tsx`, `lib/analiza.ts`, `lib/analizaZapytania.ts` |
 | Przygotowanie automatyczne (analiza + rysunki + wycena z robocizną i usługami + projekt oferty + raport) | `przygotowanie` | `lib/przygotowanieAuto.ts`, `lib/przygotowanie.ts`, `scripts/przebieg-ai.ts` |
@@ -36,3 +36,11 @@ tryb w **Ustawienia → Narzuty i parametry → Tryb aplikacji**; widoczność m
 
 Logowanie i role, RLS w bazie, audyt zmian, użytkownicy, kursy NBP, budżet AI, zajętość planu, dane firmy i logo z bazy,
 strażnik poufności repozytorium (`scripts/sprawdz-pliki.mjs`), test bezpieczeństwa (`tests/lokalne/bezpieczenstwo.test.ts`).
+
+## Uśpione (`src/lib/funkcje.ts`)
+
+| Funkcja | Flaga | Kod |
+|---|---|---|
+| Zapytanie z całego maila (Zapytania → Nowe z maila) | `importMailaJakoZapytania` | `zapytania/NoweZMaila.tsx`, `lib/importMaila.ts` |
+| Skrzynka dedykowana (automatyczne pobieranie ofert) | `skrzynkaDedykowana` | - |
+| Rodzaje aparatów inne niż zbiornik i wymiennik ciepła | `inneTypyAparatow` | `aparaty.typ`, `lib/wyceny.ts` (`TYPY_APARATOW`) |

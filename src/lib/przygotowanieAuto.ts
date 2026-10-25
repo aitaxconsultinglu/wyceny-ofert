@@ -17,6 +17,7 @@ import { klucz, nowyAparat, parametry, wczytajWycene, zapiszWycene, type Pozycja
 import { aparatyZKarty, dopasujAparat, ujednolicJednostkeUslugi, klauzuleZAnalizy, medianaRbhT, przypiszOdczyty, punktyWeryfikacji, terminOferty, zmienneOferty, type KlauzulaBazy } from './przygotowanie'
 import type { Gatunek, KategoriaMaterialu, KategoriaUslugi, RodzajStali, StawkaRobocizny, Ustawienia } from './types'
 import { dataPL, dzisiajISO } from './format'
+import { typAparatuZRodzaju } from './zapytania'
 
 export const MAKS_STRON_RYSUNKOW = 8
 const STRON_NA_RYSUNEK = 3
@@ -211,8 +212,10 @@ export async function wykonajPrzygotowanie(
     wycenaId = wid as string
     wersja = st.wycena.wersja
     const zKarty = aparatyZKarty(karta, z.przedmiot)
+    // Typ aparatu z rodzaju zapytania (zbiornik / wymiennik ciepła) - typ z analizy AI tylko, gdy zapytanie go nie ma.
+    const typZapytania = typAparatuZRodzaju(st.zapytanie.rodzaj_aparatu, st.zapytanie.zakres_wymiennika)
     st.aparaty = zKarty.map((a, i) => ({
-      ...(st.aparaty[i] ?? nowyAparat(i + 1)), nazwa: a.nazwa || `Aparat ${i + 1}`, typ: a.typ, ilosc: a.ilosc || 1, masa_netto_kg: a.masa_kg,
+      ...(st.aparaty[i] ?? nowyAparat(i + 1)), nazwa: a.nazwa || `Aparat ${i + 1}`, typ: typZapytania ?? a.typ, ilosc: a.ilosc || 1, masa_netto_kg: a.masa_kg,
       srednica_mm: a.srednica_mm, dlugosc_mm: a.dlugosc_mm, wysokosc_mm: a.wysokosc_mm, material_wiodacy: a.material, metoda_robocizny: 'wskaznikowa', pozycje: [],
     }))
 

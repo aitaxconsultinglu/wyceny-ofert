@@ -4,30 +4,23 @@ import { useSlowniki } from '@/lib/slowniki'
 import { liczba } from '@/lib/format'
 import { dokumentyZapytania } from '@/lib/analizaZapytania'
 import { przygotujWyceneMaterialowa, type RaportWycenyMaterialowej } from '@/lib/wycenaMaterialowa'
-import { SZABLONY } from '@/lib/szablony'
+import { szablonDlaTypu } from '@/lib/szablony'
+import { etykietaRodzaju, typAparatuZRodzaju, type RodzajAparatu, type ZakresWymiennika } from '@/lib/zapytania'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
-
-const TYPY = [
-  { typ: 'wymiennik płaszczowo-rurowy', szablon: SZABLONY.wymiennik },
-  { typ: 'zbiornik pionowy', szablon: SZABLONY.zbiornik },
-  { typ: 'zbiornik poziomy', szablon: SZABLONY.zbiornik },
-]
-
-/** Typ aparatu podpowiadany z przedmiotu zapytania. */
-const typZPrzedmiotu = (p: string) => (/wymienn|wkład|wklad|chłodnic|chlodnic|skraplacz|exchanger/i.test(p) ? TYPY[0].typ : /poziom/i.test(p) ? TYPY[2].typ : TYPY[1].typ)
 
 /** Etap 1: wycena materiałowa z rysunków zapytania (bez AI), wg szablonu wymiennika / zbiornika. */
 export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, poZakonczeniu }: {
   otwarty: boolean
   zamknij: () => void
-  zapytanie: { id: string; numer: string; przedmiot: string; status: string }
+  zapytanie: { id: string; numer: string; przedmiot: string; status: string; rodzaj_aparatu: RodzajAparatu | null; zakres_wymiennika: ZakresWymiennika | null; zakres_opis: string | null }
   otworzWycene: (id: string) => void
   poZakonczeniu: () => void
 }) {
   const s = useSlowniki()
-  const [typ, setTyp] = useState(typZPrzedmiotu(zapytanie.przedmiot))
+  // Rodzaj aparatu (a z nim szablon) wynika z zapytania - tu nie ma wyboru.
+  const typ = typAparatuZRodzaju(zapytanie.rodzaj_aparatu, zapytanie.zakres_wymiennika) ?? ''
   const [rysunki, setRysunki] = useState<string[]>([])
   const [postep, setPostep] = useState<string | null>(null)
   const [raport, setRaport] = useState<RaportWycenyMaterialowej | null>(null)
@@ -35,9 +28,9 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
 
   useEffect(() => {
     if (!otwarty) return
-    setRaport(null); setBlad(null); setTyp(typZPrzedmiotu(zapytanie.przedmiot))
+    setRaport(null); setBlad(null)
     void dokumentyZapytania(zapytanie.id).then((d) => setRysunki(d.filter((x) => x.typ === 'rysunek' && /\.pdf$/i.test(x.nazwa_pliku)).map((x) => x.nazwa_pliku)))
-  }, [otwarty, zapytanie.id, zapytanie.przedmiot])
+  }, [otwarty, zapytanie.id])
 
   async function uruchom() {
     setBlad(null); setRaport(null)
@@ -49,7 +42,7 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
     setPostep(null)
   }
 
-  const szablon = TYPY.find((t) => t.typ === typ)!.szablon
+  const szablon = szablonDlaTypu(typ)
   return (
     <Dialog open={otwarty} onOpenChange={(o) => { if (!o && !postep) zamknij() }}>
       <DialogContent className="max-w-2xl">
@@ -63,14 +56,11 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
           {postep && <Komunikat rodzaj="info">{postep}</Komunikat>}
           {!raport && (
             <>
-              <label className="block"><span className="etykieta">Typ aparatu (szablon materiałów)</span>
-                <select className="pole w-72" value={typ} onChange={(e) => setTyp(e.target.value)}>
-                  {TYPY.map((t) => <option key={t.typ} value={t.typ}>{t.typ}</option>)}
-                </select></label>
-              <div>
+              <p><span className="etykieta">Rodzaj aparatu (z zapytania)</span>{etykietaRodzaju(zapytanie.rodzaj_aparatu, zapytanie.zakres_wymiennika, zapytanie.zakres_opis)}</p>
+              {szablon && <div>
                 <span className="etykieta">Elementy szablonu „{szablon.nazwa}” (wymagane pogrubione - zawsze w wycenie)</span>
                 <p className="text-xs text-slate-600">{szablon.elementy.map((e, i) => <span key={e.kod}>{i > 0 && ' · '}{e.wymagany ? <strong>{e.nazwa}</strong> : e.nazwa}</span>)}</p>
-              </div>
+              </div>}
               <div>
                 <span className="etykieta">Rysunki PDF zapytania ({rysunki.length})</span>
                 {rysunki.length ? <ul className="list-disc pl-5 text-xs">{rysunki.map((r) => <li key={r}>{r}</li>)}</ul>
@@ -78,7 +68,7 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
               </div>
               <div className="flex justify-end gap-2">
                 <Button onClick={zamknij} disabled={!!postep}>Anuluj</Button>
-                <Button wariant="glowny" disabled={!!postep || !rysunki.length} onClick={() => void uruchom()}><Sparkles className="h-4 w-4" /> Przygotuj wycenę materiałową</Button>
+                <Button wariant="glowny" disabled={!!postep || !rysunki.length || !szablon} onClick={() => void uruchom()}><Sparkles className="h-4 w-4" /> Przygotuj wycenę materiałową</Button>
               </div>
             </>
           )}

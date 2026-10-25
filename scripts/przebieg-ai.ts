@@ -16,6 +16,7 @@ import { uzupelnijKarte, type KartaAnalizy } from '../src/lib/analiza'
 import { wczytajWycene } from '../src/lib/wyceny'
 import type { Ustawienia } from '../src/lib/types'
 import { env, maMaterialy, maSupabase, plikMaterialow } from '../tests/lokalne/srodowisko'
+import { rodzajZPrzedmiotu } from '../src/lib/zapytania'
 
 const [tryb, arg] = process.argv.slice(2)
 if (!['mail', 'zapytanie'].includes(tryb) || !arg) throw new Error('Użycie: przebieg-ai.ts mail "<plik>" | zapytanie <numer ZO>')
@@ -55,7 +56,7 @@ async function zMaila(sciezka: string, s: SlownikiPrzygotowania): Promise<string
   for (const z of zalaczniki) log(`  ${z.istotny ? '[x]' : '[ ]'} ${z.nazwa} - ${z.typSugerowany}${z.metadane?.stron ? `, ${String(z.metadane.stron)} str.` : ''}${z.metadane?.skan ? ', skan' : ''}`)
   const { data: z, error } = await supabase.from('zapytania').insert({
     numer: '', przedmiot: p.przedmiot.trim() || 'Zapytanie z maila', klient_id: p.klient_id, nr_zapytania_klienta: p.nr_zapytania_klienta.trim() || null,
-    termin_oferty: p.termin_oferty, zrodlo: 'mail', status: 'nowe',
+    termin_oferty: p.termin_oferty, zrodlo: 'mail', status: 'nowe', ...rodzajZPrzedmiotu(p.przedmiot),
   }).select('id, numer').single()
   blad(error, 'zapytanie')
   const { ostrzezenia } = await zapiszDokument({ ...mail, zalaczniki }, { zapytanie_id: z!.id }, { typ: 'korespondencja', istotny: true, limitMb: s.ustawienia.limity_planu.plik_mb }, supabase)

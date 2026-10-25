@@ -36,7 +36,7 @@ describe.skipIf(!maSupabase)('etap 4: odczyty rysunków w bazie i przeniesienie 
       k[n] = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } })
       await k[n].auth.signInWithPassword({ email, password: haslo })
     }
-    const { data: z } = await k.technolog.from('zapytania').insert({ numer: '', przedmiot: `TEST rysunki ${znacznik}` }).select('id').single()
+    const { data: z } = await k.technolog.from('zapytania').insert({ numer: "", przedmiot: `TEST rysunki ${znacznik}`, rodzaj_aparatu: "wymiennik" }).select('id').single()
     zapytanie = z!.id
   }, 60_000)
 

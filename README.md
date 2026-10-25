@@ -9,19 +9,25 @@ Nazwa firmy, logo i dane do oferty są wyłącznie w bazie (Ustawienia → Dane 
 - **Frontend:** React 18 + Vite + TypeScript + Tailwind + Radix, GitHub Pages (`.github/workflows/deploy.yml`).
 - **Backend:** Supabase (projekt `zrwouorevhxdtvubniwg`, eu-west-1, plan Free) - Postgres + Auth + RLS + Storage + Edge Functions.
 
-## Tryb pracy: Etap 1 - wycena materiałowa (od 2026-10-20)
+## Dwa moduły (runda 2, od 2026-10-25)
 
-Aplikacja działa domyślnie w uproszczonym trybie: **odczyt rysunków z załączników zapytania → lista materiałów i parametry
-projektu wg szablonu (wymiennik płaszczowo-rurowy / zbiornik) → ceny tylko z kart dostawy Optimy i ofert na materiały
-zebranych do tego zapytania**. Robocizna, kooperacja i usługi, oferta Word, zatwierdzanie, analiza, przygotowanie
-automatyczne i zapytania do dostawców są ukryte (nie usunięte) - przełącznik: Ustawienia → Narzuty i parametry → Tryb aplikacji.
-Pełna wersja: tag `wersja-pelna-2026-10-20`, spis funkcji: [`docs/FUNKCJE.md`](docs/FUNKCJE.md).
+Jedna wersja aplikacji (tryb „Etap 1” usunięty; plan rundy: [`docs/PLAN-runda2.md`](docs/PLAN-runda2.md)):
+
+- **Zapytania ofertowe i wyceny** - zapytania (pierwsze pole: rodzaj aparatu - zbiornik albo wymiennik ciepła, z zakresem),
+  dokumenty, rysunki i listy materiałowe, karta analizy, wyceny, oferty dostawców zebrane pod zapytania, wersje edytowalne,
+  zatwierdzanie przez prezesa.
+- **Historyczny cennik** - zakupy z kart dostawy Optimy, usługi kooperacyjne, projekty zrealizowane (Registo).
+- Ustawienia, użytkownicy i instrukcja - w prawym górnym rogu.
+
+Funkcje uśpione (kod zostaje, interfejs ukrywa): `src/lib/funkcje.ts` - import całego maila jako zapytania, skrzynka
+dedykowana, typy aparatów inne niż zbiornik i wymiennik. Rodzaj aparatu: kolumny `zapytania.rodzaj_aparatu`,
+`zakres_wymiennika`, `zakres_opis` (migracja 0021); aparaty wyceny dziedziczą typ z zapytania.
 
 - Przycisk **„Wycena materiałowa”** na karcie zapytania: `src/lib/wycenaMaterialowa.ts` (bez AI - PDF z CAD czytane
   z warstwy tekstowej przez `src/lib/odczytTekstowy.ts`; skany - z odczytów zapisanych w „Rysunki i listy”).
 - Szablony elementów i kontrola kompletności: `src/lib/szablony.ts`, panel nad listą Materiały: `wycena/SzablonIParametry.tsx`.
-- Cennik etapu 1: `cennikEtapu1` i `dobierzCene(..., innyGatunek)` w `src/lib/bazaCen.ts` (kolejność: oferty do zapytania →
-  zakupy Optimy z równoważnikami gatunku i tą samą wielkością DN → cena zastępcza tego samego rodzaju stali, z dopiskiem).
+- Ceny wyceny materiałowej: `cennikEtapu1` i `dobierzCene(..., innyGatunek)` w `src/lib/bazaCen.ts` (kolejność: oferty do
+  zapytania → zakupy Optimy z równoważnikami gatunku i tą samą wielkością DN → cena zastępcza tego samego rodzaju stali, z dopiskiem).
 
 ## Wersje edytowalne (od 2026-10-25)
 

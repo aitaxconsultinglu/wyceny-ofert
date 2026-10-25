@@ -5,6 +5,7 @@ import { komunikatPL } from './config'
 import { gestoscGatunku } from './slowniki'
 import type { AparatKalk, ParametryKalk, PozycjaKalk, WynikWyceny } from './kalkulacja'
 import type { Gatunek, KategoriaMaterialu, RodzajStali } from './types'
+import type { RodzajAparatu, ZakresWymiennika } from './zapytania'
 
 export type StatusWyceny = 'robocza' | 'do_zatwierdzenia' | 'zwrocona' | 'zatwierdzona'
 
@@ -90,7 +91,7 @@ export interface StanWyceny {
   wycena: Wycena
   marze: Marze | null
   aparaty: Aparat[]
-  zapytanie: { id: string; numer: string; przedmiot: string; klient: string | null }
+  zapytanie: { id: string; numer: string; przedmiot: string; klient: string | null; rodzaj_aparatu: RodzajAparatu | null; zakres_wymiennika: ZakresWymiennika | null; zakres_opis: string | null }
 }
 
 let licznik = 0
@@ -104,6 +105,7 @@ export function nowyAparat(lp: number, nazwa = `Aparat ${lp}`): Aparat {
   }
 }
 
+/** Typy aparatów z dawnych wycen - nowe aparaty dziedziczą typ z rodzaju zapytania (zbiornik / wymiennik ciepła). */
 export const TYPY_APARATOW = [
   'zbiornik pionowy', 'zbiornik poziomy', 'wymiennik płaszczowo-rurowy', 'wkład rurowy', 'reaktor', 'separator', 'kolumna', 'inne',
 ]
@@ -111,17 +113,17 @@ export const TYPY_APARATOW = [
 const liczbowe = ['d_zew', 'd_wew', 'grubosc', 'szerokosc', 'dlugosc', 'ilosc', 'masa_jedn', 'cena_jedn', 'wartosc_reczna', 'pewnosc'] as const
 
 export async function wczytajWycene(id: string, db: SupabaseClient = supabase): Promise<StanWyceny> {
-  const { data: w, error } = await db.from('wyceny').select('*, zapytania(id, numer, przedmiot, klienci(nazwa))').eq('id', id).single()
+  const { data: w, error } = await db.from('wyceny').select('*, zapytania(id, numer, przedmiot, rodzaj_aparatu, zakres_wymiennika, zakres_opis, klienci(nazwa))').eq('id', id).single()
   if (error || !w) throw new Error(komunikatPL(error?.message ?? 'Nie znaleziono wyceny.'))
   const [{ data: m }, { data: ap }] = await Promise.all([
     db.from('wyceny_marze').select('*').eq('wycena_id', id).maybeSingle(),
     db.from('aparaty').select('*, pozycje_wyceny(*)').eq('wycena_id', id).order('lp'),
   ])
-  const zap = (w as unknown as { zapytania: { id: string; numer: string; przedmiot: string; klienci: { nazwa: string } | null } }).zapytania
+  const zap = (w as unknown as { zapytania: { id: string; numer: string; przedmiot: string; rodzaj_aparatu: RodzajAparatu | null; zakres_wymiennika: ZakresWymiennika | null; zakres_opis: string | null; klienci: { nazwa: string } | null } }).zapytania
   return {
     wycena: w as unknown as Wycena,
     marze: (m as Marze | null) ?? null,
-    zapytanie: { id: zap.id, numer: zap.numer, przedmiot: zap.przedmiot, klient: zap.klienci?.nazwa ?? null },
+    zapytanie: { id: zap.id, numer: zap.numer, przedmiot: zap.przedmiot, klient: zap.klienci?.nazwa ?? null, rodzaj_aparatu: zap.rodzaj_aparatu, zakres_wymiennika: zap.zakres_wymiennika, zakres_opis: zap.zakres_opis },
     aparaty: ((ap ?? []) as (Aparat & { pozycje_wyceny: PozycjaWyceny[] })[]).map(({ pozycje_wyceny, ...a }) => ({
       ...a, klucz: klucz(),
       ilosc: Number(a.ilosc), masa_netto_kg: a.masa_netto_kg === null ? null : Number(a.masa_netto_kg),

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { Profil } from '@/lib/types'
 import { uprawnienia } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { useModuly } from '@/lib/moduly'
 import { Komunikat } from '../ui/komunikat'
 import { Porownywarka } from './Porownywarka'
 import { ListaOfert } from './ListaOfert'
@@ -15,7 +14,6 @@ type Zakladka = 'porownywarka' | 'zapytanie' | 'lista' | 'dodaj' | 'wyslane' | '
 
 export function OfertyDostawcow({ profil }: { profil: Profil }) {
   const up = uprawnienia(profil)
-  const { widac } = useModuly()
   const [zakladka, setZakladka] = useState<Zakladka>('porownywarka')
   const [komunikat, setKomunikat] = useState<string | null>(null)
   const zakladki: { id: Zakladka; etykieta: string }[] = [
@@ -23,12 +21,12 @@ export function OfertyDostawcow({ profil }: { profil: Profil }) {
     { id: 'zapytanie', etykieta: 'Oferty do zapytania ZO' },
     { id: 'lista', etykieta: 'Lista ofert' },
     ...(up.bazaOfert ? [{ id: 'dodaj' as Zakladka, etykieta: '+ Dodaj ofertę' }] : []),
-    ...(widac('zapytaniaDostawcow') ? [{ id: 'wyslane' as Zakladka, etykieta: 'Wysłane zapytania' }] : []),
-    { id: 'dostawcy', etykieta: widac('uslugi') ? 'Dostawcy i kooperanci' : 'Dostawcy' },
+    { id: 'wyslane', etykieta: 'Wysłane zapytania' },
+    { id: 'dostawcy', etykieta: 'Dostawcy i kooperanci' },
   ]
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{widac('uslugi') ? 'Oferty dostawców i kooperantów' : 'Oferty na materiały (dennice, rurki, odkuwki...) zebrane do zapytań'}</h2>
+      <h2 className="text-lg font-semibold">Oferty dostawców i kooperantów</h2>
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
         {zakladki.map((z) => (
           <button key={z.id} onClick={() => { setZakladka(z.id); setKomunikat(null) }}

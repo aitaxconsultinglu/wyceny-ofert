@@ -33,7 +33,7 @@ describe.skipIf(!maSupabase)('etap 4: zapytania do dostawców w bazie', () => {
       k[n] = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } })
       await k[n].auth.signInWithPassword({ email, password: haslo })
     }
-    const { data: z } = await k.handlowy.from('zapytania').insert({ numer: '', przedmiot: `TEST zapytania do dostawców ${znacznik}` }).select('id').single()
+    const { data: z } = await k.handlowy.from('zapytania').insert({ numer: '', przedmiot: `TEST zapytania do dostawców ${znacznik}`, rodzaj_aparatu: 'wymiennik' }).select('id').single()
     zapytanie = z!.id
     const { data: d } = await k.handlowy.from('dostawcy').insert({ nazwa: `TEST Kuźnia ${znacznik}`, kategorie: ['odkuwki'], kontakty: [{ osoba: 'X', email: 'x@example.test' }] }).select('id').single()
     dostawca = d!.id

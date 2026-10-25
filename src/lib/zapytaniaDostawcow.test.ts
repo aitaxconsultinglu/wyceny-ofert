@@ -33,7 +33,7 @@ function stan(): StanWyceny {
     poz({ zakladka: 'robocizna', sekcja: null, nazwa: 'Spawacz', ilosc: 100, jm: 'rbh' }),
     poz({ nazwa: '   ' }),
   ]
-  return { wycena: {} as StanWyceny['wycena'], marze: null, zapytanie: { id: 'z', numer: 'ZO/1/2026', przedmiot: 'Test', klient: null }, aparaty: [a] }
+  return { wycena: {} as StanWyceny['wycena'], marze: null, zapytanie: { id: 'z', numer: 'ZO/1/2026', przedmiot: 'Test', klient: null, rodzaj_aparatu: null, zakres_wymiennika: null, zakres_opis: null }, aparaty: [a] }
 }
 
 describe('pozycje do zapytania', () => {

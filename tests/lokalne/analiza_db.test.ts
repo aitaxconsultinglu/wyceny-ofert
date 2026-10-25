@@ -28,7 +28,7 @@ describe.skipIf(!maSupabase)('etap 4: karta analizy zapytania w bazie', () => {
       k[n] = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } })
       await k[n].auth.signInWithPassword({ email, password: haslo })
     }
-    const { data: z } = await k.technolog.from('zapytania').insert({ numer: '', przedmiot: zapytanie.przedmiot }).select('id, numer').single()
+    const { data: z } = await k.technolog.from('zapytania').insert({ numer: '', przedmiot: zapytanie.przedmiot, rodzaj_aparatu: 'zbiornik' }).select('id, numer').single()
     zapytanie = { ...zapytanie, id: z!.id, numer: z!.numer }
     await k.technolog.from('dokumenty').insert([
       { zapytanie_id: zapytanie.id, nazwa_pliku: 'specyfikacja-test.docx', typ: 'specyfikacja', istotny: true, stan: 'tylko_tekst', tekst: 'Wymagana wizja lokalna. Izolacja 100 mm.' },

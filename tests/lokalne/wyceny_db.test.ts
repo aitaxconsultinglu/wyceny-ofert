@@ -27,7 +27,7 @@ describe.skipIf(!maSupabase)('etap 3: reguły wyceny w bazie', () => {
       k[n] = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } })
       await k[n].auth.signInWithPassword({ email, password: haslo })
     }
-    const { data: z } = await k.technolog.from('zapytania').insert({ numer: '', przedmiot: `TEST wyceny ${znacznik}` }).select('id, numer').single()
+    const { data: z } = await k.technolog.from('zapytania').insert({ numer: "", przedmiot: `TEST wyceny ${znacznik}`, rodzaj_aparatu: "zbiornik" }).select('id, numer').single()
     zapytanie = z!.id
   }, 60_000)
 
@@ -46,7 +46,7 @@ describe.skipIf(!maSupabase)('etap 3: reguły wyceny w bazie', () => {
 
   it('równoczesne zakładanie zapytań daje różne numery ZO (bez błędu unikalności)', async () => {
     const wyniki = await Promise.all(Array.from({ length: 6 }, (_, i) =>
-      k.technolog.from('zapytania').insert({ numer: '', przedmiot: `TEST równoczesne ${znacznik} ${i}` }).select('id, numer').single()))
+      k.technolog.from('zapytania').insert({ numer: '', przedmiot: `TEST równoczesne ${znacznik} ${i}`, rodzaj_aparatu: 'zbiornik' }).select('id, numer').single()))
     try {
       expect(wyniki.map((w) => w.error?.message ?? null)).toEqual(Array(6).fill(null))
       expect(new Set(wyniki.map((w) => w.data!.numer)).size).toBe(6)

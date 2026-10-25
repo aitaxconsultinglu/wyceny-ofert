@@ -29,7 +29,7 @@ describe.skipIf(!maSupabase)('przygotowanie automatyczne (bez AI) na prawdziwej 
     tech = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } })
     await tech.auth.signInWithPassword({ email, password: haslo })
 
-    const { data: zap } = await tech.from('zapytania').insert({ numer: '', przedmiot: 'Zapytanie z maila', status: 'nowe' }).select('id, numer').single()
+    const { data: zap } = await tech.from('zapytania').insert({ numer: '', przedmiot: 'Zapytanie z maila', status: 'nowe', rodzaj_aparatu: 'zbiornik' }).select('id, numer').single()
     z = { id: zap!.id, numer: zap!.numer, przedmiot: 'Zapytanie z maila', klient: null, klient_id: null, nr_zapytania_klienta: null, termin_oferty: null, status: 'nowe' }
 
     const karta: KartaAnalizy = pustaKarta()
@@ -81,7 +81,7 @@ describe.skipIf(!maSupabase)('przygotowanie automatyczne (bez AI) na prawdziwej 
     expect(w.wycena.nazwa).toBe('Wstępna - przygotowana automatycznie')
     expect(w.aparaty).toHaveLength(1)
     const a = w.aparaty[0]
-    expect(a).toMatchObject({ nazwa: `Zbiornik TEST-${znacznik}`, typ: 'zbiornik pionowy', material_wiodacy: 'P265GH', metoda_robocizny: 'wskaznikowa', masa_netto_kg: 363 })
+    expect(a).toMatchObject({ nazwa: `Zbiornik TEST-${znacznik}`, typ: 'zbiornik', material_wiodacy: 'P265GH', metoda_robocizny: 'wskaznikowa', masa_netto_kg: 363 })
     const mat = a.pozycje.filter((p) => p.zakladka === 'materialy')
     expect(mat.map((p) => [p.sekcja, p.gatunek, p.zrodlo_opis])).toEqual([
       ['blachy', 'P265GH', `rysunek TEST-${znacznik}.pdf, str. 1`], ['kolnierze', 'P250GH', `rysunek TEST-${znacznik}.pdf, str. 1`],

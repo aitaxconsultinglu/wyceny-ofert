@@ -3,15 +3,16 @@ import { ArrowLeft, CheckCircle2, Copy, FileSpreadsheet, FileText, Plus, Save, S
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { useSlowniki } from '@/lib/slowniki'
-import { useModuly } from '@/lib/moduly'
 import { dataGodzinaPL, liczba, zl } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ostrzezenia as liczOstrzezenia, policzWycene } from '@/lib/kalkulacja'
 import {
-  ETYKIETY_STATUSU_WYCENY, KOLORY_STATUSU_WYCENY, TYPY_APARATOW, nowyAparat, parametry, podsumowanieKosztow, wczytajWycene, zapiszWycene,
+  ETYKIETY_STATUSU_WYCENY, KOLORY_STATUSU_WYCENY, nowyAparat, parametry, podsumowanieKosztow, wczytajWycene, zapiszWycene,
   type Aparat, type Marze, type PozycjaWyceny, type StanWyceny, type Wycena,
 } from '@/lib/wyceny'
 import { kursNaDzien } from '@/lib/oferty'
+import { typAparatuZRodzaju } from '@/lib/zapytania'
+import { ZnacznikRodzaju } from '../zapytania/RodzajAparatu'
 import { uprawnienia, type Profil } from '@/lib/types'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
@@ -29,7 +30,6 @@ type Zakladka = 'materialy' | 'robocizna' | 'kooperacja' | 'badania' | 'podsumow
 export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string; profil: Profil; zamknij: () => void; otworzWycene: (id: string) => void }) {
   const s = useSlowniki()
   const up = uprawnienia(profil)
-  const { widac } = useModuly()
   const jestPrezesem = profil.rola === 'prezes'
   const [stan, setStan] = useState<StanWyceny | null>(null)
   const [aktywny, setAktywny] = useState(0)
@@ -45,6 +45,9 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
     try {
       const st = await wczytajWycene(id)
       if (!st.aparaty.length) st.aparaty.push(nowyAparat(1))
+      // Typ aparatu z rodzaju zapytania - w wycenie nie ma wyboru zbiornik / wymiennik.
+      const typ = typAparatuZRodzaju(st.zapytanie.rodzaj_aparatu, st.zapytanie.zakres_wymiennika)
+      for (const a of st.aparaty) if (!a.typ && typ) a.typ = typ
       // Stawka wskaźnikowa domyślnie ze słownika (stawka oznaczona jako domyślna).
       const dom = s.stawki.find((x) => x.domyslna && x.aktywna)
       for (const a of st.aparaty) if (a.stawka_wskaznikowa === null && dom) a.stawka_wskaznikowa = Number(dom.stawka)
@@ -158,7 +161,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
   const ZAKLADKI = ([
     ['materialy', 'Materiały'], ['robocizna', 'Pracochłonność'], ['kooperacja', 'Kooperacja'], ['badania', 'Badania, odbiory, projekt, transport'],
     ['podsumowanie', 'Podsumowanie'], ['oferta', 'Oferta dla klienta'],
-  ] as [Zakladka, string][]).filter(([k]) => (k === 'robocizna' ? widac('robocizna') : k === 'kooperacja' || k === 'badania' ? widac('uslugi') : k === 'oferta' ? widac('oferta') : true))
+  ] as [Zakladka, string][])
   const koszt = wynik.aparaty[Math.min(aktywny, wynik.aparaty.length - 1)]
 
   return (
@@ -170,17 +173,17 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
         <span className="text-sm text-slate-600">{stan.zapytanie.przedmiot}{stan.zapytanie.klient ? ` · ${stan.zapytanie.klient}` : ''}</span>
         <div className="ml-auto flex flex-wrap gap-2">
           {!tylkoOdczyt && <Button wariant="glowny" disabled={zajety || !zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> Zapisz</Button>}
-          {widac('zatwierdzanie') && ['robocza', 'zwrocona'].includes(w.status) && <Button wariant="akcent" disabled={zajety} onClick={() => void zmienStatus('do_zatwierdzenia')}><Send className="h-4 w-4" /> Do zatwierdzenia</Button>}
-          {widac('zatwierdzanie') && w.status === 'do_zatwierdzenia' && jestPrezesem && (
+          {['robocza', 'zwrocona'].includes(w.status) && <Button wariant="akcent" disabled={zajety} onClick={() => void zmienStatus('do_zatwierdzenia')}><Send className="h-4 w-4" /> Do zatwierdzenia</Button>}
+          {w.status === 'do_zatwierdzenia' && jestPrezesem && (
             <>
               <Button wariant="glowny" disabled={zajety} onClick={() => void zmienStatus('zatwierdzona')}><CheckCircle2 className="h-4 w-4" /> Zatwierdź</Button>
               <Button wariant="ostrzezenie" disabled={zajety} onClick={() => void zmienStatus('zwrocona')}><Undo2 className="h-4 w-4" /> Zwróć</Button>
             </>
           )}
-          {widac('zatwierdzanie') && w.status === 'do_zatwierdzenia' && !jestPrezesem && <Button disabled={zajety} onClick={() => void zmienStatus('robocza')}><Undo2 className="h-4 w-4" /> Wycofaj</Button>}
+          {w.status === 'do_zatwierdzenia' && !jestPrezesem && <Button disabled={zajety} onClick={() => void zmienStatus('robocza')}><Undo2 className="h-4 w-4" /> Wycofaj</Button>}
           <Button onClick={() => void kopiuj()}><Copy className="h-4 w-4" /> Kopiuj wersję</Button>
           <Button onClick={() => void eksport('excel')}><FileSpreadsheet className="h-4 w-4" /> Excel</Button>
-          {up.widziMarze && widac('oferta') && <Button onClick={() => void eksport('notatka')}><FileText className="h-4 w-4" /> Notatka</Button>}
+          {up.widziMarze && <Button onClick={() => void eksport('notatka')}><FileText className="h-4 w-4" /> Notatka</Button>}
         </div>
       </div>
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -214,16 +217,16 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
             {a.nazwa || `Aparat ${i + 1}`}{a.ilosc !== 1 && ` ×${liczba(a.ilosc)}`}
           </button>
         ))}
-        {!tylkoOdczyt && <Button rozmiar="maly" wariant="cichy" onClick={() => { ustStan((x) => ({ ...x, aparaty: [...x.aparaty, nowyAparat(x.aparaty.length + 1)] })); setAktywny(stan.aparaty.length) }}><Plus className="h-3 w-3" /> aparat</Button>}
+        {!tylkoOdczyt && <Button rozmiar="maly" wariant="cichy" onClick={() => { ustStan((x) => ({ ...x, aparaty: [...x.aparaty, { ...nowyAparat(x.aparaty.length + 1), typ: typAparatuZRodzaju(x.zapytanie.rodzaj_aparatu, x.zapytanie.zakres_wymiennika) }] })); setAktywny(stan.aparaty.length) }}><Plus className="h-3 w-3" /> aparat</Button>}
       </div>
 
       <section className="sekcja flex flex-wrap items-end gap-3 text-sm">
         <label className="w-64"><span className="etykieta">Nazwa aparatu</span><input className="pole" disabled={tylkoOdczyt} value={aparat.nazwa} onChange={(e) => zmienAparat((a) => ({ ...a, nazwa: e.target.value }))} /></label>
-        <label className="w-52"><span className="etykieta">Typ</span>
-          <select className="pole" disabled={tylkoOdczyt} value={aparat.typ ?? ''} onChange={(e) => zmienAparat((a) => ({ ...a, typ: e.target.value || null }))}>
-            <option value="">-</option>{TYPY_APARATOW.map((t) => <option key={t}>{t}</option>)}
-          </select></label>
-        {aparat.typ === 'wymiennik płaszczowo-rurowy' && (
+        <div className="w-56"><span className="etykieta">Rodzaj (z zapytania)</span>
+          <ZnacznikRodzaju rodzaj={stan.zapytanie.rodzaj_aparatu} zakres={stan.zapytanie.zakres_wymiennika} opis={stan.zapytanie.zakres_opis} />
+          {aparat.typ && aparat.typ !== typAparatuZRodzaju(stan.zapytanie.rodzaj_aparatu, stan.zapytanie.zakres_wymiennika) && <span className="block text-xs text-slate-500">typ w tej wycenie: {aparat.typ}</span>}
+        </div>
+        {stan.zapytanie.rodzaj_aparatu === 'wymiennik' && (
           <label className="w-24"><span className="etykieta">TEMA</span><input className="pole" placeholder="AES" disabled={tylkoOdczyt} value={aparat.tema ?? ''} onChange={(e) => zmienAparat((a) => ({ ...a, tema: e.target.value || null }))} /></label>
         )}
         <label><span className="etykieta">Ilość [szt.]</span>
@@ -267,7 +270,7 @@ export function EdytorWyceny({ id, profil, zamknij, otworzWycene }: { id: string
       )}
 
       <ZnajdzCene pozycja={szukana?.pozycja ?? null} uslugi={szukana?.uslugi} zamknij={() => setSzukana(null)} wybierz={wstawCene}
-        zapytanieId={stan.zapytanie.id} cennikEtapu1={!widac('uslugi')} />
+        zapytanieId={stan.zapytanie.id} />
       <ImportListy otwarty={importOtwarty} zamknij={() => setImportOtwarty(false)}
         dodaj={(nowe) => zmienAparat((a) => ({ ...a, pozycje: [...a.pozycje, ...nowe] }))} />
     </div>

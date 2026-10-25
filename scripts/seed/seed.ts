@@ -12,6 +12,7 @@ import { join } from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { wierszePierwszegoArkusza } from '../../src/lib/arkusz'
 import { parsujKarteDostawy } from '../../src/lib/importOptima'
+import { rodzajZPrzedmiotu } from '../../src/lib/zapytania'
 import { agregujRegisto } from '../../src/lib/importRegisto'
 import { base64ZBajtow, wczytajDane, type TypDokumentu, type WczytanyPlik } from '../../src/lib/dokumenty'
 import { zapiszDokument } from '../../src/lib/magazyn'
@@ -120,7 +121,7 @@ async function znajdzLubUtworzZapytanie(z: DefZapytania): Promise<string> {
     return ist.id
   }
   const numer = typeof z.numer === 'string' ? z.numer : (sprawdz(await db.rpc('nastepny_numer_zo', { p_rok: z.numer.rok }), 'numer ZO') as string)
-  const nowe = sprawdz(await db.from('zapytania').insert({ ...dane, numer }).select('id').single(), `zapytanie ${numer}`)
+  const nowe = sprawdz(await db.from('zapytania').insert({ ...dane, ...rodzajZPrzedmiotu(String(dane.przedmiot ?? '')), numer }).select('id').single(), `zapytanie ${numer}`)
   log(`  nowe zapytanie ${numer}`)
   return nowe.id
 }
@@ -308,7 +309,7 @@ async function zapiszHistoryczna(d: DefWyceny) {
   if (!zap && d.nowe) {
     const numer = sprawdz(await db.rpc('nastepny_numer_zo', { p_rok: d.nowe.rok }), 'numer') as string
     zap = sprawdz(await db.from('zapytania').insert({
-      numer, przedmiot: d.przedmiot, klient_id: await idKlienta(d.nowe.klient), zrodlo: 'mail', status: 'wyslana',
+      numer, przedmiot: d.przedmiot, ...rodzajZPrzedmiotu(d.przedmiot), klient_id: await idKlienta(d.nowe.klient), zrodlo: 'mail', status: 'wyslana',
       uwagi: 'Zapytanie historyczne - numer nadany w wersji demo.', ...(d.nowe.utworzono ? { utworzono: d.nowe.utworzono } : {}),
     }).select('id, numer').single(), 'nowe zapytanie')
   }

@@ -4,7 +4,6 @@ import { gatunekZeSlownika, rodzajGatunku, rownowazniki } from './slowniki'
 import { SZABLONY, elementPozycji, kompletnosc, szablonDlaTypu, ulozWgSzablonu, wierszElementu } from './szablony'
 import { masaZParametrow, odczytajArkuszZTekstu } from './odczytTekstowy'
 import { liczbaZ, pozycjeZKroccow } from './wycenaMaterialowa'
-import { modulWidoczny, trybAplikacji } from './moduly'
 import type { ElementTekstu } from './rysunki'
 import type { Gatunek } from './types'
 import type { PozycjaWyceny } from './wyceny'
@@ -29,17 +28,6 @@ const GAT: Gatunek[] = [
 const poz = (z: Partial<PozycjaWyceny>): PozycjaWyceny => ({
   klucz: Math.random().toString(), lp: 0, zakladka: 'materialy', sekcja: 'blachy', nazwa: '', ilosc: 1, jm: 'kg', cena_jedn: 0,
   jednostka_ceny: 'kg', zrodlo_ceny: 'recznie', masa_reczna: false, dodatkowe: {}, ...z,
-})
-
-describe('tryb etapu 1', () => {
-  it('domyślnie etap 1 - widać tylko wycenę materiałową; tryb pełny pokazuje wszystko', () => {
-    expect(trybAplikacji({} as never)).toBe('etap1')
-    expect(modulWidoczny('etap1', 'wycenaMaterialowa')).toBe(true)
-    expect(modulWidoczny('etap1', 'uslugi')).toBe(false)
-    expect(modulWidoczny('etap1', 'robocizna')).toBe(false)
-    expect(modulWidoczny('pelny', 'uslugi')).toBe(true)
-    expect(trybAplikacji({ moduly: { tryb: 'pelny' } } as never)).toBe('pelny')
-  })
 })
 
 describe('szablony wymiennika i zbiornika', () => {

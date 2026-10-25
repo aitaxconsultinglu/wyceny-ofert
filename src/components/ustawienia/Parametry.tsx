@@ -6,7 +6,6 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { zapiszUstawienia } from './zapiszUstawienie'
-import { trybAplikacji, type TrybAplikacji } from '@/lib/moduly'
 
 function Pole({ etykieta, opis, children }: { etykieta: string; opis?: string; children: React.ReactNode }) {
   return (
@@ -46,32 +45,10 @@ export function Parametry() {
     await odswiez()
   }
 
-  const tryb = trybAplikacji(u)
-  async function zmienTryb(t: TrybAplikacji) {
-    setBlad(null)
-    const b = await zapiszUstawienia({ moduly: { tryb: t } })
-    if (b) { setBlad(b); return }
-    setKomunikat(t === 'etap1' ? 'Tryb etapu 1 - widać tylko wycenę materiałową.' : 'Pełna wersja - widać wszystkie moduły.')
-    await odswiez()
-  }
-
   return (
     <div className="space-y-5">
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
-
-      <section className="sekcja">
-        <h3 className="text-sm font-semibold">Tryb aplikacji</h3>
-        <div className="mt-2 flex flex-wrap gap-4 text-sm">
-          <label className="flex items-start gap-2"><input type="radio" className="mt-1" checked={tryb === 'etap1'} onChange={() => void zmienTryb('etap1')} />
-            <span><strong>Etap 1 - wycena materiałowa</strong><br /><span className="text-slate-500">odczyt rysunków, lista materiałów i parametry projektu,
-              ceny z kart dostawy Optimy i ofert na materiały do zapytania</span></span></label>
-          <label className="flex items-start gap-2"><input type="radio" className="mt-1" checked={tryb === 'pelny'} onChange={() => void zmienTryb('pelny')} />
-            <span><strong>Pełna wersja</strong><br /><span className="text-slate-500">także karta analizy, przygotowanie automatyczne, zapytania do dostawców,
-              robocizna, kooperacja, oferta Word, zatwierdzanie, projekty</span></span></label>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">Moduły spoza etapu są ukryte, nie usunięte - dane w nich zostają. Zmiana obowiązuje wszystkich użytkowników.</p>
-      </section>
 
       <section className="sekcja">
         <h3 className="text-sm font-semibold">Narzuty domyślne</h3>

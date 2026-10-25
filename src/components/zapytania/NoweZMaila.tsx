@@ -3,7 +3,6 @@ import { Mail, Paperclip, Sparkles, Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { useSlowniki } from '@/lib/slowniki'
-import { useModuly } from '@/lib/moduly'
 import { rozmiar } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ETYKIETY_TYPU, splaszczArchiwa, wczytajPlik, type PominietyZalacznik, type TypDokumentu, type WczytanyPlik } from '@/lib/dokumenty'
@@ -12,6 +11,7 @@ import { domyslnieIstotny, propozycjaZapytania, STRON_DLUGI_DOKUMENT, type Klien
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { rodzajZPrzedmiotu } from '@/lib/zapytania'
 
 /** Po otwarciu karty zapytania uruchom od razu przygotowanie automatyczne (flaga na czas przejścia). */
 export const FLAGA_PRZYGOTUJ = 'wyceny.przygotuj'
@@ -29,7 +29,6 @@ function doPola(iso: string | null) {
  */
 export function NoweZMaila({ otwarty, zamknij, utworzone }: { otwarty: boolean; zamknij: () => void; utworzone: (id: string) => void }) {
   const s = useSlowniki()
-  const { widac } = useModuly()
   const [mail, setMail] = useState<WczytanyPlik | null>(null)
   const [zalaczniki, setZalaczniki] = useState<WczytanyPlik[]>([])
   const [klienci, setKlienci] = useState<KlientImportu[]>([])
@@ -85,7 +84,7 @@ export function NoweZMaila({ otwarty, zamknij, utworzone }: { otwarty: boolean; 
       }
       const { data: z, error } = await supabase.from('zapytania').insert({
         numer: '', przedmiot: p.przedmiot.trim() || 'Zapytanie z maila', klient_id: klientId, nr_zapytania_klienta: p.nr_zapytania_klienta.trim() || null,
-        termin_oferty: p.termin_oferty, zrodlo: 'mail', status: 'nowe',
+        termin_oferty: p.termin_oferty, zrodlo: 'mail', status: 'nowe', ...rodzajZPrzedmiotu(p.przedmiot),
       }).select('id').single()
       if (error) throw new Error(komunikatPL(error.message))
       setZajety('Zapisywanie maila i załączników...')
@@ -93,7 +92,7 @@ export function NoweZMaila({ otwarty, zamknij, utworzone }: { otwarty: boolean; 
       const doZapisu: WczytanyPlik = { ...mail, zalaczniki }
       const { ostrzezenia } = await zapiszDokument(doZapisu, { zapytanie_id: z.id }, { typ: 'korespondencja', istotny: true, limitMb: s.ustawienia.limity_planu.plik_mb })
       if (ostrzezenia.length) window.alert(`Zapisano z uwagami:\n${ostrzezenia.join('\n')}`)
-      try { if (przygotuj && widac('przygotowanie')) sessionStorage.setItem(FLAGA_PRZYGOTUJ, z.id) } catch { /* bez flagi - przycisk w karcie */ }
+      try { if (przygotuj) sessionStorage.setItem(FLAGA_PRZYGOTUJ, z.id) } catch { /* bez flagi - przycisk w karcie */ }
       wyczysc(); zamknij()
       utworzone(z.id as string)
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
@@ -177,7 +176,7 @@ export function NoweZMaila({ otwarty, zamknij, utworzone }: { otwarty: boolean; 
                 <p className="mt-1 text-xs text-slate-500">Z maila zapisuje się sama treść (tekst) i zaznaczone pliki - nie cały plik .msg/.eml.
                   Nieistotne pliki powyżej {NIEISTOTNY_TYLKO_TEKST_MB} MB zapisują się jako tekst.</p>
               </div>
-              {widac('przygotowanie') && <label className="flex items-start gap-2 rounded border border-blekit bg-blekit-jasny/40 p-2 text-sm">
+              {<label className="flex items-start gap-2 rounded border border-blekit bg-blekit-jasny/40 p-2 text-sm">
                 <input type="checkbox" className="mt-1" checked={przygotuj} onChange={(e) => setPrzygotuj(e.target.checked)} />
                 <span><Sparkles className="mr-1 inline h-4 w-4" /><strong>Od razu przygotuj automatycznie</strong>: analiza zapytania, listy materiałów z rysunków, wstępna wycena
                   i projekt oferty do weryfikacji (przed wywołaniem AI zobaczysz koszt).</span>

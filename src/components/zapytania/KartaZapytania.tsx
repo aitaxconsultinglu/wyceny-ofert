@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { dataGodzinaPL, zl } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { STATUSY_ZAPYTANIA, ZRODLA, type StatusZapytania } from '@/lib/zapytania'
+import { STATUSY_ZAPYTANIA, ZRODLA, etykietaRodzaju, type RodzajAparatu, type StatusZapytania, type ZakresWymiennika } from '@/lib/zapytania'
+import { ZmianaRodzaju, ZnacznikRodzaju } from './RodzajAparatu'
 import { ETYKIETY_STATUSU_WYCENY, KOLORY_STATUSU_WYCENY, type StatusWyceny } from '@/lib/wyceny'
 import { uprawnienia, type Profil } from '@/lib/types'
 import { Button } from '../ui/button'
@@ -17,12 +18,12 @@ import { ZapytaniaDoDostawcow } from '../zapytaniaDostawcow/ZapytaniaDoDostawcow
 import { PrzygotowanieAutomatyczne } from './PrzygotowanieAutomatyczne'
 import { FLAGA_PRZYGOTUJ } from './NoweZMaila'
 import { WycenaMaterialowa } from './WycenaMaterialowa'
-import { useModuly } from '@/lib/moduly'
 
 interface Zapytanie {
   id: string; numer: string; klient_id: string | null; przedmiot: string; nr_zapytania_klienta: string | null
   nr_zapotrzebowania: string | null; zrodlo: string; link_platformy: string | null; termin_oferty: string | null
   termin_pytan: string | null; prowadzacy: string | null; status: StatusZapytania; uwagi: string | null; zmodyfikowano: string
+  rodzaj_aparatu: RodzajAparatu | null; zakres_wymiennika: ZakresWymiennika | null; zakres_opis: string | null
 }
 interface WersjaWyceny { id: string; wersja: number; nazwa: string | null; status: StatusWyceny; utworzono: string; zatwierdzono: string | null; skopiowana_z: string | null }
 
@@ -38,7 +39,6 @@ const zPola = (v: string) => (v ? new Date(v).toISOString() : null)
 
 export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: string; profil: Profil; zamknij: () => void; otworzWycene: (id: string) => void }) {
   const up = uprawnienia(profil)
-  const { widac } = useModuly()
   const [materialowa, setMaterialowa] = useState(false)
   const [z, setZ] = useState<Zapytanie | null>(null)
   const [klienci, setKlienci] = useState<{ id: string; nazwa: string }[]>([])
@@ -58,6 +58,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   const [zmieniony, setZmieniony] = useState(false)
   const [blad, setBlad] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [zmianaRodzaju, setZmianaRodzaju] = useState(false)
   const [historia, setHistoria] = useState<{ id: number; tabela: string; akcja: string; user_email: string | null; czas: string; zmiany: Record<string, unknown> }[]>([])
 
   const wczytaj = useCallback(async () => {
@@ -122,6 +123,33 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     otworzWycene(data as string)
   }
 
+  async function zapiszRodzaj(r: { rodzaj: RodzajAparatu | null; zakres: ZakresWymiennika | null; opis: string }) {
+    if (!z || !r.rodzaj) return
+    if (z.rodzaj_aparatu && (z.rodzaj_aparatu !== r.rodzaj || z.zakres_wymiennika !== r.zakres) && !window.confirm(
+      `Zmienić rodzaj na „${etykietaRodzaju(r.rodzaj, r.zakres, r.opis)}”? Zmieni się szablon elementów i kategorie tabel rysunków. Dane (dokumenty, odczyty, wyceny) zostają.`)) return
+    const { error } = await supabase.from('zapytania').update({
+      rodzaj_aparatu: r.rodzaj, zakres_wymiennika: r.rodzaj === 'wymiennik' ? r.zakres ?? 'kompletny' : null,
+      zakres_opis: r.rodzaj === 'wymiennik' && r.zakres === 'czesc' ? r.opis.trim() || null : null,
+    }).eq('id', z.id)
+    if (error) { setBlad(komunikatPL(error.message)); return }
+    setZmianaRodzaju(false); setInfo('Zapisano rodzaj aparatu.'); await wczytaj()
+  }
+
+  // Stare zapytanie bez rodzaju: najpierw wybór (od rodzaju zależą szablony, tabele rysunków i wymagania).
+  if (!z.rodzaj_aparatu) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4">
+        <Button rozmiar="maly" wariant="cichy" onClick={zamknij}><ArrowLeft className="h-4 w-4" /> Lista</Button>
+        <section className="sekcja space-y-3">
+          <h2 className="text-lg font-semibold">{z.numer} · {z.przedmiot}</h2>
+          <p className="text-sm text-slate-600">To zapytanie nie ma jeszcze rodzaju aparatu. Wybierz go - od rodzaju zależą szablon elementów, kategorie tabel rysunków i wymagania.</p>
+          {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
+          <ZmianaRodzaju poczatkowy={{ rodzaj: null, zakres: null, opis: '' }} zapisz={(r) => void zapiszRodzaj(r)} />
+        </section>
+      </div>
+    )
+  }
+
   const pole = 'pole'
   return (
     <div className="space-y-4">
@@ -129,31 +157,40 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
         <Button rozmiar="maly" wariant="cichy" onClick={zamknij}><ArrowLeft className="h-4 w-4" /> Lista</Button>
         <h2 className="text-lg font-semibold">{z.numer}</h2>
         <span className="text-slate-600">{z.przedmiot}</span>
-        {widac('wycenaMaterialowa') && (
-          <Button rozmiar="maly" wariant="akcent" className="ml-auto" onClick={() => setMaterialowa(true)}
+        <ZnacznikRodzaju rodzaj={z.rodzaj_aparatu} zakres={z.zakres_wymiennika} opis={z.zakres_opis} />
+        <button className="text-xs text-slate-500 underline" onClick={() => setZmianaRodzaju(!zmianaRodzaju)}>zmień rodzaj</button>
+        <span className="ml-auto" />
+        {(
+          <Button rozmiar="maly" wariant="akcent" onClick={() => setMaterialowa(true)}
             title="Lista materiałów i parametry z rysunków, ceny z kart dostawy Optimy i ofert do tego zapytania">
             <Sparkles className="h-4 w-4" /> Wycena materiałowa
           </Button>
         )}
-        {widac('przygotowanie') && (
-          <Button rozmiar="maly" wariant="akcent" className={widac('wycenaMaterialowa') ? '' : 'ml-auto'} onClick={() => setPrzygotowanie('reczne')}
+        {(
+          <Button rozmiar="maly" wariant="akcent" onClick={() => setPrzygotowanie('reczne')}
             title="Analiza zapytania, listy z rysunków, wstępna wycena i projekt oferty - do weryfikacji">
             <Sparkles className="h-4 w-4" /> Przygotuj automatycznie
           </Button>
         )}
       </div>
-      {widac('wycenaMaterialowa') && (
-        <WycenaMaterialowa otwarty={materialowa} zamknij={() => setMaterialowa(false)} zapytanie={{ id, numer: z.numer, przedmiot: z.przedmiot, status: z.status }}
+      {(
+        <WycenaMaterialowa otwarty={materialowa} zamknij={() => setMaterialowa(false)} zapytanie={{ id, numer: z.numer, przedmiot: z.przedmiot, status: z.status, rodzaj_aparatu: z.rodzaj_aparatu, zakres_wymiennika: z.zakres_wymiennika, zakres_opis: z.zakres_opis }}
           otworzWycene={otworzWycene} poZakonczeniu={() => void wczytaj()} />
       )}
       <PrzygotowanieAutomatyczne
-        otwarty={!!przygotowanie && widac('przygotowanie')} odRazu={przygotowanie === 'po_imporcie'} zamknij={() => setPrzygotowanie(null)}
+        otwarty={!!przygotowanie} odRazu={przygotowanie === 'po_imporcie'} zamknij={() => setPrzygotowanie(null)}
         zapytanie={{ id, numer: z.numer, przedmiot: z.przedmiot, klient: klienci.find((k) => k.id === z.klient_id)?.nazwa ?? null, klient_id: z.klient_id, nr_zapytania_klienta: z.nr_zapytania_klienta, termin_oferty: z.termin_oferty, status: z.status }}
         widziMarze={up.widziMarze} otworzWycene={otworzWycene} otworzZakladke={(k) => { setGeneratorZAnalizy(false); setZakladka(k) }}
         poZakonczeniu={() => void wczytaj()}
       />
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {info && <Komunikat rodzaj="sukces">{info}</Komunikat>}
+      {zmianaRodzaju && (
+        <section className="sekcja space-y-2">
+          <p className="text-sm text-slate-600">Zmiana rodzaju zmienia szablon elementów i kategorie tabel rysunków (dane nie są kasowane).</p>
+          <ZmianaRodzaju poczatkowy={{ rodzaj: z.rodzaj_aparatu, zakres: z.zakres_wymiennika, opis: z.zakres_opis ?? '' }} zapisz={(r) => void zapiszRodzaj(r)} />
+        </section>
+      )}
 
       <section className="sekcja space-y-3">
         <div className="flex flex-wrap gap-3">
@@ -193,7 +230,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
       </section>
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {([['dokumenty', 'Dokumenty'], ['rysunki', 'Rysunki i listy'], ...(widac('analiza') ? [['analiza', 'Karta analizy']] : []), ['wyceny', `Wyceny (${wersje.length})`], ...(widac('zapytaniaDostawcow') ? [['dostawcy', 'Zapytania do dostawców']] : []), ['oferty', widac('uslugi') ? 'Oferty dostawców' : 'Oferty na materiały'], ['historia', 'Historia zmian']] as [Zakladka, string][]).map(([k, et]) => (
+        {([['dokumenty', 'Dokumenty'], ['rysunki', 'Rysunki i listy'], ['analiza', 'Karta analizy'], ['wyceny', `Wyceny (${wersje.length})`], ['dostawcy', 'Zapytania do dostawców'], ['oferty', 'Oferty dostawców'], ['historia', 'Historia zmian']] as [Zakladka, string][]).map(([k, et]) => (
           <button key={k} onClick={() => { setZakladka(k); setGeneratorZAnalizy(false) }}
             className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
         ))}

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { ETYKIETY_ROLI, uprawnienia, type Profil } from '@/lib/types'
-import { useModuly } from '@/lib/moduly'
 
 function Rozdzial({ tytul, children }: { tytul: string; children: ReactNode }) {
   return (
@@ -14,7 +13,6 @@ function Rozdzial({ tytul, children }: { tytul: string; children: ReactNode }) {
 /** Krótka instrukcja dla użytkowników - rozbudowywana z każdym etapem. */
 export function Instrukcja({ profil }: { profil: Profil }) {
   const up = uprawnienia(profil)
-  const { tryb } = useModuly()
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <h2 className="text-lg font-semibold">Instrukcja</h2>
@@ -35,19 +33,20 @@ export function Instrukcja({ profil }: { profil: Profil }) {
         </p>
       </Rozdzial>
 
-      {tryb === 'etap1' && (
-        <Rozdzial tytul="Etap 1: wycena materiałowa krok po kroku">
+      {(
+        <Rozdzial tytul="Wycena materiałowa z rysunków krok po kroku">
           <p>
-            Na tym etapie aplikacja wycenia <strong>same materiały</strong> wymiennika płaszczowo-rurowego albo zbiornika. Robocizna, kooperacja,
-            usługi, oferta dla klienta i zatwierdzanie są ukryte (wrócą w kolejnych etapach - administrator może je włączyć w Ustawieniach).
+            Aplikacja ma dwa moduły: <strong>Zapytania ofertowe i wyceny</strong> (od zapytania do oferty) i <strong>Historyczny cennik</strong>
+            (zakupy z Optimy, usługi, projekty zrealizowane). Nowe zapytanie zaczyna się od wyboru rodzaju aparatu - zbiornik albo wymiennik ciepła;
+            od niego zależy szablon elementów i wymagania.
           </p>
           <ol className="list-decimal space-y-1 pl-5">
-            <li><strong>Zapytanie</strong> - dodaj ręcznie albo „Nowe z maila” (treść maila + wybrane załączniki; logo i stopki są pomijane).</li>
+            <li><strong>Zapytanie</strong> - „Nowe zapytanie”: rodzaj aparatu, przedmiot, klient; dokumenty dodaje technolog w zakładce Dokumenty.</li>
             <li><strong>Rysunki</strong> - w zakładce Dokumenty rysunki PDF mają typ „rysunek”. Rysunki z CAD są czytane z warstwy tekstowej
               bez kosztu AI. Skan (sam obraz) odczytaj w zakładce „Rysunki i listy” - tam AI, z kosztem pokazanym przed wywołaniem.</li>
             <li><strong>Oferty na materiały specyficzne</strong> (dennice, rurki, odkuwki, kołnierze) - dodaj w „Oferty na materiały”
               z przypisaniem do tego zapytania. Mają pierwszeństwo przed cenami z Optimy.</li>
-            <li><strong>„Wycena materiałowa”</strong> na karcie zapytania - wybierz typ aparatu (szablon). Aplikacja odczyta tabelę materiałów,
+            <li><strong>„Wycena materiałowa”</strong> na karcie zapytania - szablon wynika z rodzaju aparatu zapytania. Aplikacja odczyta tabelę materiałów,
               tabelę króćców i dane projektowe, ułoży listę wg szablonu i dobierze ceny.</li>
             <li><strong>Uzupełnij</strong> w zakładce Materiały: wymiary albo masy (pozycje z ilością 0), długości rur króćców,
               brakujące ceny (Znajdź cenę). Panel szablonu nad listą pokazuje, których elementów brakuje, a „Parametry projektu” -

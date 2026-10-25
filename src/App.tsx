@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { LogOut, KeyRound } from 'lucide-react'
+import { BookOpen, KeyRound, LogOut, Settings, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { DostawcaSlownikow, useSlowniki } from '@/lib/slowniki'
 import { ETYKIETY_ROLI, uprawnienia, type Profil } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { useModuly } from '@/lib/moduly'
 import { Logowanie } from './components/Logowanie'
 import { UstawHaslo } from './components/UstawHaslo'
 import { NowaWersja } from './components/NowaWersja'
@@ -123,25 +122,32 @@ export default function App() {
 function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => void }) {
   const { gotowe, blad, odswiez, ustawienia } = useSlowniki()
   const firma = ustawienia?.firma
-  const { widac } = useModuly()
   const [{ widok, id }, ustawWidok] = useWidok()
   const up = uprawnienia(profil)
 
-  const zakladki: { id: Widok; etykieta: string; grupa?: string }[] = [
-    { id: 'zapytania', etykieta: 'Zapytania i wyceny' },
-    ...(widac('wersjeEdytowalne') ? [{ id: 'edytowalne' as Widok, etykieta: 'Wersje edytowalne' }] : []),
-    ...(profil.rola === 'prezes' && widac('zatwierdzanie') ? [{ id: 'zatwierdzanie' as Widok, etykieta: 'Do zatwierdzenia' }] : []),
-    { id: 'zakupy', etykieta: 'Zakupy (Optima)', grupa: 'Baza cen' },
-    { id: 'oferty', etykieta: widac('uslugi') ? 'Oferty dostawców' : 'Oferty na materiały', grupa: 'Baza cen' },
-    ...(widac('uslugi') ? [{ id: 'uslugi' as Widok, etykieta: 'Usługi kooperacyjne', grupa: 'Baza cen' }] : []),
-    ...(widac('projekty') ? [{ id: 'projekty' as Widok, etykieta: 'Projekty zrealizowane' }] : []),
-    ...(up.ustawienia ? [{ id: 'ustawienia' as Widok, etykieta: 'Ustawienia' }] : []),
-    ...(up.uzytkownicy ? [{ id: 'uzytkownicy' as Widok, etykieta: 'Użytkownicy' }] : []),
-    { id: 'instrukcja', etykieta: 'Instrukcja' },
+  // Dwa moduły: proces od zapytania do wyceny i dane historyczne (cennik). Ustawienia, użytkownicy, instrukcja - osobno.
+  const modul1: { id: Widok; etykieta: string }[] = [
+    { id: 'zapytania', etykieta: 'Zapytania' },
+    { id: 'edytowalne', etykieta: 'Wersje edytowalne' },
+    { id: 'oferty', etykieta: 'Oferty dostawców' },
+    ...(profil.rola === 'prezes' ? [{ id: 'zatwierdzanie' as Widok, etykieta: 'Do zatwierdzenia' }] : []),
+  ]
+  const modul2: { id: Widok; etykieta: string }[] = [
+    { id: 'zakupy', etykieta: 'Zakupy (Optima)' },
+    { id: 'uslugi', etykieta: 'Usługi kooperacyjne' },
+    { id: 'projekty', etykieta: 'Projekty zrealizowane' },
+  ]
+  const poza: { id: Widok; etykieta: string; ikona: typeof Settings }[] = [
+    ...(up.ustawienia ? [{ id: 'ustawienia' as Widok, etykieta: 'Ustawienia', ikona: Settings }] : []),
+    ...(up.uzytkownicy ? [{ id: 'uzytkownicy' as Widok, etykieta: 'Użytkownicy', ikona: Users }] : []),
+    { id: 'instrukcja', etykieta: 'Instrukcja', ikona: BookOpen },
   ]
   // Widok niedostępny dla roli (np. technolog wpisał #/ustawienia) - pokazujemy start.
-  // Edytor wyceny (#/wyceny/<id>) należy do zakładki zapytań.
-  const aktywny = widok === 'wyceny' ? 'wyceny' : zakladki.some((z) => z.id === widok) ? widok : 'zapytania'
+  // Edytor wyceny (#/wyceny/<id>) należy do modułu zapytań.
+  const wszystkie = [...modul1, ...modul2, ...poza]
+  const aktywny = widok === 'wyceny' ? 'wyceny' : wszystkie.some((z) => z.id === widok) ? widok : 'zapytania'
+  const wModule2 = modul2.some((z) => z.id === aktywny)
+  const zakladki = poza.some((z) => z.id === aktywny) ? [] : wModule2 ? modul2 : modul1
 
   return (
     <div className="min-h-screen">
@@ -156,25 +162,20 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
               {firma?.nazwa && <p className="text-xs text-slate-500">{firma.nazwa}</p>}
             </div>
           </div>
-          <nav className="flex flex-wrap items-center gap-1">
-            {zakladki.map((z, i) => (
-              <span key={z.id} className="flex items-center">
-                {z.grupa && zakladki[i - 1]?.grupa !== z.grupa && (
-                  <span className="ml-2 mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{z.grupa}:</span>
-                )}
-                <button
-                  onClick={() => ustawWidok(z.id)}
-                  className={cn(
-                    'rounded-md px-3 py-1.5 text-sm font-medium',
-                    (aktywny === z.id || (aktywny === 'wyceny' && z.id === 'zapytania')) ? 'bg-limonka-jasna text-slate-900' : 'text-slate-600 hover:bg-slate-100',
-                  )}
-                >
-                  {z.etykieta}
-                </button>
-              </span>
+          <nav className="flex rounded-lg bg-slate-100 p-0.5" aria-label="Moduły">
+            {([['zapytania', 'Zapytania ofertowe i wyceny', !wModule2 && zakladki.length > 0], ['zakupy', 'Historyczny cennik', wModule2]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
+              <button key={cel} onClick={() => ustawWidok(cel)}
+                className={cn('rounded-md px-3 py-1.5 text-sm font-semibold', akt ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
+                {et}
+              </button>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            {poza.map((z) => (
+              <Button key={z.id} wariant="cichy" rozmiar="maly" title={z.etykieta} onClick={() => ustawWidok(z.id)}
+                className={cn(aktywny === z.id && 'bg-limonka-jasna')}><z.ikona className="h-4 w-4" /><span className="hidden xl:inline">{z.etykieta}</span></Button>
+            ))}
+            <span className="mx-1 h-6 w-px bg-slate-200" />
             <div className="text-right">
               <p className="text-sm font-medium leading-tight">{profil.nazwa || profil.email}</p>
               <p className="text-xs text-slate-500">
@@ -185,6 +186,17 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             <Button wariant="cichy" rozmiar="maly" onClick={() => supabase.auth.signOut()} title="Wyloguj"><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
+        {zakladki.length > 0 && (
+          <div className="mx-auto flex max-w-[1500px] flex-wrap gap-1 px-4 pb-2">
+            {zakladki.map((z) => (
+              <button key={z.id} onClick={() => ustawWidok(z.id)}
+                className={cn('rounded-md px-3 py-1 text-sm font-medium',
+                  (aktywny === z.id || (aktywny === 'wyceny' && z.id === 'zapytania')) ? 'bg-limonka-jasna text-slate-900' : 'text-slate-600 hover:bg-slate-100')}>
+                {z.etykieta}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-[1500px] px-4 py-6">

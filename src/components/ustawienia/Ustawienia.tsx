@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useSlowniki } from '@/lib/slowniki'
-import { useModuly } from '@/lib/moduly'
 import { cn } from '@/lib/utils'
 import { TabelaSlownika } from './TabelaSlownika'
 import { Parametry } from './Parametry'
@@ -46,10 +45,8 @@ const ZAKLADKI_USLUG = [
 
 export function Ustawienia() {
   const s = useSlowniki()
-  const { widac } = useModuly()
   const [zakladka, setZakladka] = useState<Zakladka>('parametry')
-  // Etap 1: bez stawek / MPK (robocizna), kategorii usług i szablonu zapytań do dostawców - wrócą z modułami.
-  const zakladki = ZAKLADKI.filter((x) => (x.id === 'stawki' || x.id === 'mpk' ? widac('robocizna') : x.id === 'uslugi' ? widac('uslugi') : x.id === 'zapytania' ? widac('zapytaniaDostawcow') : true))
+  const zakladki = ZAKLADKI
 
   return (
     <div className="space-y-4">

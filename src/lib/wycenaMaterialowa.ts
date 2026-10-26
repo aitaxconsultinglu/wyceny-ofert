@@ -15,6 +15,7 @@ import { BUCKET } from './magazyn'
 import { klucz, nowyAparat, wczytajWycene, zapiszWycene, type PozycjaWyceny } from './wyceny'
 import { elementPozycji, szablonDlaTypu, ulozWgSzablonu, wierszElementu, type Szablon } from './szablony'
 import type { Gatunek } from './types'
+import { jestRysunkiem } from './klasyfikacjaDokumentow'
 import { t } from '@/i18n'
 
 const STRON_NA_RYSUNEK = 3
@@ -42,7 +43,7 @@ type Postep = (opis: string) => void
 
 /** Odczyt z warstwy tekstowej zapisany jako odczyt rysunku (powtórne uruchomienie aktualizuje ten sam wpis). */
 async function odczytajRysunkiTekstowo(zapytanieId: string, postep: Postep, db: SupabaseClient) {
-  const rysunki = (await dokumentyZapytania(zapytanieId, db)).filter((d) => d.typ === 'rysunek' && d.sciezka && d.stan === 'zapisany' && /\.pdf$/i.test(d.nazwa_pliku))
+  const rysunki = (await dokumentyZapytania(zapytanieId, db)).filter((d) => jestRysunkiem(d.typ) && d.sciezka && d.stan === 'zapisany' && /\.pdf$/i.test(d.nazwa_pliku))
   let stron = 0
   const skany: string[] = []
   for (const d of rysunki) {

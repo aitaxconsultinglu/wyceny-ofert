@@ -29,6 +29,8 @@ interface Zapytanie {
   id: string; numer: string; klient_id: string | null; przedmiot: string; nr_zapytania_klienta: string | null
   nr_zapotrzebowania: string | null; zrodlo: string; link_platformy: string | null; termin_oferty: string | null
   termin_pytan: string | null; prowadzacy: string | null; status: StatusZapytania; uwagi: string | null; zmodyfikowano: string
+  /** Źródło pól uzupełnionych automatycznie z dokumentów: {pole: 'plik.pdf, str. 2'}. */
+  zrodla_pol?: Record<string, string>
   rodzaj_aparatu: RodzajAparatu | null; zakres_wymiennika: ZakresWymiennika | null; zakres_opis: string | null
 }
 interface WersjaWyceny { id: string; wersja: number; nazwa: string | null; status: StatusWyceny; utworzono: string; zatwierdzono: string | null; skopiowana_z: string | null }
@@ -100,7 +102,12 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   }, [zakladka, id])
 
   if (!z) return <p className="text-slate-500">{blad ?? t('Wczytywanie...')}</p>
-  const ust = (zm: Partial<Zapytanie>) => { setZ({ ...z, ...zm }); setZmieniony(true); setInfo(null) }
+  const ust = (zm: Partial<Zapytanie>) => {
+    // Ręczna zmiana pola uzupełnionego z dokumentu - źródło przestaje obowiązywać.
+    const zrodla = z?.zrodla_pol && Object.keys(zm).some((k) => k in z.zrodla_pol!)
+      ? { zrodla_pol: Object.fromEntries(Object.entries(z.zrodla_pol).filter(([k]) => !(k in zm))) } : {}
+    setZ({ ...z, ...zm, ...zrodla } as Zapytanie); setZmieniony(true); setInfo(null)
+  }
 
   async function zapisz() {
     if (!z) return
@@ -199,6 +206,8 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   ]
 
   const pole = 'pole'
+  // Pole uzupełnione automatycznie z dokumentu - źródło pod polem (póki wartość jest ta sama, człowiek może ją zmienić).
+  const zrodloPola = (k: string) => (z.zrodla_pol?.[k] ? <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={z.zrodla_pol[k]}>{t('z dokumentu: {0}', z.zrodla_pol[k])}</span> : null)
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -244,14 +253,14 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
                 <option value="">-</option>{klienci.map((k) => <option key={k.id} value={k.id}>{k.nazwa}</option>)}
               </select>
               <Button rozmiar="maly" title={t('Nowy klient')} onClick={() => void dodajKlienta()}><Plus className="h-3 w-3" /></Button>
-            </div></label>
+            </div>{zrodloPola('klient_id')}</label>
           <label className="w-48"><span className="etykieta">{t('Status')}</span>
             <select className={pole} value={z.status} onChange={(e) => ust({ status: e.target.value as StatusZapytania })}>
               {STATUSY_ZAPYTANIA.map((s) => <option key={s.id} value={s.id}>{s.etykieta}</option>)}
             </select></label>
         </div>
         <div className="flex flex-wrap gap-3">
-          <label className="w-48"><span className="etykieta">{t('Nr zapytania klienta')}</span><input className={pole} value={z.nr_zapytania_klienta ?? ''} onChange={(e) => ust({ nr_zapytania_klienta: e.target.value || null })} /></label>
+          <label className="w-48"><span className="etykieta">{t('Nr zapytania klienta')}</span><input className={pole} value={z.nr_zapytania_klienta ?? ''} onChange={(e) => ust({ nr_zapytania_klienta: e.target.value || null })} />{zrodloPola('nr_zapytania_klienta')}</label>
           <label className="w-48"><span className="etykieta">{t('Nr zapotrzebowania')}</span><input className={pole} value={z.nr_zapotrzebowania ?? ''} onChange={(e) => ust({ nr_zapotrzebowania: e.target.value || null })} /></label>
           <label className="w-44"><span className="etykieta">{t('Źródło')}</span>
             <select className={pole} value={z.zrodlo} onChange={(e) => ust({ zrodlo: e.target.value })}>
@@ -260,7 +269,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
           {z.zrodlo === 'platforma' && (
             <label className="w-72"><span className="etykieta">{t('Link do platformy')}</span><input className={pole} value={z.link_platformy ?? ''} onChange={(e) => ust({ link_platformy: e.target.value || null })} /></label>
           )}
-          <label className="w-56"><span className="etykieta">{t('Termin złożenia oferty')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_oferty)} onChange={(e) => ust({ termin_oferty: zPola(e.target.value) })} /></label>
+          <label className="w-56"><span className="etykieta">{t('Termin złożenia oferty')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_oferty)} onChange={(e) => ust({ termin_oferty: zPola(e.target.value) })} />{zrodloPola('termin_oferty')}</label>
           <label className="w-56"><span className="etykieta">{t('Termin zadawania pytań')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_pytan)} onChange={(e) => ust({ termin_pytan: zPola(e.target.value) })} /></label>
           <label className="w-56"><span className="etykieta">{t('Osoba prowadząca')}</span>
             <select className={pole} value={z.prowadzacy ?? ''} onChange={(e) => ust({ prowadzacy: e.target.value || null })}>
@@ -278,7 +287,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
         ))}
       </div>
 
-      {zakladka === 'dokumenty' && <DokumentyZapytania zapytanieId={id} numer={z.numer} profil={profil} />}
+      {zakladka === 'dokumenty' && <DokumentyZapytania zapytanieId={id} numer={z.numer} profil={profil} rodzajAparatu={z.rodzaj_aparatu} poZmianieZapytania={() => void wczytaj()} />}
       {zakladka === 'rysunki' && <RysunkiZapytania zapytanieId={id} numer={z.numer} profil={profil} otworzWycene={otworzWycene} rodzajAparatu={z.rodzaj_aparatu} />}
       {zakladka === 'analiza' && (
         <KartaAnalizy

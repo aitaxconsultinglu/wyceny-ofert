@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { supabase } from './supabase'
 import { komunikatPL } from './config'
 import type {
-  Gatunek, KategoriaMaterialu, KategoriaUslugi, KursWaluty, Mpk, RodzajStali, RodzajTabeli, StawkaRobocizny, Ustawienia,
+  Gatunek, KategoriaMaterialu, KategoriaUslugi, KursWaluty, Mpk, RodzajStali, RodzajTabeli, StawkaRobocizny, TypDokumentuSlownik, Ustawienia,
 } from './types'
 import { nazwaWJezyku, t } from '@/i18n'
 
@@ -18,6 +18,8 @@ interface Slowniki {
   kategorieUslug: KategoriaUslugi[]
   /** Rodzaje tabel do zaznaczania na rysunkach (wg rodzaju aparatu). */
   rodzajeTabel: RodzajTabeli[]
+  /** Typy dokumentów z grupami (zakładka Dokumenty). */
+  typyDokumentow: TypDokumentuSlownik[]
   /** Najnowszy kurs każdej waluty. */
   kursy: Record<string, KursWaluty>
   odswiez: () => Promise<void>
@@ -43,11 +45,11 @@ const Kontekst = createContext<Slowniki | null>(null)
 export function DostawcaSlownikow({ children }: { children: ReactNode }) {
   const [stan, setStan] = useState<Omit<Slowniki, 'odswiez'>>({
     gotowe: false, blad: null, ustawienia: PUSTE_USTAWIENIA, mpk: [], stawki: [], rodzajeStali: [],
-    gatunki: [], kategorieMaterialow: [], kategorieUslug: [], rodzajeTabel: [], kursy: {},
+    gatunki: [], kategorieMaterialow: [], kategorieUslug: [], rodzajeTabel: [], typyDokumentow: [], kursy: {},
   })
 
   const odswiez = useCallback(async () => {
-    const [ust, mpk, stawki, rodzaje, gatunki, kmat, kusl, kursy, rtab] = await Promise.all([
+    const [ust, mpk, stawki, rodzaje, gatunki, kmat, kusl, kursy, rtab, tdok] = await Promise.all([
       supabase.from('ustawienia').select('klucz, wartosc'),
       supabase.from('mpk').select('*').order('kod'),
       supabase.from('stawki_robocizny').select('*').order('kolejnosc').order('id'),
@@ -57,8 +59,9 @@ export function DostawcaSlownikow({ children }: { children: ReactNode }) {
       supabase.from('kategorie_uslug').select('*').order('kolejnosc'),
       supabase.from('kursy_walut').select('*').order('data', { ascending: false }).limit(20),
       supabase.from('rodzaje_tabel').select('*').eq('aktywny', true).order('kolejnosc'),
+      supabase.from('typy_dokumentow').select('*').eq('aktywny', true).order('kolejnosc'),
     ])
-    const blad = [ust, mpk, stawki, rodzaje, gatunki, kmat, kusl, kursy, rtab].find((r) => r.error)?.error
+    const blad = [ust, mpk, stawki, rodzaje, gatunki, kmat, kusl, kursy, rtab, tdok].find((r) => r.error)?.error
     if (blad) {
       setStan((s) => ({ ...s, blad: komunikatPL(blad.message) }))
       return
@@ -78,6 +81,7 @@ export function DostawcaSlownikow({ children }: { children: ReactNode }) {
       kategorieMaterialow: wJezyku((kmat.data ?? []) as KategoriaMaterialu[]),
       kategorieUslug: wJezyku((kusl.data ?? []) as KategoriaUslugi[]),
       rodzajeTabel: wJezyku((rtab.data ?? []) as RodzajTabeli[]),
+      typyDokumentow: wJezyku((tdok.data ?? []) as TypDokumentuSlownik[]),
       kursy: najnowsze,
     })
   }, [])

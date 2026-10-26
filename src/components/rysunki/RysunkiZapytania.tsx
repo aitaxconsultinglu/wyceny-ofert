@@ -6,6 +6,7 @@ import { dataGodzinaPL, liczba } from '@/lib/format'
 import { ETYKIETY_TYPU, type TypDokumentu } from '@/lib/dokumenty'
 import { PROG_PEWNOSCI, ETYKIETY_OBSZARU } from '@/lib/rysunki'
 import { jestObrazem } from '@/lib/obrazPdf'
+import { jestRysunkiem } from '@/lib/klasyfikacjaDokumentow'
 import { useSlowniki } from '@/lib/slowniki'
 import { OdczytCalegoDokumentu } from './OdczytCalegoDokumentu'
 import type { Profil } from '@/lib/types'
@@ -40,7 +41,7 @@ export function RysunkiZapytania({ zapytanieId, numer, profil, otworzWycene, rod
     const { data: zal } = ids.length ? await supabase.from('dokumenty').select(kolumny).in('nadrzedny_id', ids).is('zapytanie_id', null) : { data: [] }
     const pdf = [...(data ?? []), ...(zal ?? [])].filter((d) => /\.pdf$/i.test(d.nazwa_pliku) || jestObrazem(d.nazwa_pliku)) as DokumentPdf[]
     // Rysunki najpierw.
-    setDokumenty(pdf.sort((a, b) => Number(b.typ === 'rysunek') - Number(a.typ === 'rysunek')))
+    setDokumenty(pdf.sort((a, b) => Number(jestRysunkiem(b.typ)) - Number(jestRysunkiem(a.typ))))
     const { data: od, error: e2 } = await supabase.from('odczyty_rysunkow').select('*').eq('zapytanie_id', zapytanieId).order('utworzono', { ascending: false })
     if (e2) setBlad(komunikatPL(e2.message))
     setOdczyty((od ?? []) as OdczytZapisany[])

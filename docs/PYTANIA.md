@@ -146,3 +146,14 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     z odczytu zostaje w wycenie (komunikat przy przeniesieniu) - nie kasujemy pozycji, które mogły dostać cenę.
 56. **Obrazy JPG / PNG** otwierają się jak jednostronicowy skan (200 DPI przyjęte do wymiarów strony); odczyt bez AI
     jest możliwy tylko dla PDF z warstwą tekstową.
+57. **Kompresja - wyniki na przykładowych folderach** (raport z testu lokalnego): pliki z zapytań są już dobrze spakowane -
+    rysunki z CAD bez zmian (0%), skan oferty -17% (przekodowanie stron), PDF-y z warstwą tekstową -0..6% (struktura),
+    DOCX/XLSX -14..20% (gzip); razem na folder 0,1-8%. Skany zapisane jako obraz dwukolorowy (CCITT/JBIG2) są mniejsze niż
+    JPEG - zostają w oryginale. Odczyt po kompresji sprawdzony: ta sama liczba znaków i elementów tekstu, kafle się renderują.
+58. **TIFF, DWG, DXF** - tylko przechowanie (bez podglądu i odczytu); DXF / pliki tekstowe zapisują się spakowane gzipem
+    przy zysku > 10%, pobranie i otwarcie rozpakowuje je automatycznie.
+59. **Kompresja obrazów JPG / PNG** (WebP / JPEG jakości 0,9, dłuższy bok do 6000 px) działa w przeglądarce; nazwa pliku
+    zostaje oryginalna, format zapisu jest w kolumnie mime. DPI z metadanych obrazu nie jest odczytywane (przyjmujemy 200 DPI).
+60. **Pola karty zapytania z dokumentów** (bez AI): numer zapytania klienta, termin składania ofert, klient (po słowniku) -
+    tylko puste pola, ze źródłem „plik, str. N” pod polem; ręczna zmiana pola usuwa znacznik źródła. Arkusz danych PDF
+    z warstwą tekstową daje odczyt „Dane projektowe z arkusza danych” do sprawdzenia w zakładce rysunków.

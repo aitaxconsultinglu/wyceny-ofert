@@ -74,6 +74,17 @@ export async function renderujPodglad(doc: PDFDocumentProxy, nr: number, maksBok
   return { dataUrl, szer: w, wys: h, skala }
 }
 
+/** Cała strona w zadanym DPI jako JPEG (bajty) - przekodowanie skanu przy kompresji pliku. */
+export async function stronaJakoJpeg(doc: PDFDocumentProxy, nr: number, dpi: number, jakosc: number) {
+  const { p, w, h } = await renderuj(doc, nr, dpi / 72)
+  const dataUrl = jpeg(p.canvas, jakosc)
+  fabryka(doc).destroy(p)
+  const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1))
+  const bajty = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bajty[i] = bin.charCodeAt(i)
+  return { bajty, szer: w, wys: h }
+}
+
 /**
  * Natywna rozdzielczość skanu: największy obraz osadzony na stronie względem rozmiaru strony.
  * null, gdy na stronie nie ma obrazów (PDF wektorowy).

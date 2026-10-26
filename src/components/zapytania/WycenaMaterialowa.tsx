@@ -9,6 +9,7 @@ import { etykietaRodzaju, typAparatuZRodzaju, type RodzajAparatu, type ZakresWym
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
+import { jestRysunkiem } from '@/lib/klasyfikacjaDokumentow'
 import { t } from '@/i18n'
 
 /** Etap 1: wycena materiałowa z rysunków zapytania (bez AI), wg szablonu wymiennika / zbiornika. */
@@ -30,7 +31,7 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
   useEffect(() => {
     if (!otwarty) return
     setRaport(null); setBlad(null)
-    void dokumentyZapytania(zapytanie.id).then((d) => setRysunki(d.filter((x) => x.typ === 'rysunek' && /\.pdf$/i.test(x.nazwa_pliku)).map((x) => x.nazwa_pliku)))
+    void dokumentyZapytania(zapytanie.id).then((d) => setRysunki(d.filter((x) => jestRysunkiem(x.typ) && /\.pdf$/i.test(x.nazwa_pliku)).map((x) => x.nazwa_pliku)))
   }, [otwarty, zapytanie.id])
 
   async function uruchom() {

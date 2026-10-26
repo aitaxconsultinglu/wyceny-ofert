@@ -126,6 +126,17 @@ export interface RodzajTabeli {
   kolejnosc: number
 }
 
+/** Typ dokumentu (słownik typy_dokumentow): nazwa PL/EN i grupa w zakładce Dokumenty. */
+export interface TypDokumentuSlownik {
+  kod: string
+  nazwa: string
+  nazwa_en?: string | null
+  nazwa_pl?: string
+  grupa: string
+  istotny_domyslnie: boolean
+  kolejnosc: number
+}
+
 export interface KursWaluty {
   waluta: string
   data: string

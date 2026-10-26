@@ -19,6 +19,7 @@ import { aparatyZKarty, dopasujAparat, ujednolicJednostkeUslugi, klauzuleZAnaliz
 import type { Gatunek, KategoriaMaterialu, KategoriaUslugi, RodzajStali, StawkaRobocizny, Ustawienia } from './types'
 import { dataPL, dzisiajISO } from './format'
 import { typAparatuZRodzaju } from './zapytania'
+import { jestRysunkiem } from './klasyfikacjaDokumentow'
 import { t } from '@/i18n'
 
 export const MAKS_STRON_RYSUNKOW = 8
@@ -64,7 +65,7 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
     pominiete.push(...a.pominiete.map((p) => `Analiza: pominięty ${p}`))
   }
   if (opcje.rysunki) {
-    const rysunki = (await dokumentyZapytania(z.id, db)).filter((d) => d.istotny && d.typ === 'rysunek' && d.sciezka && d.stan === 'zapisany' && /\.pdf$/i.test(d.nazwa_pliku))
+    const rysunki = (await dokumentyZapytania(z.id, db)).filter((d) => d.istotny && jestRysunkiem(d.typ) && d.sciezka && d.stan === 'zapisany' && /\.pdf$/i.test(d.nazwa_pliku))
     let stron = 0
     const juzCzytane = new Map<string, string>()
     for (const d of rysunki) {

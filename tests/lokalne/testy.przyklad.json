@@ -1,11 +1,47 @@
 {
   "_opis": "PRZYKŁAD (dane fikcyjne). Prawdziwą konfigurację trzymaj w prywatne/testy.json - poza repozytorium. Ścieżki względem FOLDER_MATERIALOW.",
-  "skan_wykaz": { "plik": "Wymiennik W-1/Rysunek W-1 (skan).pdf", "obszar": { "x": 0.8, "y": 0.15, "w": 0.19, "h": 0.84 }, "gatunki": ["P265GH"], "min_pozycji": 20 },
-  "rysunek_wektorowy": { "plik": "Separator S-1/S-1.pdf", "krocce": ["A", "B"] },
-  "karty_dostawy": ["karta dostawy 1.XLS", "karta dostawy 2.XLS"],
+  "skan_wykaz": {
+    "plik": "Wymiennik W-1/Rysunek W-1 (skan).pdf",
+    "obszar": {
+      "x": 0.8,
+      "y": 0.15,
+      "w": 0.19,
+      "h": 0.84
+    },
+    "gatunki": [
+      "P265GH"
+    ],
+    "min_pozycji": 20
+  },
+  "rysunek_wektorowy": {
+    "plik": "Separator S-1/S-1.pdf",
+    "krocce": [
+      "A",
+      "B"
+    ]
+  },
+  "karty_dostawy": [
+    "karta dostawy 1.XLS",
+    "karta dostawy 2.XLS"
+  ],
   "registo": "Registo/Raport.xlsx",
-  "arkusze_wycen": ["wycena W-1.xls"],
-  "kalkulacje": [{ "kalk": "Zbiornik V-101/Kalkulacja.xlsx", "notatka": "Zbiornik V-101/Wycena.docx" }],
-  "notatki": ["Wymiennik W-1/Wycena.docx"],
-  "analiza_ai": { "przedmiot": "%V-101%" }
+  "arkusze_wycen": [
+    "wycena W-1.xls"
+  ],
+  "kalkulacje": [
+    {
+      "kalk": "Zbiornik V-101/Kalkulacja.xlsx",
+      "notatka": "Zbiornik V-101/Wycena.docx"
+    }
+  ],
+  "notatki": [
+    "Wymiennik W-1/Wycena.docx"
+  ],
+  "analiza_ai": {
+    "przedmiot": "%V-101%"
+  },
+  "foldery_kompresji": [
+    "Folder zapytania A",
+    "Folder zapytania B"
+  ]
 }

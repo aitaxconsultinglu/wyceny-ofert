@@ -36,6 +36,8 @@ export interface KonfiguracjaTestow {
   notatki?: string[]
   /** Zapytanie z seeda do testu analizy AI (fragment przedmiotu dla ILIKE). */
   analiza_ai?: { przedmiot: string }
+  /** Foldery z przykładowymi zapytaniami do raportu kompresji plików. */
+  foldery_kompresji?: string[]
 }
 
 const PLIK_TESTOW = process.env.TESTY_KONFIGURACJA || join(KORZEN, 'prywatne', 'testy.json')

@@ -1,15 +1,18 @@
+import { klasyfikujDokument } from './klasyfikacjaDokumentow'
 import { t } from '@/i18n'
 // Odczyt plików w przeglądarce: maile (.msg, .eml) z załącznikami, PDF (tekst + render stron),
 // DOCX, XLS/XLSX, ZIP. Ciężkie biblioteki ładowane dopiero przy pierwszym użyciu.
 // Zasady planu Free: mail zapisujemy jako tekst, a załączniki osobno; obrazki ze stopek
 // pomijamy; obrazy dla AI generujemy tutaj i nie trafiają do Storage.
 
-export type TypDokumentu =
-  | 'rysunek' | 'karta_danych' | 'specyfikacja' | 'formularz_wymagan' | 'standard_klienta' | 'obliczenia'
-  | 'korespondencja' | 'oferta_dostawcy' | 'karta_dostawy' | 'raport_registo' | 'inne'
+/** Kod typu ze słownika typy_dokumentow (nowe typy dodaje administrator). */
+export type TypDokumentu = string
 
-export const ETYKIETY_TYPU: Record<TypDokumentu, string> = {
-  rysunek: t('rysunek'), karta_danych: t('karta danych'), specyfikacja: t('specyfikacja'), formularz_wymagan: t('formularz wymagań'),
+/** Nazwy typów bez słownika (zapasowo - gdy słownik nie jest wczytany); właściwe nazwy PL/EN są w typy_dokumentow. */
+export const ETYKIETY_TYPU: Record<string, string> = {
+  zapytanie_ofertowe: t('zapytanie ofertowe'), projekt: t('projekt / opis techniczny'),
+  rysunek: t('rysunek'), rysunek_zestawieniowy: t('rysunek zestawieniowy'), rysunek_wykonawczy: t('rysunek wykonawczy'), szkic: t('szkic'),
+  karta_danych: t('karta danych'), specyfikacja: t('specyfikacja'), formularz_wymagan: t('formularz wymagań'),
   standard_klienta: t('standard klienta'), obliczenia: t('obliczenia'), korespondencja: t('korespondencja'),
   oferta_dostawcy: t('oferta dostawcy'), karta_dostawy: t('karta dostawy'), raport_registo: t('raport Registo'), inne: t('inne'),
 }
@@ -33,20 +36,15 @@ export interface WczytanyPlik {
 
 const rozszerzenie = (n: string) => n.toLowerCase().split('.').pop() ?? ''
 
-/** Domyślne typy dokumentów z nazwy pliku - człowiek może zmienić. */
-export function zgadnijTyp(nazwa: string, rodzaj: WczytanyPlik['rodzaj']): TypDokumentu {
-  const n = nazwa.toLowerCase()
-  if (rodzaj === 'mail') return 'korespondencja'
-  if (/standard|norma|wytyczn/.test(n)) return 'standard_klienta'
-  if (/formularz/.test(n)) return 'formularz_wymagan'
-  if (/specyfikac|siwz|opis przedmiotu/.test(n)) return 'specyfikacja'
-  if (/datasheet|karta danych|data sheet/.test(n)) return 'karta_danych'
-  if (/oblicz|calc/.test(n)) return 'obliczenia'
-  if (/oferta|offer|quotation|wycena dostawcy/.test(n)) return 'oferta_dostawcy'
-  if (/karta dostawy/.test(n)) return 'karta_dostawy'
-  if (/registo/.test(n)) return 'raport_registo'
-  if (/rys|drw|dwg|rysunek/.test(n)) return 'rysunek'
-  return 'inne'
+/** Typ dokumentu bez AI (nazwa, rozszerzenie, tekst, format arkusza) - człowiek może zmienić. */
+export function zgadnijTyp(nazwa: string, rodzaj: WczytanyPlik['rodzaj'], tekst = '', metadane: Record<string, unknown> = {}): TypDokumentu {
+  return klasyfikujDokument({ nazwa, rodzaj, tekst, stron: metadane.stron as number | undefined, skan: metadane.skan as boolean | undefined, format_mm: metadane.format_mm as [number, number] | undefined }).typ
+}
+
+/** Typ z klasyfikacji zapisany razem z powodem w metadanych dokumentu (widać go przy typie). */
+function zKlasyfikacja(p: Omit<WczytanyPlik, 'typSugerowany'>): WczytanyPlik {
+  const k = klasyfikujDokument({ nazwa: p.nazwa, rodzaj: p.rodzaj, tekst: p.tekst, stron: p.metadane.stron as number | undefined, skan: p.metadane.skan as boolean | undefined, format_mm: p.metadane.format_mm as [number, number] | undefined })
+  return { ...p, typSugerowany: k.typ, metadane: { ...p.metadane, klasyfikacja: k.powod, ...(k.tylko_przechowanie ? { tylko_przechowanie: true } : {}) } }
 }
 
 function mimeZRozszerzenia(nazwa: string) {
@@ -56,6 +54,7 @@ function mimeZRozszerzenia(nazwa: string) {
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel',
     png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', zip: 'application/zip', txt: 'text/plain',
+    tif: 'image/tiff', tiff: 'image/tiff', webp: 'image/webp', dxf: 'image/vnd.dxf', dwg: 'image/vnd.dwg', csv: 'text/csv',
   } as Record<string, string>)[e] ?? 'application/octet-stream'
 }
 
@@ -102,14 +101,16 @@ export async function pdfjs() {
   return pdfjsObietnica
 }
 
-export interface TekstPdf { stron: number; strony: string[]; skan: boolean }
+export interface TekstPdf { stron: number; strony: string[]; skan: boolean; format_mm: [number, number] | null }
 
 export async function tekstPdf(dane: Uint8Array): Promise<TekstPdf> {
   const lib = await pdfjs()
   const doc = await lib.getDocument({ data: dane.slice() }).promise
   const strony: string[] = []
+  let format: [number, number] | null = null
   for (let i = 1; i <= doc.numPages; i++) {
     const strona = await doc.getPage(i)
+    if (i === 1) { const v = strona.getViewport({ scale: 1 }); format = [v.width / 72 * 25.4, v.height / 72 * 25.4] }
     const tc = await strona.getTextContent()
     // Zachowujemy podział na linie wg pozycji Y - tabele zostają czytelne dla modelu.
     let ostatnieY: number | null = null
@@ -125,7 +126,7 @@ export async function tekstPdf(dane: Uint8Array): Promise<TekstPdf> {
     strony.push(linie.filter(Boolean).join('\n'))
   }
   const znakow = strony.reduce((s, t) => s + t.replace(/\s/g, '').length, 0)
-  return { stron: doc.numPages, strony, skan: znakow < 40 * doc.numPages }
+  return { stron: doc.numPages, strony, skan: znakow < 40 * doc.numPages, format_mm: format }
 }
 
 export interface RenderStrony { base64: string; dataUrl: string; szerokosc: number; wysokosc: number }
@@ -250,22 +251,22 @@ export async function wczytajDane(nazwa: string, dane: Uint8Array): Promise<Wczy
     if (e === 'eml') return await wczytajEml(nazwa, dane)
     if (e === 'pdf') {
       const t = await tekstPdf(dane)
-      return { ...podstawa, rodzaj: 'pdf', tekst: t.strony.map((s, i) => `--- strona ${i + 1} ---\n${s}`).join('\n\n'), metadane: { stron: t.stron, skan: t.skan }, typSugerowany: zgadnijTyp(nazwa, 'pdf') }
+      return zKlasyfikacja({ ...podstawa, rodzaj: 'pdf', tekst: t.strony.map((s, i) => `--- strona ${i + 1} ---\n${s}`).join('\n\n'), metadane: { stron: t.stron, skan: t.skan, format_mm: t.format_mm?.map((x) => Math.round(x)) } })
     }
-    if (e === 'docx') return { ...podstawa, rodzaj: 'docx', tekst: await tekstDocx(dane), typSugerowany: zgadnijTyp(nazwa, 'docx') }
-    if (e === 'xlsx' || e === 'xls' || e === 'xlsm') return { ...podstawa, rodzaj: 'arkusz', tekst: await tekstArkusza(dane), typSugerowany: zgadnijTyp(nazwa, 'arkusz') }
+    if (e === 'docx') return zKlasyfikacja({ ...podstawa, rodzaj: 'docx', tekst: await tekstDocx(dane) })
+    if (e === 'xlsx' || e === 'xls' || e === 'xlsm') return zKlasyfikacja({ ...podstawa, rodzaj: 'arkusz', tekst: await tekstArkusza(dane) })
     if (e === 'zip') {
       const pliki = await rozpakujZip(dane)
       const zalaczniki: WczytanyPlik[] = []
       for (const p of pliki) zalaczniki.push(await wczytajDane(p.nazwa, p.dane))
       return { ...podstawa, rodzaj: 'inny', tekst: '', zalaczniki, typSugerowany: 'inne', metadane: { archiwum: true } }
     }
-    if (['png', 'jpg', 'jpeg', 'webp'].includes(e)) return { ...podstawa, rodzaj: 'obraz', tekst: '', typSugerowany: zgadnijTyp(nazwa, 'obraz') }
-    if (['txt', 'csv'].includes(e)) return { ...podstawa, rodzaj: 'tekst', tekst: new TextDecoder().decode(dane), typSugerowany: 'inne' }
+    if (['png', 'jpg', 'jpeg', 'webp'].includes(e)) return zKlasyfikacja({ ...podstawa, rodzaj: 'obraz', tekst: '' })
+    if (['txt', 'csv'].includes(e)) return zKlasyfikacja({ ...podstawa, rodzaj: 'tekst', tekst: new TextDecoder().decode(dane) })
   } catch (blad) {
     return { ...podstawa, rodzaj: 'inny', tekst: '', typSugerowany: 'inne', metadane: { blad_odczytu: String(blad) } }
   }
-  return { ...podstawa, rodzaj: 'inny', tekst: '', typSugerowany: zgadnijTyp(nazwa, 'inny') }
+  return zKlasyfikacja({ ...podstawa, rodzaj: 'inny', tekst: '' })
 }
 
 export async function wczytajPlik(plik: File): Promise<WczytanyPlik> {

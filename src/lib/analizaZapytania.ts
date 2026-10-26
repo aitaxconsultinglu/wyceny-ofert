@@ -7,6 +7,7 @@ import { BUCKET } from './magazyn'
 import { tekstDoAnalizy, type DokumentDoAnalizy } from './analiza'
 import { otworzRysunek, renderujPodglad } from './rysunkiPdf'
 import type { DaneAi } from './ai'
+import { jestRysunkiem } from './klasyfikacjaDokumentow'
 import { t } from '@/i18n'
 
 /** Najwięcej skanów (pierwszych stron) w jednym wywołaniu - resztę zaznacza się jako nieistotne albo czyta z rysunków. */
@@ -43,7 +44,7 @@ export async function przygotujAnalize(
 
   // Skany PDF i rysunki bez czytelnej warstwy tekstowej (napisy zamienione na krzywe): pierwsza strona jako obraz -
   // z niej model bierze wymiary i masy aparatów (szczegóły - moduł rysunków).
-  const bezTekstu = (d: WierszDokumentu) => Boolean(d.metadane?.skan) || (d.typ === 'rysunek' && (d.tekst ?? '').trim().length < MALO_TEKSTU)
+  const bezTekstu = (d: WierszDokumentu) => Boolean(d.metadane?.skan) || (jestRysunkiem(d.typ) && (d.tekst ?? '').trim().length < MALO_TEKSTU)
   const skany = istotne.filter((d) => bezTekstu(d) && d.sciezka && d.stan === 'zapisany' && /\.pdf$/i.test(d.nazwa_pliku))
   const obrazy: NonNullable<DaneAi['obrazy']> = []
   const pominiete = [...przyg.pominiete]

@@ -121,7 +121,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
         // Z maila: treść jako tekst i tylko zaznaczone załączniki (oferta) - bez logo, stopek i reszty maila.
         const doZapisu = plik.rodzaj === 'mail' ? { ...plik, zalaczniki: plik.zalaczniki.map((z) => ({ ...z, wgraj: wybrane.has(z.nazwa) })) } : plik
         const { dokument, ostrzezenia } = await zapiszDokument(doZapisu, { oferta_id: id }, { typ: plik.rodzaj === 'mail' ? 'korespondencja' : 'oferta_dostawcy', istotny: true, limitMb: s.ustawienia.limity_planu.plik_mb })
-        await supabase.from('oferty_dostawcow').update({ dokument_id: dokument.id }).eq('id', id)
+        if (dokument) await supabase.from('oferty_dostawcow').update({ dokument_id: dokument.id }).eq('id', id)
         if (ostrzezenia.length) window.alert(ostrzezenia.join('\n'))
       } catch (e) {
         window.alert(t('Oferta zapisana, ale nie udało się zapisać dokumentu: {0}', e instanceof Error ? e.message : String(e)))

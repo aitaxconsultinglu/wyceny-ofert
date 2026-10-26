@@ -173,8 +173,10 @@ Deno.serve(async (req) => {
         output_config: { effort: definicja.effort, format: { type: 'json_schema', schema: schemat } },
         ...(zFallbackiem ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
       }
+      // Strumień od API (odbierany w całości): SDK odrzuca wywołanie bez strumienia, gdy max_tokens pozwala na odpowiedź
+      // dłuższą niż ~10 minut (np. 32 tys. tokenów w wersjach edytowalnych i tłumaczeniu).
       // deno-lint-ignore no-explicit-any
-      const odp = await (claude.beta.messages.create as any)(parametry) as Anthropic.Beta.BetaMessage
+      const odp = await (claude.beta.messages.stream as any)(parametry).finalMessage() as Anthropic.Beta.BetaMessage
       const usage = odp.usage as unknown as Record<string, number>
       const usdKoszt = koszt(usage, ceny)
       const wspolne = {

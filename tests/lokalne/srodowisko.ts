@@ -40,6 +40,12 @@ export interface KonfiguracjaTestow {
   foldery_kompresji?: string[]
   /** Folder z kartami dostawy Optimy w PDF. */
   karty_dostawy_pdf?: string
+  /** Test odbioru rundy 2: oczekiwane kwoty arkusza wzorcowego, przykład stawki, foldery trzech zapytań. */
+  odbior?: {
+    arkusz_wzorcowy?: { plik: string; materialy: number; robocizna: number; masa_t: number; rbh_t: number; stawka: number; kooperacja: number; badania: number; koszty: number; zysk_proc: number; zysk: number; cena: number; kurs_eur: number; cena_eur: number }
+    stawka?: { stanowisko: string; przedzial: string; godziny: number; wartosc: number }
+    zapytania?: { folder: string; rodzaj: 'zbiornik' | 'wymiennik'; zakres?: string }[]
+  }
 }
 
 const PLIK_TESTOW = process.env.TESTY_KONFIGURACJA || join(KORZEN, 'prywatne', 'testy.json')

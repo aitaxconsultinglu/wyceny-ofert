@@ -176,3 +176,12 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     „Do klasyfikacji” jest pusty po dopisaniu słowa „spawalnicz”.
 67. **Karty dostawy w PDF** (wydruk z Optimy) czytają się bez AI tym samym parserem co XLS - wszystkie przykładowe karty
     mają sumę pozycji zgodną ze stopką.
+68. **Odbiór rundy 2** (`tests/lokalne/odbior.test.ts`): arkusz wzorcowy odtworzony w nowym układzie (formuły przeliczone,
+    cena w EUR po kursie z arkusza), przykład stawki z cennika i trzy zapytania z folderu materiałów. W tych zapytaniach
+    pola karty bez AI znalazły tylko klienta - numeru zapytania i terminu nie ma w tekście dokumentów (bywają tylko w mailu).
+69. **Nie zrobione w rundzie 2** (do decyzji): tabele edytowalne (Materiały, Robocizna, Usługi, siatka odczytu, cennik)
+    nie mają filtrów w nagłówkach - tylko tabele przeglądowe; zakładka Robocizna pokazuje stałe przedziały czasu (przedział
+    dodany w cenniku nie pojawi się w wycenie); „elementy zapasowe” nie zostały dodane; odczyt całego dokumentu przez AI
+    i odczyt oferty przez AI nie były testowane płatnym wywołaniem.
+70. **Instrukcja** jest w obu językach (treść w `src/components/instrukcjaTresc.ts`); przykład stawki w instrukcji
+    jest fikcyjny.

@@ -14,20 +14,22 @@ Nazwa firmy, logo i dane do oferty są wyłącznie w bazie (Ustawienia → Dane 
 Jedna wersja aplikacji (tryb „Etap 1” usunięty; plan rundy: [`docs/PLAN-runda2.md`](docs/PLAN-runda2.md)):
 
 - **Zapytania ofertowe i wyceny** - zapytania (pierwsze pole: rodzaj aparatu - zbiornik albo wymiennik ciepła, z zakresem),
-  dokumenty, rysunki i listy materiałowe, karta analizy, wyceny, oferty dostawców zebrane pod zapytania, wersje edytowalne,
-  zatwierdzanie przez prezesa.
-- **Historyczny cennik** - zakupy z kart dostawy Optimy, usługi kooperacyjne, projekty zrealizowane (Registo).
-- Ustawienia, użytkownicy i instrukcja - w prawym górnym rogu.
+  dokumenty z typami i kompresją, rysunki i listy materiałowe (rodzaje tabel, własne tabele, odczyt całego dokumentu),
+  karta analizy z oceną działów, wycena w układzie arkusza wzorcowego (Wycena, Materiały, Robocizna, Kooperacja,
+  Badania / odbiory / transport, Podsumowanie, Oferta), prośby o oferty i kolejka działu handlowego, oferty dostawców,
+  wersje edytowalne, zatwierdzanie przez prezesa.
+- **Historyczny cennik** - cennik roboczogodzin (stanowiska × przedziały czasu, wersje stawek, migawka w wycenie),
+  zakupy z kart dostawy Optimy (XLS albo PDF) w trzech rodzajach kosztu z regułami klasyfikacji, usługi kooperacyjne,
+  projekty zrealizowane (Registo).
+- Ustawienia, użytkownicy, kosz i instrukcja - w prawym górnym rogu; przełącznik PL / EN; Cofnij / Ponów.
 
-Funkcje uśpione (kod zostaje, interfejs ukrywa): `src/lib/funkcje.ts` - import całego maila jako zapytania, skrzynka
-dedykowana, typy aparatów inne niż zbiornik i wymiennik. Rodzaj aparatu: kolumny `zapytania.rodzaj_aparatu`,
-`zakres_wymiennika`, `zakres_opis` (migracja 0021); aparaty wyceny dziedziczą typ z zapytania.
+Pełna lista funkcji z miejscem w kodzie: [`docs/FUNKCJE.md`](docs/FUNKCJE.md). Funkcje uśpione (kod zostaje, interfejs
+ukrywa): `src/lib/funkcje.ts` - import całego maila jako zapytania, skrzynka dedykowana, typy aparatów inne niż zbiornik
+i wymiennik.
 
-- Przycisk **„Wycena materiałowa”** na karcie zapytania: `src/lib/wycenaMaterialowa.ts` (bez AI - PDF z CAD czytane
-  z warstwy tekstowej przez `src/lib/odczytTekstowy.ts`; skany - z odczytów zapisanych w „Rysunki i listy”).
-- Szablony elementów i kontrola kompletności: `src/lib/szablony.ts`, panel nad listą Materiały: `wycena/SzablonIParametry.tsx`.
-- Ceny wyceny materiałowej: `cennikEtapu1` i `dobierzCene(..., innyGatunek)` w `src/lib/bazaCen.ts` (kolejność: oferty do
-  zapytania → zakupy Optimy z równoważnikami gatunku i tą samą wielkością DN → cena zastępcza tego samego rodzaju stali, z dopiskiem).
+Stawki roboczogodzin są tylko w bazie: `npm run seed:stawki` wczytuje je z `prywatne/stawki-robocizny.json` (format:
+`scripts/seed/stawki-robocizny.przyklad.json`, same zera). Ceny w wycenach pochodzą wyłącznie z zakupów „Materiały”;
+ceny kooperacji, badań i transportu - z ofert zebranych pod zapytanie.
 
 ## Wersje edytowalne (od 2026-10-25)
 
@@ -47,6 +49,7 @@ Podgląd deweloperski: `edytowalne-dev.html?plik=<ścieżka w folderze materiał
 | 3. Wycena | zapytania z dokumentami, metoda arkusza wyceny, zatwierdzanie, Excel, oferta Word | gotowy; 6 wycen historycznych odtworzonych co do grosza |
 | 4. AI | listy z rysunków, analiza zapytania, generator zapytań, budżet AI | gotowe bez AI: rysunki (zaznaczanie, kafle, odczyt z warstwy tekstowej, siatka, Excel, przeniesienie do wyceny), karta analizy z ręczną edycją, generator zapytań do dostawców ze śledzeniem, budżet AI. Odczyt rysunków i analiza zapytania przez AI napisane i wdrożone - czekają na klucz i testy akceptacyjne |
 | 5. Skrzynka | automatyczne pobieranie ofert z dedykowanej skrzynki | odłożone (decyzja klienta): zamiast tego **zapytanie z maila** (przeciągnięty .msg/.eml) i **przygotowanie automatyczne** wstępnej wyceny i oferty; skrzynka - do założenia |
+| Runda 2 | dwa moduły, rodzaj aparatu, kosz, cofnij / ponów, tabele z filtrami, PL / EN, dokumenty z kompresją, rysunki (rodzaje tabel, cały dokument), wycena wg arkusza wzorcowego, oferta w sekcjach, prośby o oferty, cennik roboczogodzin, rodzaj kosztu zakupów | gotowa (fazy 0-9, [`docs/PLAN-runda2.md`](docs/PLAN-runda2.md)); test odbioru `tests/lokalne/odbior.test.ts` odtwarza arkusz wzorcowy i przykład cennika |
 
 ## Role
 
@@ -240,6 +243,11 @@ odmowa); równoczesne nadawanie numerów ZO; karta analizy (do AI tylko dokument
 Z `.env` pliki testów idą po kolei (konta tymczasowe i limity Supabase Auth).
 Testy AI na życzenie obejmują też analizę zapytania z seeda (`tests/lokalne/analiza_ai.test.ts`: wizja lokalna, montaż
 w postoju, izolacja, dwa systemy malarskie, niespójność UDT / CE). Pliki i oczekiwania - `prywatne/testy.json`.
+
+Test odbioru rundy 2 (`tests/lokalne/odbior.test.ts`, konfiguracja `odbior` w `prywatne/testy.json`): arkusz wzorcowy
+odtworzony w nowym układzie (formuły Excela przeliczone, cena w EUR), przykład stawki z cennika roboczogodzin, trzy
+zapytania z folderu materiałów (typy dokumentów bez AI, pola ze źródłem, kompresja, limit 50 MB) - dane testowe usuwane
+na końcu.
 
 Testy akceptacyjne AI z §7.1 (`tests/lokalne/rysunki_ai.test.ts`) wywołują prawdziwe Claude API, więc uruchamia się je
 tylko na życzenie i przy ustawionym kluczu: `AI_TESTY=1 npm run test:lokalne` (koszt rzędu złotówki).

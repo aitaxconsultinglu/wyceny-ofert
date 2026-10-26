@@ -44,5 +44,45 @@
     "Folder zapytania A",
     "Folder zapytania B"
   ],
-  "karty_dostawy_pdf": "Folder z kartami dostawy PDF"
+  "karty_dostawy_pdf": "Folder z kartami dostawy PDF",
+  "odbior": {
+    "arkusz_wzorcowy": {
+      "plik": "wycena W-1.xls",
+      "materialy": 1000,
+      "robocizna": 2000,
+      "masa_t": 1,
+      "rbh_t": 40,
+      "stawka": 50,
+      "kooperacja": 300,
+      "badania": 200,
+      "koszty": 3500,
+      "zysk_proc": 10,
+      "zysk": 350,
+      "cena": 3850,
+      "kurs_eur": 4,
+      "cena_eur": 962.5
+    },
+    "stawka": {
+      "stanowisko": "Monter",
+      "przedzial": "7-15",
+      "godziny": 10,
+      "wartosc": 500
+    },
+    "zapytania": [
+      {
+        "folder": "Zbiornik V-101",
+        "rodzaj": "zbiornik"
+      },
+      {
+        "folder": "Wymiennik W-1",
+        "rodzaj": "wymiennik",
+        "zakres": "kompletny"
+      },
+      {
+        "folder": "Wkład W-2",
+        "rodzaj": "wymiennik",
+        "zakres": "wiazka"
+      }
+    ]
+  }
 }

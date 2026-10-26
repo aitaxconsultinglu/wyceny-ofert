@@ -1,41 +1,52 @@
 # Funkcje aplikacji
 
-Od rundy 2 (2026-10-25) aplikacja ma **jedną wersję** - tryb „Etap 1” i przełącznik w Ustawieniach usunięte, wszystkie moduły
-widoczne. Stan sprzed etapu 1 jest pod tagiem git `wersja-pelna-2026-10-20`. Nawigacja: dwa moduły - **Zapytania ofertowe
-i wyceny** oraz **Historyczny cennik**; Ustawienia, Użytkownicy i Instrukcja osobno. Funkcje uśpione: `src/lib/funkcje.ts`.
+Jedna wersja aplikacji (od rundy 2). Nawigacja: dwa moduły - **Zapytania ofertowe i wyceny** oraz **Historyczny cennik**;
+Ustawienia, Użytkownicy, Kosz i Instrukcja - ikony w prawym górnym rogu; przełącznik języka **PL / EN** (zapamiętany
+w profilu). Funkcje uśpione: `src/lib/funkcje.ts`. Plan i decyzje rundy 2: [`PLAN-runda2.md`](PLAN-runda2.md), założenia:
+[`PYTANIA.md`](PYTANIA.md) (sekcja „Runda 2”).
 
-## Moduł „Zapytania ofertowe i wyceny” - wycena materiałowa
+## Moduł 1: Zapytania ofertowe i wyceny
 
 | Funkcja | Gdzie w aplikacji | Kod |
 |---|---|---|
-| Zapytania ofertowe, dokumenty, import zapytania z maila (treść + wybrane załączniki, filtr śmieci) | Zapytania, karta zapytania → Dokumenty | `zapytania/*`, `lib/importMaila.ts`, `lib/dokumenty.ts`, `lib/magazyn.ts` |
-| Odczyt rysunków: PDF z CAD z warstwy tekstowej (bez AI, także automatyczne wykrycie wykazu części), skany przez AI (kafle, koszt przed wywołaniem) | karta zapytania → Rysunki i listy | `rysunki/*`, `lib/rysunki.ts`, `lib/rysunkiPdf.ts`, funkcja `ai` (`wyciagnij_liste_z_rysunku`) |
-| Lista materiałowa i parametry projektu z tabel rysunków (wykaz części, króćce, dane projektowe) | Rysunki i listy, wycena → Materiały | `lib/odczytTekstowy.ts`, `wycena/SzablonIParametry.tsx` |
-| Szablony materiałowe: wymiennik płaszczowo-rurowy, zbiornik - stały zestaw elementów, kontrola kompletności | wycena → Materiały (panel nad listą) | `lib/szablony.ts`, `wycena/SzablonIParametry.tsx` |
-| Wycena materiałowa jednym przyciskiem (odczyt CAD bez AI + zapisane odczyty, szablon, ceny) | karta zapytania → Wycena materiałowa | `lib/wycenaMaterialowa.ts`, `zapytania/WycenaMaterialowa.tsx` |
-| Cennik: zakupy z kart dostawy Optimy + oferty na materiały zebrane do tego zapytania | Zakupy (Optima), Oferty na materiały, wycena → Znajdź cenę | `lib/bazaCen.ts` (`cennikEtapu1`, `dobierzCene` z ceną zastępczą tej samej grupy stali), `lib/importOptima.ts`, `oferty/*` |
-| Kalkulacja materiałów (masa z wymiarów, naddatki, narzut zakupowy), eksport Excel | wycena | `lib/kalkulacja.ts`, `lib/eksportExcel.ts` |
-| Wersje edytowalne: odczyt plików (PDF, skany, zdjęcia, DOCX, XLSX, TXT, DXF) bez AI albo przez AI, wykrycie języka, tłumaczenie na polski, Word z formatowaniem, dziennik odczytów i kosztów | menu → Wersje edytowalne (moduł `wersjeEdytowalne`) | `edytowalne/*`, `lib/wersjeEdytowalne*.ts`, tryby AI `odczytaj_dokument`, `przetlumacz_dokument`, migracja `0020` |
-| Zaznaczanie obszarów z automatycznym przewijaniem (tabele dłuższe niż ekran) | Rysunki i listy, Wersje edytowalne | `ui/ZaznaczanieObszarow.tsx` |
+| Zapytanie z wymaganym rodzajem aparatu (zbiornik / wymiennik ciepła z zakresem: kompletny, wkład rurowy, część); zmiana tylko w karcie zapytania | Zapytania → Nowe zapytanie, karta zapytania | `zapytania/NoweZapytanie.tsx`, `zapytania/RodzajAparatu.tsx`, migracja `0021` |
+| Dokumenty: przeciągnięcie wielu plików i folderów, typy w grupach (słownik `typy_dokumentow`, PL/EN), przeciągnięcie na grupę zmienia typ | karta zapytania → Dokumenty | `zapytania/DokumentyZapytania.tsx`, `lib/klasyfikacjaDokumentow.ts`, migracja `0027` |
+| Typ dokumentu i pola karty zapytania bez AI (nr zapytania, termin, klient - tylko puste, ze źródłem „plik, str.”), dane projektowe z arkusza danych | jw. | `lib/klasyfikacjaDokumentow.ts`, `lib/polaZDokumentow.ts` |
+| Kompresja przed zapisem z testem czytelności (PDF: struktura / strony skanu, obrazy: WebP / JPEG, reszta: gzip), SHA-256, duplikaty, limit 50 MB | jw. | `lib/kompresja.ts`, `lib/magazyn.ts` |
+| Rysunki i listy materiałowe: rodzaje tabel wg rodzaju aparatu (`rodzaje_tabel`), własna nazwa, element szablonu, własne tabele z kolumnami, przesuwanie / rozmiar / powielanie zaznaczeń, PDF i JPG / PNG | karta zapytania → Rysunki i listy materiałowe | `rysunki/*`, `lib/rysunki.ts`, `lib/obrazPdf.ts`, `ui/ZaznaczanieObszarow.tsx`, migracja `0026` |
+| Odczyt bez AI (warstwa tekstowa PDF z CAD) i przez AI (kafle ~300 DPI, koszt przed wywołaniem); „Odczytaj cały dokument (AI)” - osobne odczyty wg rodzaju tabeli | jw. | `lib/odczytTekstowy.ts`, `lib/odczytDokumentu.ts`, `rysunki/OdczytCalegoDokumentu.tsx`, funkcja `ai` |
+| Przeniesienie odczytu do wyceny bez dublowania (klucz: odczyt + wiersz), źródło przy pozycji, „pozycje zmieniły się w odczytach - zaktualizować?” | odczyt → Przenieś do wyceny, wycena → Materiały | `lib/przeniesienieOdczytu.ts`, `rysunki/PrzeniesDoWyceny.tsx` |
+| Karta analizy zapytania (wymagania kosztotwórcze, usługi, pytania, niespójności, ocena działów; AI `analizuj_zapytanie`) | karta zapytania → Karta analizy | `zapytania/KartaAnalizy*.tsx`, `zapytania/OcenaDzialow.tsx`, `lib/analiza.ts` |
+| Wycena automatyczna: bez AI (materiały z odczytów i cennika) albo z AI (analiza, rysunki, wycena, projekt oferty) - raport do sprawdzenia | karta zapytania → Wycena automatyczna | `zapytania/WycenaAutomatyczna.tsx`, `lib/wycenaMaterialowa.ts`, `lib/przygotowanieAuto.ts` |
+| Wycena w układzie arkusza wzorcowego: Wycena (opinia o zapytaniu, ocena działów, ocena ekonomiczna, przegląd oferty), Materiały, Robocizna, Kooperacja, Badania / odbiory / transport, Podsumowanie, Oferta; ścieżka i „Wstecz do zapytania”, zakładki w adresie | wycena | `wycena/EdytorWyceny.tsx`, `wycena/Opinia.tsx`, `lib/kalkulacja.ts`, `lib/adres.ts` |
+| Robocizna: stanowisko z cennika × przedział czasu × rbh (migawka cennika w wycenie, odchylenia, „przywróć / odśwież stawki”) albo metoda wskaźnikowa | wycena → Robocizna | `wycena/Pracochlonnosc.tsx`, `lib/cennikRobocizny.ts`, `lib/robocizna.ts` |
+| Oferta dla klienta: sekcje rozwijane (kolejność, ukrywanie w wydruku, tekst z formatowaniem, zmienne, wersje treści, PL / EN), Word | wycena → Oferta | `wycena/EdytorOferty.tsx`, `lib/ofertaKlienta.ts`, `lib/eksportWord.ts` |
+| Excel w układzie arkusza wzorcowego, z formułami, w wybranym języku | wycena → Excel | `lib/eksportExcel.ts` |
+| Prośby o oferty (kooperacja, badania, transport): prośba z parametrami wg kategorii, kolejka działu handlowego z licznikiem, stan pozycji (brak oferty / prośba / oferta / wybrana) | wycena → Kooperacja / Badania, menu → Prośby o oferty | `prosby/*`, `wycena/OfertyUslug.tsx`, `lib/prosby.ts`, migracje `0028`, `0029` |
+| Mail z ofertą: odczyt ceny bez AI (kwoty, waluta, termin, ważność, Incoterms, dostawca po domenie), AI jako druga opcja; porównanie ofert (najtańsza / najszybsza, przeterminowane), „Użyj w wycenie” | jw., Oferty dostawców | `oferty/DodajOferte.tsx`, `wycena/ZnajdzCene.tsx` |
+| Generator zapytań do dostawców i kooperantów (mailto, statusy odpowiedzi) | karta zapytania → Zapytania do dostawców | `zapytaniaDostawcow/*` |
+| Zatwierdzanie przez prezesa, korekta prezesa, marże | Do zatwierdzenia, wycena → Wycena / Podsumowanie | `wycena/KolejkaZatwierdzania.tsx`, migracja `0008` |
+| Wersje edytowalne: odczyt plików bez AI albo przez AI, język, tłumaczenie, Word, dziennik kosztów | menu → Wersje edytowalne | `edytowalne/*`, `lib/wersjeEdytowalne*.ts` |
 
-## Moduły przywrócone z wersji pełnej (widoczne zawsze)
+## Moduł 2: Historyczny cennik
 
-| Funkcja | Dawny moduł etapu 1 | Kod |
+| Funkcja | Gdzie w aplikacji | Kod |
 |---|---|---|
-| Karta analizy zapytania (wymagania kosztotwórcze, usługi, pytania, niespójności; AI `analizuj_zapytanie`) | `analiza` | `zapytania/KartaAnalizy*.tsx`, `lib/analiza.ts`, `lib/analizaZapytania.ts` |
-| Przygotowanie automatyczne (analiza + rysunki + wycena z robocizną i usługami + projekt oferty + raport) | `przygotowanie` | `lib/przygotowanieAuto.ts`, `lib/przygotowanie.ts`, `scripts/przebieg-ai.ts` |
-| Generator zapytań do dostawców i kooperantów (mailto, statusy odpowiedzi) | `zapytaniaDostawcow` | `zapytaniaDostawcow/*`, `lib/zapytaniaDostawcow.ts` |
-| Pracochłonność (wskaźnikowo / szczegółowo), Registo, projekty zrealizowane, podobne zlecenia | `robocizna`, `projekty` | `wycena/Pracochlonnosc.tsx`, `projekty/*`, `lib/importRegisto.ts` |
-| Kooperacja, badania / odbiory / transport, usługi kooperacyjne, kategorie usług | `uslugi` | `wycena/Uslugi.tsx`, `oferty/Porownywarka.tsx` (`tylkoUslugi`) |
-| Oferta dla klienta w Wordzie z biblioteką klauzul, notatka dla prezesa | `oferta` | `wycena/EdytorOferty.tsx`, `lib/eksportWord.ts` |
-| Zatwierdzanie wycen przez prezesa, korekta prezesa, marże | `zatwierdzanie` | `wycena/KolejkaZatwierdzania.tsx`, migracja `0008` |
-| Odczyt ofert dostawców przez AI, klasyfikacja maili | (widoczne - oferty na materiały) | funkcja `ai` (`wyciagnij_oferte`, `klasyfikuj_mail`) |
-| Stawki robocizny, MPK, ustawienia zapytań do dostawców | `robocizna`, `zapytaniaDostawcow` | `ustawienia/*` |
+| Cennik roboczogodzin: stanowiska × przedziały czasu albo stawka stała, wersje stawek, wklejanie ze schowka; stawki poufne (prezes, administrator, flaga marż) | Cennik roboczogodzin | `cennik/CennikRobocizny.tsx`, `lib/cennikRobocizny.ts`, migracja `0030`, `npm run seed:stawki` |
+| Zakupy Optima w trzech rodzajach kosztu (materiały / kooperacja / transport, badania i inne), bufor „Do klasyfikacji”, przypisanie hurtowe z regułą, reguły słów kluczowych, „Przeklasyfikuj wszystko” | Zakupy Optima | `zakupy/Zakupy.tsx`, migracja `0031` |
+| Import karty dostawy: XLS albo wydruk PDF (warstwa tekstowa, bez AI), kontrola sumy ze stopką | Zakupy Optima → Import | `lib/importOptima.ts`, `lib/importOptimaPdf.ts` |
+| Ceny w wycenach tylko z zakupów „Materiały”; orientacyjna cena historyczna usług (Ustawienia, domyślnie wyłączona) | wycena → Znajdź cenę | `lib/bazaCen.ts` |
+| Usługi kooperacyjne (porównywarka), projekty zrealizowane (Registo) | Usługi kooperacyjne, Projekty zrealizowane | `oferty/Porownywarka.tsx`, `projekty/*` |
 
-## Zawsze
+## Wspólne
 
-Logowanie i role, RLS w bazie, audyt zmian, użytkownicy, kursy NBP, budżet AI, zajętość planu, dane firmy i logo z bazy,
-strażnik poufności repozytorium (`scripts/sprawdz-pliki.mjs`), test bezpieczeństwa (`tests/lokalne/bezpieczenstwo.test.ts`).
+| Funkcja | Kod |
+|---|---|
+| Tabele z filtrami i sortowaniem w nagłówkach (tekst, liczba, data, lista, tak / nie; Shift - kilka kolumn), zapamiętane per użytkownik | `ui/Tabela.tsx`, `lib/tabela.ts` |
+| Cofnij / Ponów bez limitu, przetrwa odświeżenie (IndexedDB), pasek w nagłówku | `lib/historia.ts`, `ui/PasekHistorii.tsx` |
+| Kosz: usuwanie z migawką rekordu i zależnych danych, przywrócenie z tymi samymi id, trwałe usunięcie (prezes / administrator, numer ZO), automatyczne czyszczenie po N dniach | `kosz/Kosz.tsx`, `lib/kosz.ts`, migracje `0022`, `0023`, `0029`, funkcja `czysc-kosz` |
+| Dwujęzyczność PL / EN: interfejs, słowniki (`nazwa_en`), eksporty, prompty AI bez założenia języka, test spójności kluczy | `src/i18n`, `lib/terminy.ts`, migracje `0024`, `0025` |
+| Logowanie i role, RLS, audyt, kursy NBP, budżet AI, zajętość planu, dane firmy z bazy, strażnik poufności repozytorium | `scripts/sprawdz-pliki.mjs`, `tests/lokalne/bezpieczenstwo.test.ts` |
 
 ## Uśpione (`src/lib/funkcje.ts`)
 

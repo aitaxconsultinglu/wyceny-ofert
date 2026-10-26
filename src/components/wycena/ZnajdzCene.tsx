@@ -52,7 +52,8 @@ export function ZnajdzCene({ pozycja, uslugi, zamknij, wybierz, zapytanieId = nu
   const wynik = useMemo(() => {
     if (!pozycja) return []
     const kat = uslugi ? (pozycja.sekcja ? `u:${pozycja.sekcja}` : '') : pozycja.sekcja ? `m:${pozycja.sekcja}` : ''
-    const zakres = uslugi ? wiersze.filter((w) => w.kategoria_uslugi && (!tylkoZapytanie || !zapytanieId || (w.zrodlo === 'oferta' && w.zapytanie_id === zapytanieId))) : tylkoEtap1 ? cennikEtapu1(wiersze, zapytanieId) : wiersze.filter((w) => !w.kategoria_uslugi)
+    // Zakupy usług (kooperacja, badania) tylko jako orientacyjne - gdy włączone w Ustawieniach.
+    const zakres = uslugi ? wiersze.filter((w) => w.kategoria_uslugi && (w.zrodlo !== 'zakup' || !!s.ustawienia.cena_historyczna_uslug) && (!tylkoZapytanie || !zapytanieId || (w.zrodlo === 'oferta' && w.zapytanie_id === zapytanieId))) : tylkoEtap1 ? cennikEtapu1(wiersze, zapytanieId) : wiersze.filter((w) => !w.kategoria_uslugi)
     const doZapytania = (w: WierszCeny) => (w.zrodlo === 'oferta' && !!zapytanieId && w.zapytanie_id === zapytanieId ? 0 : 1)
     return filtrujCeny(zakres, {
       ...PUSTY_FILTR, tekst, kategoria: tylkoKategoria ? kat : '', gatunek: uslugi ? '' : pozycja.gatunek ?? '',
@@ -66,18 +67,20 @@ export function ZnajdzCene({ pozycja, uslugi, zamknij, wybierz, zapytanieId = nu
       if (y === null) return -1
       return x - y
     }).slice(0, 200)
-  }, [pozycja, wiersze, tylkoKategoria, tolerancja, tekst, s.gatunki, uslugi, miara, tylkoEtap1, zapytanieId, tylkoZapytanie])
+  }, [pozycja, wiersze, tylkoKategoria, tolerancja, tekst, s.gatunki, s.ustawienia.cena_historyczna_uslug, uslugi, miara, tylkoEtap1, zapytanieId, tylkoZapytanie])
   // Porównanie ofert usług: najtańsza (wartość w PLN) i najszybsza (termin w dniach).
   const najlepsze = uslugi ? najlepszeOferty(wynik.filter((w) => w.zrodlo === 'oferta').map((w) => ({ id: w.klucz, dostawca: w.dostawca, cena_pln: w.wartosc_pln, termin_dni: w.termin_dni, waznosc_do: w.waznosc_do }))) : { najtansza: null, najszybsza: null }
 
   const dzis = new Date().toISOString().slice(0, 10)
 
   function wez(w: WierszCeny) {
+    // Zakup usługi to tylko orientacyjna cena historyczna - nie źródło ceny w wycenie.
+    if (uslugi && w.zrodlo === 'zakup') return
     wybierz(cenaZWiersza(w, pozycja?.jednostka_ceny ?? 'jm', uslugi))
   }
 
   const kolumnyZnajdz: KolumnaTabeli<WierszCeny>[] = [
-    { id: 'zrodlo', naglowek: t('Źródło'), typ: 'lista', wartosc: (w) => (w.zrodlo === 'zakup' ? 'Optima' : zapytanieId && w.zapytanie_id === zapytanieId ? 'oferta do ZO' : 'oferta'), className: 'text-xs' },
+    { id: 'zrodlo', naglowek: t('Źródło'), typ: 'lista', wartosc: (w) => (w.zrodlo === 'zakup' ? (uslugi ? t('Optima (orientacyjnie)') : 'Optima') : zapytanieId && w.zapytanie_id === zapytanieId ? 'oferta do ZO' : 'oferta'), className: 'text-xs' },
     { id: 'data', naglowek: t('Data'), typ: 'data', wartosc: (w) => w.data, komorka: (w) => dataPL(w.data), className: 'whitespace-nowrap text-xs' },
     {
       id: 'dostawca', naglowek: t('Dostawca'), typ: 'lista', wartosc: (w) => w.dostawca, className: 'max-w-[12rem] text-xs',
@@ -123,7 +126,7 @@ export function ZnajdzCene({ pozycja, uslugi, zamknij, wybierz, zapytanieId = nu
         </div>
         <div className="mt-2 max-h-[60vh] overflow-auto rounded border border-slate-200">
           <Tabela id="znajdz-cene" kolumny={kolumnyZnajdz} wiersze={wynik} klucz={(w) => w.klucz} onKlik={wez} bezPaska
-            klasaWiersza={(w) => (w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis ? 'bg-red-50' : (wiekMiesiecy(w.data) ?? 0) >= s.ustawienia.wiek_ceny_ostrzezenie_mies ? 'bg-amber-50' : 'hover:bg-limonka-jasna')}
+            klasaWiersza={(w) => (uslugi && w.zrodlo === 'zakup' ? 'cursor-default italic text-slate-400' : w.zrodlo === 'oferta' && !!w.waznosc_do && w.waznosc_do < dzis ? 'bg-red-50' : (wiekMiesiecy(w.data) ?? 0) >= s.ustawienia.wiek_ceny_ostrzezenie_mies ? 'bg-amber-50' : 'hover:bg-limonka-jasna')}
             pusto={t('Brak dopasowanych cen - poszerz kryteria.')} />
         </div>
       </DialogContent>

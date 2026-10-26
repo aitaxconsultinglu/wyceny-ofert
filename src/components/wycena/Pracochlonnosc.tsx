@@ -9,9 +9,17 @@ import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
 import { cn } from '@/lib/utils'
 import { odchylenieStawki, PRZEDZIALY_CZASU, type DodatkoweRobocizny } from '@/lib/robocizna'
+import { stanowiskaMigawki, stawkaZMigawki, type StawkaMigawki } from '@/lib/cennikRobocizny'
 import { t } from '@/i18n'
 
-interface Props { aparat: Aparat; par: ParametryKalk; tylkoOdczyt: boolean; zmien: (f: (a: Aparat) => Aparat) => void; wycenaId: string; kto: string }
+interface Props {
+  aparat: Aparat; par: ParametryKalk; tylkoOdczyt: boolean; zmien: (f: (a: Aparat) => Aparat) => void; wycenaId: string; kto: string
+  /** Migawka cennika roboczogodzin wyceny (null - starsza wycena, stawki ze słownika). */
+  migawka?: StawkaMigawki[] | null
+  /** Cennik zmienił się od utworzenia wyceny - komunikat z przyciskiem odświeżenia. */
+  cennikZmieniony?: boolean
+  odswiezStawki?: () => void
+}
 
 interface Podobny { zrodlo: string; nazwa: string; typ: string | null; masa: number | null; material: string | null; rbh_t_wycena: number | null; rbh_t_rzecz: number | null; zl_kg: number | null }
 
@@ -87,7 +95,7 @@ function PodobneZlecenia({ aparat, wycenaId, przyjmij, tylkoOdczyt }: { aparat: 
   )
 }
 
-export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto }: Props) {
+export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto, migawka, cennikZmieniony, odswiezStawki }: Props) {
   const s = useSlowniki()
   const k = policzAparat(aparat, par)
   const wiersze = aparat.pozycje.filter((p) => p.zakladka === 'robocizna')
@@ -95,12 +103,47 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto 
   const domyslna = aktywne.find((x) => x.domyslna)
   const ust = (zm: Partial<Aparat>) => zmien((a) => ({ ...a, ...zm }))
   const ustPoz = (kl: string, zm: Partial<PozycjaWyceny>) => zmien((a) => ({ ...a, pozycje: a.pozycje.map((p) => (p.klucz === kl ? { ...p, ...zm } : p)) }))
-  const wzorcowa = (p: PozycjaWyceny) => { const st = s.stawki.find((x) => x.id === p.stawka_id); return st ? Number(st.stawka) : null }
+  // Stawka wzorcowa pozycji: z migawki cennika (stanowisko × przedział), w starszych wycenach - ze słownika stawek.
+  const zCennika = !!migawka?.length
+  const stanowiska = stanowiskaMigawki(migawka)
+  const wzorcowa = (p: PozycjaWyceny) => {
+    const d = (p.dodatkowe ?? {}) as DodatkoweRobocizny
+    if (d.stanowisko_id) return stawkaZMigawki(migawka, d.stanowisko_id, d.przedzial)
+    const st = s.stawki.find((x) => x.id === p.stawka_id); return st ? Number(st.stawka) : null
+  }
+  const wybierzStanowisko = (p: PozycjaWyceny, id: number) => {
+    const st = stanowiska.find((x) => x.id === id)
+    if (!st) return
+    const przedzial = st.tryb === 'stala' ? null : (((p.dodatkowe ?? {}) as DodatkoweRobocizny).przedzial ?? PRZEDZIALY_CZASU[0].kod)
+    ustPoz(p.klucz, { nazwa: st.nazwa, stawka_id: null, mpk: st.mpk ?? p.mpk, cena_jedn: stawkaZMigawki(migawka, id, przedzial) ?? p.cena_jedn, dodatkowe: { ...p.dodatkowe, stanowisko_id: id, przedzial } })
+  }
+  const zmienPrzedzial = (p: PozycjaWyceny, przedzial: string | null) => {
+    const d = (p.dodatkowe ?? {}) as DodatkoweRobocizny
+    const stawka = d.stanowisko_id ? stawkaZMigawki(migawka, d.stanowisko_id, przedzial) : null
+    ustPoz(p.klucz, { dodatkowe: { ...p.dodatkowe, przedzial }, ...(stawka !== null ? { cena_jedn: stawka } : {}) })
+  }
   const zOdchyleniem = wiersze.filter((p) => { const o = odchylenieStawki(p.cena_jedn, wzorcowa(p)); return o !== null && o !== 0 })
   const ustDod = (p: PozycjaWyceny, zm: DodatkoweRobocizny) => ustPoz(p.klucz, { dodatkowe: { ...p.dodatkowe, ...zm } })
+  const nowyZCennika = (): PozycjaWyceny => {
+    const st = stanowiska.find((x) => !x.srednia) ?? stanowiska[0]
+    const przedzial = st?.tryb === 'stala' ? null : PRZEDZIALY_CZASU[0].kod
+    return {
+      klucz: klucz(), lp: 0, zakladka: 'robocizna', sekcja: null, nazwa: st?.nazwa ?? '', ilosc: 0, jm: 'rbh', mpk: st?.mpk ?? null,
+      cena_jedn: stawkaZMigawki(migawka, st?.id, przedzial) ?? 0, stawka_id: null, jednostka_ceny: 'jm', zrodlo_ceny: 'recznie',
+      dodatkowe: { stanowisko_id: st?.id ?? null, przedzial, technolog: kto },
+    }
+  }
 
   return (
     <div className="space-y-4">
+      {cennikZmieniony && !tylkoOdczyt && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {t('Cennik roboczogodzin zmienił się od utworzenia wyceny.')}
+          {odswiezStawki && <Button rozmiar="maly" onClick={odswiezStawki}>{t('Odśwież stawki z cennika')}</Button>}
+          <span className="text-xs">{t('Odświeżenie zmienia migawkę wyceny; stawki pozycji zmienisz przyciskiem „przywróć stawki z cennika”.')}</span>
+        </div>
+      )}
+      {!zCennika && <p className="text-xs text-slate-500">{t('Wycena sprzed cennika roboczogodzin - stawki ze słownika stawek.')}</p>}
       <div className="flex gap-4 text-sm">
         {(['wskaznikowa', 'szczegolowa'] as const).map((m) => (
           <label key={m} className="flex items-center gap-1">
@@ -140,7 +183,12 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto 
                     <td className="komorka min-w-[14rem]">
                       <div className="flex gap-1">
                         <input className="pole-komorki" disabled={tylkoOdczyt} value={p.nazwa} onChange={(e) => ustPoz(p.klucz, { nazwa: e.target.value })} />
-                        {!tylkoOdczyt && (
+                        {!tylkoOdczyt && zCennika && (
+                          <select className="pole-komorki w-8" title={t('Wybierz stanowisko z cennika roboczogodzin')} value="" onChange={(e) => wybierzStanowisko(p, Number(e.target.value))}>
+                            <option value="">▾</option>{stanowiska.map((x) => <option key={x.id} value={x.id}>{x.nazwa}</option>)}
+                          </select>
+                        )}
+                        {!tylkoOdczyt && !zCennika && (
                           <select className="pole-komorki w-8" title={t('Wybierz ze słownika stawek')} value="" onChange={(e) => {
                             const st = aktywne.find((x) => String(x.id) === e.target.value)
                             if (st) ustPoz(p.klucz, { nazwa: st.rodzaj_pracy, stawka_id: st.id, cena_jedn: Number(st.stawka), mpk: st.mpk_kod ?? p.mpk })
@@ -151,12 +199,12 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto 
                       </div>
                     </td>
                     <td className="komorka w-32">
-                      <select className="pole-komorki" disabled={tylkoOdczyt} value={dod.przedzial ?? ''} onChange={(e) => ustDod(p, { przedzial: e.target.value || null })}>
+                      <select className="pole-komorki" disabled={tylkoOdczyt || stanowiska.find((x) => x.id === dod.stanowisko_id)?.tryb === 'stala'} value={dod.przedzial ?? ''} onChange={(e) => zmienPrzedzial(p, e.target.value || null)}>
                         <option value="">-</option>{PRZEDZIALY_CZASU.map((x) => <option key={x.kod} value={x.kod}>{x.nazwa}</option>)}
                       </select>
                     </td>
                     <td className="komorka w-24"><PoleLiczby wartosc={p.ilosc} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { ilosc: n ?? 0 })} /></td>
-                    <td className={cn('komorka w-24', odch && 'bg-amber-50')} title={odch ? t('Odchylenie od stawki słownikowej: {0} PLN', liczba(odch, 2)) : p.stawka_id ? t('Stawka ze słownika - można nadpisać dla tej wyceny') : undefined}>
+                    <td className={cn('komorka w-24', odch && 'bg-amber-50')} title={odch ? t('Odchylenie od stawki z cennika: {0} PLN', liczba(odch, 2)) : wzorcowa(p) !== null ? t('Stawka z cennika - można nadpisać dla tej wyceny') : undefined}>
                       <PoleLiczby wartosc={p.cena_jedn} disabled={tylkoOdczyt} zmien={(n) => ustPoz(p.klucz, { cena_jedn: n ?? 0 })} />
                     </td>
                     <td className="komorka liczba w-28">{zl(p.wartosc_reczna ?? p.ilosc * p.cena_jedn)}</td>
@@ -175,14 +223,14 @@ export function Pracochlonnosc({ aparat, par, tylkoOdczyt, zmien, wycenaId, kto 
           </table>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             {!tylkoOdczyt ? (
-              <Button rozmiar="maly" wariant="cichy" onClick={() => zmien((a) => ({ ...a, pozycje: [...a.pozycje, {
+              <Button rozmiar="maly" wariant="cichy" onClick={() => zmien((a) => ({ ...a, pozycje: [...a.pozycje, zCennika ? nowyZCennika() : {
                 klucz: klucz(), lp: 0, zakladka: 'robocizna', sekcja: null, nazwa: domyslna?.rodzaj_pracy ?? '', ilosc: 0, jm: 'rbh',
                 cena_jedn: Number(domyslna?.stawka ?? 0), stawka_id: domyslna?.id ?? null, jednostka_ceny: 'jm', zrodlo_ceny: 'recznie', dodatkowe: { przedzial: PRZEDZIALY_CZASU[0].kod, technolog: kto },
-              }] }))}><Plus className="h-3 w-3" /> {t('wiersz')}</Button>
+              } as PozycjaWyceny] }))}><Plus className="h-3 w-3" /> {t('wiersz')}</Button>
             ) : <span />}
             {!tylkoOdczyt && zOdchyleniem.length > 0 && (
               <button className="text-xs text-blekit-ciemny underline" onClick={() => zmien((a) => ({ ...a, pozycje: a.pozycje.map((p) => { const wz = p.zakladka === 'robocizna' ? wzorcowa(p) : null; return wz === null ? p : { ...p, cena_jedn: wz } }) }))}>
-                {t('przywróć stawki ze słownika ({0})', zOdchyleniem.length)}
+                {t('przywróć stawki z cennika ({0})', zOdchyleniem.length)}
               </button>
             )}
             <div className="flex gap-4">

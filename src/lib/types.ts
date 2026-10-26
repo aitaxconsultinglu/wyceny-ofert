@@ -217,6 +217,8 @@ export interface Ustawienia {
   wiek_ceny_ostrzezenie_mies: number
   waznosc_oferty_dostawcy_ryzyko_dni: number
   wspolczynnik_ilosci_materialu: number
+  /** Zakupy kooperacji i badań jako orientacyjne ceny usług (nie źródło ceny) - domyślnie wyłączone. */
+  cena_historyczna_uslug?: boolean
   oferta_domyslne: OfertaDomyslne
   firma: DaneFirmy
   limity_planu: LimityPlanu

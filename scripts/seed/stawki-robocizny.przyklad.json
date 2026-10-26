@@ -1,0 +1,8 @@
+{
+  "_opis": "Przykład formatu prywatne/stawki-robocizny.json (wartości w repozytorium są zerami - prawdziwe stawki tylko lokalnie). Stanowisko: \"stawki\" w przedziałach czasu (kody z tabeli przedzialy_czasu) albo \"stala\" - jedna stawka za godzinę.",
+  "stanowiska": [
+    { "nazwa": "Ślusarz", "stawki": { "7-15": 0, "15-19": 0, "19-7": 0, "wolne": 0 } },
+    { "nazwa": "Spawacz", "stawki": { "7-15": 0, "15-19": 0, "19-7": 0, "wolne": 0 } },
+    { "nazwa": "Specjalistyczne spawanie", "stala": 0 }
+  ]
+}

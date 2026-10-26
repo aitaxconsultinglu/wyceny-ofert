@@ -13,6 +13,7 @@ import {
 import { kursNaDzien } from '@/lib/oferty'
 import { opisZmiany, roznica, useHistoriaStanu } from '@/lib/historia'
 import { typAparatuZRodzaju } from '@/lib/zapytania'
+import { stawkaSredniaZMigawki } from '@/lib/cennikRobocizny'
 import { ZnacznikRodzaju } from '../zapytania/RodzajAparatu'
 import { uprawnienia, type Profil } from '@/lib/types'
 import { PoleLiczby } from '../PoleLiczby'
@@ -46,6 +47,7 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
   const [zajety, setZajety] = useState(false)
   const [szukana, setSzukana] = useState<{ aparat: string; pozycja: PozycjaWyceny; uslugi: boolean } | null>(null)
   const [importOtwarty, setImportOtwarty] = useState(false)
+  const [cennikZmieniony, setCennikZmieniony] = useState(false)
   const [jezykEksportu, setJezykEksportu] = useState<Jezyk>(jezyk())
   // Cofnij / Ponów: każda zmiana stanu wyceny to krok (różnica), stos per wycena w IndexedDB.
   const ustawZHistorii = useCallback((f: (s: StanWyceny) => StanWyceny) => { setStan((x) => (x ? f(x) : x)); setZmieniony(true) }, [])
@@ -61,9 +63,10 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
       // Typ aparatu z rodzaju zapytania - w wycenie nie ma wyboru zbiornik / wymiennik.
       const typ = typAparatuZRodzaju(st.zapytanie.rodzaj_aparatu, st.zapytanie.zakres_wymiennika)
       for (const a of st.aparaty) if (!a.typ && typ) a.typ = typ
-      // Stawka wskaźnikowa domyślnie ze słownika (stawka oznaczona jako domyślna).
-      const dom = s.stawki.find((x) => x.domyslna && x.aktywna)
-      for (const a of st.aparaty) if (a.stawka_wskaznikowa === null && dom) a.stawka_wskaznikowa = Number(dom.stawka)
+      // Stawka wskaźnikowa domyślnie: stawka średnia z migawki cennika, w starszych wycenach - stawka domyślna ze słownika.
+      const dom = stawkaSredniaZMigawki(st.wycena.stawki_cennika) ?? (s.stawki.find((x) => x.domyslna && x.aktywna)?.stawka ?? null)
+      for (const a of st.aparaty) if (a.stawka_wskaznikowa === null && dom !== null) a.stawka_wskaznikowa = Number(dom)
+      void supabase.rpc('cennik_zmieniony', { p_wycena: id }).then(({ data }) => setCennikZmieniony(!!data))
       setStan(st); setZmieniony(false); setBlad(null)
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }, [id, s.stawki])
@@ -148,6 +151,15 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
     const { data, error } = await supabase.rpc('kopiuj_wycene', { p_wycena: w.id })
     if (error) { setBlad(komunikatPL(error.message)); return }
     otworzWycene(data as string)
+  }
+
+  /** Nowa migawka cennika roboczogodzin (najpierw zapis zmian - inaczej zapis wykryłby konflikt wersji). */
+  async function odswiezStawki() {
+    if (zmieniony && !(await zapisz(true))) return
+    const { error } = await supabase.rpc('odswiez_stawki_wyceny', { p_wycena: w.id })
+    if (error) { setBlad(komunikatPL(error.message)); return }
+    await wczytaj()
+    setInfo(t('Odświeżono migawkę cennika - stawki odbiegające od cennika są podświetlone.'))
   }
 
   async function pobierzKurs() {
@@ -294,7 +306,8 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
       {zakladka === 'wycena' && <Opinia stan={stan} wynik={wynik} profil={profil} widziMarze={up.widziMarze} zajety={zajety} zmienStatus={(st) => void zmienStatus(st)} />}
       {zakladka === 'materialy' && <Materialy aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} importuj={() => setImportOtwarty(true)} zapytanieId={stan.zapytanie.id}
         znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: false })} />}
-      {zakladka === 'robocizna' && <Pracochlonnosc aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} wycenaId={w.id} kto={profil.nazwa ?? profil.email} />}
+      {zakladka === 'robocizna' && <Pracochlonnosc aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} wycenaId={w.id} kto={profil.nazwa ?? profil.email}
+        migawka={w.stawki_cennika} cennikZmieniony={cennikZmieniony} odswiezStawki={() => void odswiezStawki()} />}
       {zakladka === 'kooperacja' && <Kooperacja aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} kontekst={kontekstUslug} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
       {zakladka === 'badania' && <BadaniaOdbioryTransport aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} kontekst={kontekstUslug} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
       {zakladka === 'podsumowanie' && (

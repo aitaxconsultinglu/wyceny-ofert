@@ -14,7 +14,7 @@ const wiersz = (z: Partial<WierszCeny>): WierszCeny => ({
   kategoria_materialu: 'blachy', kategoria_uslugi: null, gatunek: 'P265GH', d_zew: null, d_wew: null, grubosc: 10, szerokosc: null, dlugosc: null,
   dn: null, pn: null, ilosc: 1, jm: 'kg', cena_jedn: 6, waluta: 'PLN', wartosc_pln: 6, masa_calk: 1, cena_pln_kg: 6, cena_pln_m: null, cena_pln_szt: null,
   cena_pln_odniesienia: null, jednostka_odniesienia: null, wielkosc_odniesienia: null, termin: null, termin_dni: null, waznosc_do: null, waznosc_opis: null,
-  warunki: null, wymagania: {}, doplaty: [], nr_zo: null, zapytanie_id: null, uwagi: null, ...z,
+  warunki: null, wymagania: {}, doplaty: [], nr_zo: null, zapytanie_id: null, uwagi: null, rodzaj_kosztu: 'materialy', ...z,
 })
 const GAT: Gatunek[] = [
   { kod: 'P265GH', grupa: 'P265GH', rodzaj_stali: 'weglowa', norma: null, uwagi: null },

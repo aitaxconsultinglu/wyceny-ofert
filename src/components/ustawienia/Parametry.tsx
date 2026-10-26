@@ -30,6 +30,7 @@ export function Parametry() {
     waznosc_oferty_dostawcy_ryzyko_dni: u.waznosc_oferty_dostawcy_ryzyko_dni,
     wspolczynnik_ilosci_materialu: u.wspolczynnik_ilosci_materialu,
   })
+  const [historyczne, setHistoryczne] = useState(!!u.cena_historyczna_uslug)
   const [oferta, setOferta] = useState<OfertaDomyslne>(u.oferta_domyslne)
   const [blad, setBlad] = useState<string | null>(null)
   const [komunikat, setKomunikat] = useState<string | null>(null)
@@ -39,7 +40,7 @@ export function Parametry() {
 
   async function zapisz() {
     setBlad(null); setZajety(true)
-    const b = await zapiszUstawienia({ ...stan, oferta_domyslne: oferta })
+    const b = await zapiszUstawienia({ ...stan, oferta_domyslne: oferta, cena_historyczna_uslug: historyczne })
     setZajety(false)
     if (b) { setBlad(b); return }
     setKomunikat(t('Zapisano. Nowe wartości obowiązują w nowych wycenach - istniejące wyceny mają własne narzuty.'))
@@ -89,6 +90,11 @@ export function Parametry() {
           <Pole etykieta={t('Ryzyko cenowe: oferta dostawcy ważna krócej niż [dni]')}>
             <PoleLiczby wartosc={stan.waznosc_oferty_dostawcy_ryzyko_dni} zmien={ustaw('waznosc_oferty_dostawcy_ryzyko_dni')} />
           </Pole>
+          <label className="flex max-w-sm items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={historyczne} onChange={(e) => { setHistoryczne(e.target.checked); setKomunikat(null) }} />
+            <span><span className="font-medium">{t('Orientacyjna cena historyczna usług')}</span>
+              <span className="block text-xs text-slate-500">{t('Przy szukaniu ceny kooperacji i badań pokazuj także zakupy z Optimy - tylko jako podpowiedź; ceny usług w wycenie pochodzą z ofert pod zapytanie.')}</span></span>
+          </label>
         </div>
       </section>
 

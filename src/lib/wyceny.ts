@@ -6,6 +6,7 @@ import { gestoscGatunku } from './slowniki'
 import type { AparatKalk, ParametryKalk, PozycjaKalk, WynikWyceny } from './kalkulacja'
 import type { Gatunek, KategoriaMaterialu, RodzajStali } from './types'
 import type { RodzajAparatu, ZakresWymiennika } from './zapytania'
+import type { StawkaMigawki } from './cennikRobocizny'
 import { t } from '@/i18n'
 
 export type StatusWyceny = 'robocza' | 'do_zatwierdzenia' | 'zwrocona' | 'zatwierdzona'
@@ -35,6 +36,9 @@ export interface Wycena {
   montaz_tyg: number | null
   uwagi: string | null
   komentarz_prezesa: string | null
+  /** Migawka cennika roboczogodzin z chwili utworzenia wyceny (starsze wyceny: null - słownik stawek). */
+  stawki_cennika?: StawkaMigawki[] | null
+  stawki_cennika_data?: string | null
   oferta: Record<string, unknown>
   podsumowanie: Record<string, unknown> | null
   skopiowana_z: string | null

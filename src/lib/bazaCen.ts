@@ -42,6 +42,8 @@ export interface WierszCeny {
   nr_zo: string | null
   zapytanie_id: string | null
   uwagi: string | null
+  /** Zakupy: rodzaj kosztu (materiały / kooperacja / transport i inne / null - do klasyfikacji); oferty: brak. */
+  rodzaj_kosztu?: string | null
 }
 
 interface PozycjaOfertyDb {
@@ -87,7 +89,7 @@ export async function wczytajCeny(opcje: { zakupy?: boolean; zapytanieId?: strin
 
   if (opcje.zakupy) {
     const { data: zak, error: bz } = await db.from('zakupy')
-      .select('id, numer_karty, nr_zamowienia, dostawca_nazwa, nazwa, ilosc, jm, cena_jedn, wartosc, data_dostawy, rodzaj, kategoria, kategoria_uslugi, gatunek, d_zew, d_wew, grubosc, szerokosc, dlugosc, dn, pn, masa_kg, cena_kg, zmodyfikowano')
+      .select('id, numer_karty, nr_zamowienia, dostawca_nazwa, nazwa, ilosc, jm, cena_jedn, wartosc, data_dostawy, rodzaj, kategoria, kategoria_uslugi, gatunek, d_zew, d_wew, grubosc, szerokosc, dlugosc, dn, pn, masa_kg, cena_kg, zmodyfikowano, rodzaj_kosztu')
       .in('rodzaj', ['material', 'usluga'])
       .limit(10000)
     if (bz) return { wiersze, blad: komunikatPL(bz.message) }
@@ -104,7 +106,7 @@ export async function wczytajCeny(opcje: { zakupy?: boolean; zapytanieId?: strin
         masa_calk: z.masa_kg, cena_pln_kg: z.cena_kg, cena_pln_m: naM ? Number(z.cena_jedn) : null, cena_pln_szt: naSzt ? Number(z.cena_jedn) : null,
         cena_pln_odniesienia: null, jednostka_odniesienia: null, wielkosc_odniesienia: null,
         termin: null, termin_dni: null, waznosc_do: null, waznosc_opis: null, warunki: z.nr_zamowienia, wymagania: {}, doplaty: [],
-        nr_zo: null, zapytanie_id: null, uwagi: `karta ${z.numer_karty}`,
+        nr_zo: null, zapytanie_id: null, uwagi: `karta ${z.numer_karty}`, rodzaj_kosztu: z.rodzaj_kosztu,
       })
     }
   }
@@ -265,7 +267,9 @@ export function dnLiczba(s: string | null | undefined): number | null {
 export function dobierzCene(p: PozycjaDoCeny, wiersze: WierszCeny[], gatunki: Gatunek[], uslugi = false, dzis = new Date().toISOString().slice(0, 10), zapytanieId: string | null = null, innyGatunek = false)
   : (WybranaCena & { dopasowanie: 'dokladne' | 'przyblizone' | 'inny_gatunek' }) | null {
   if (!p.sekcja) return null
-  const zakres = uslugi ? wiersze.filter((w) => w.kategoria_uslugi) : wiersze.filter((w) => !w.kategoria_uslugi)
+  // Zakupy: tylko rodzaj „materiały” - ceny kooperacji i badań / transportu są indywidualne (oferty pod zapytanie).
+  const zakres = (uslugi ? wiersze.filter((w) => w.kategoria_uslugi) : wiersze.filter((w) => !w.kategoria_uslugi))
+    .filter((w) => w.zrodlo !== 'zakup' || w.rodzaj_kosztu === 'materialy')
   const miara = (w: WierszCeny) => (uslugi ? w.wartosc_pln
     : p.jednostka_ceny === 'kg' ? w.cena_pln_kg : p.jednostka_ceny === 'm' ? w.cena_pln_m : w.cena_pln_szt)
   // Oferta do tego zapytania to cena "bieżąca" (dział handlowy zebrał ją właśnie na tę wycenę) - także po terminie ważności.
@@ -306,7 +310,7 @@ export function dobierzCene(p: PozycjaDoCeny, wiersze: WierszCeny[], gatunki: Ga
  * i oferty zebrane do tego zapytania (materiały specyficzne: dennice, rurki, odkuwki...). Bez usług i ofert z innych zapytań.
  */
 export function cennikEtapu1(wiersze: WierszCeny[], zapytanieId: string | null) {
-  return wiersze.filter((w) => !w.kategoria_uslugi && (w.zrodlo === 'zakup' || (!!zapytanieId && w.zapytanie_id === zapytanieId)))
+  return wiersze.filter((w) => !w.kategoria_uslugi && ((w.zrodlo === 'zakup' && w.rodzaj_kosztu === 'materialy') || (!!zapytanieId && w.zapytanie_id === zapytanieId)))
 }
 
 /** Wiek ceny w miesiącach (do oznaczania cen nieaktualnych). */

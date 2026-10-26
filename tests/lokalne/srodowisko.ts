@@ -38,6 +38,8 @@ export interface KonfiguracjaTestow {
   analiza_ai?: { przedmiot: string }
   /** Foldery z przykładowymi zapytaniami do raportu kompresji plików. */
   foldery_kompresji?: string[]
+  /** Folder z kartami dostawy Optimy w PDF. */
+  karty_dostawy_pdf?: string
 }
 
 const PLIK_TESTOW = process.env.TESTY_KONFIGURACJA || join(KORZEN, 'prywatne', 'testy.json')

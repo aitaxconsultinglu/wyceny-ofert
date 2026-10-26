@@ -11,7 +11,7 @@ const wiersz = (z: Partial<WierszCeny>): WierszCeny => ({
   kategoria_materialu: 'blachy', kategoria_uslugi: null, gatunek: 'P265GH', d_zew: null, d_wew: null, grubosc: 10, szerokosc: null, dlugosc: null,
   dn: null, pn: null, ilosc: 1, jm: 'kg', cena_jedn: 6, waluta: 'PLN', wartosc_pln: 6, masa_calk: 1, cena_pln_kg: 6, cena_pln_m: null, cena_pln_szt: null,
   cena_pln_odniesienia: null, jednostka_odniesienia: null, wielkosc_odniesienia: null, termin: null, termin_dni: null, waznosc_do: null, waznosc_opis: null,
-  warunki: null, wymagania: {}, doplaty: [], nr_zo: null, zapytanie_id: null, uwagi: null, ...z,
+  warunki: null, wymagania: {}, doplaty: [], nr_zo: null, zapytanie_id: null, uwagi: null, rodzaj_kosztu: 'materialy', ...z,
 })
 const DZIS = '2026-10-20'
 
@@ -31,6 +31,16 @@ describe('dobór ceny z bazy', () => {
     expect(c).toMatchObject({ cena_jedn: 6.5, jednostka_ceny: 'kg', zrodlo_ceny: 'oferta', zrodlo_dostawca: 'Huta', dopasowanie: 'dokladne' })
     const bezWaznych = dobierzCene({ sekcja: 'blachy', gatunek: 'P265GH', grubosc: 10, jednostka_ceny: 'kg' }, ceny.filter((w) => w.klucz !== 'wazna'), gat, false, DZIS)
     expect(bezWaznych).toMatchObject({ cena_jedn: 7, zrodlo_ceny: 'zakup' })
+  })
+
+  it('zakupy: cenę daje tylko rodzaj „materiały” (kooperacja i niesklasyfikowane - nie)', () => {
+    const tylkoZakupy = [
+      wiersz({ klucz: 'koop', zrodlo: 'zakup', cena_pln_kg: 3, rodzaj_kosztu: 'kooperacja' }),
+      wiersz({ klucz: 'bufor', zrodlo: 'zakup', cena_pln_kg: 3.5, rodzaj_kosztu: null }),
+    ]
+    expect(dobierzCene({ sekcja: 'blachy', gatunek: 'P265GH', grubosc: 10, jednostka_ceny: 'kg' }, tylkoZakupy, gat, false, DZIS)).toBeNull()
+    expect(dobierzCene({ sekcja: 'blachy', gatunek: 'P265GH', grubosc: 10, jednostka_ceny: 'kg' }, [...tylkoZakupy, wiersz({ klucz: 'mat', zrodlo: 'zakup', cena_pln_kg: 7.1 })], gat, false, DZIS))
+      .toMatchObject({ cena_jedn: 7.1 })
   })
 
   it('oferta zebrana do tego zapytania ma pierwszeństwo - także po terminie ważności', () => {

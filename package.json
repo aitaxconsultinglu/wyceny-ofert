@@ -17,7 +17,8 @@
     "przygotuj": "git config core.hooksPath .githooks",
     "db:migracje": "node scripts/migracje.mjs",
     "funkcje:wdroz": "node scripts/funkcje.mjs",
-    "ai:klucz": "node scripts/ustaw-klucz-ai.mjs"
+    "ai:klucz": "node scripts/ustaw-klucz-ai.mjs",
+    "seed:stawki": "node scripts/seed-stawki.mjs"
   },
   "dependencies": {
     "@kenjiuno/msgreader": "^1.29.0",

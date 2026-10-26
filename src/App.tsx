@@ -24,12 +24,13 @@ import { Kosz } from './components/kosz/Kosz'
 import { Button } from './components/ui/button'
 import { PasekHistorii } from './components/ui/PasekHistorii'
 import { KolejkaProsb } from './components/prosby/KolejkaProsb'
+import { CennikRobocizny } from './components/cennik/CennikRobocizny'
 import { ustawUzytkownikaTabel } from '@/lib/tabela'
 import { JEZYKI, jezyk, t, ustawJezyk, type Jezyk } from '@/i18n'
 
-type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'kosz' | 'zatwierdzanie' | 'prosby' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
+type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'kosz' | 'zatwierdzanie' | 'prosby' | 'oferty' | 'cennik' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
 
-const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'kosz', 'zatwierdzanie', 'prosby', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
+const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'kosz', 'zatwierdzanie', 'prosby', 'oferty', 'cennik', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
 
 /** Widok w adresie (#/zapytania/<id>, #/wyceny/<id>) - odświeżenie strony nie wyrzuca na start. */
 function useWidok(): [{ widok: Widok; id: string | null }, (w: Widok, id?: string | null) => void] {
@@ -162,7 +163,8 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
     ...(profil.rola === 'prezes' ? [{ id: 'zatwierdzanie' as Widok, etykieta: t('Do zatwierdzenia') }] : []),
   ]
   const modul2: { id: Widok; etykieta: string; licznik?: number }[] = [
-    { id: 'zakupy', etykieta: t('Zakupy (Optima)') },
+    { id: 'cennik', etykieta: t('Cennik roboczogodzin') },
+    { id: 'zakupy', etykieta: t('Zakupy Optima') },
     { id: 'uslugi', etykieta: t('Usługi kooperacyjne') },
     { id: 'projekty', etykieta: t('Projekty zrealizowane') },
   ]
@@ -193,7 +195,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             </div>
           </div>
           <nav className="flex rounded-lg bg-slate-100 p-0.5" aria-label={t('Moduły')}>
-            {([['zapytania', t('Zapytania ofertowe i wyceny'), !wModule2 && zakladki.length > 0], ['zakupy', t('Historyczny cennik'), wModule2]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
+            {([['zapytania', t('Zapytania ofertowe i wyceny'), !wModule2 && zakladki.length > 0], ['cennik', t('Historyczny cennik'), wModule2]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
               <button key={cel} onClick={() => ustawWidok(cel)}
                 className={cn('rounded-md px-3 py-1.5 text-sm font-semibold', akt ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
                 {et}
@@ -257,6 +259,8 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             : <ListaZapytan otworz={(z) => ustawWidok('zapytania', z)} />
         ) : aktywny === 'wyceny' && id ? (
           <EdytorWyceny key={id} id={id} profil={profil} otworzWycene={(w) => ustawWidok('wyceny', w)} />
+        ) : aktywny === 'cennik' ? (
+          <CennikRobocizny profil={profil} />
         ) : aktywny === 'prosby' ? (
           <KolejkaProsb profil={profil} poZmianie={() => void odswiezLicznik()} />
         ) : aktywny === 'kosz' ? (

@@ -13,7 +13,7 @@ export const PRZEDZIALY_CZASU: PrzedzialCzasu[] = [
   { kod: 'wolne', nazwa: t('dni wolne') },
 ]
 
-export interface DodatkoweRobocizny { przedzial?: string | null; technolog?: string | null }
+export interface DodatkoweRobocizny { przedzial?: string | null; technolog?: string | null; /** Stanowisko z cennika roboczogodzin (migawka wyceny). */ stanowisko_id?: number | null }
 
 export const przedzialPozycji = (dodatkowe: Record<string, unknown> | undefined) => (dodatkowe as DodatkoweRobocizny | undefined)?.przedzial ?? null
 

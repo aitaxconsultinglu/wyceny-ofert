@@ -165,3 +165,14 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     w prośbie. Zakupy z Optimy nie są źródłem cen usług.
 63. **Mail z ofertą** czyta się najpierw bez AI (kwoty z walutą i jm, „ilość × cena”, termin, ważność, Incoterms; dostawca
     po domenie nadawcy z kontaktów dostawców); odczyt AI zostaje jako druga opcja z szacunkiem kosztu.
+64. **Cennik roboczogodzin** - stawki wczytane lokalnie z prywatne/stawki-robocizny.json (`npm run seed:stawki`), oznaczone
+    „do weryfikacji”. Zmiana stawki tworzy wersję od dziś (historia przy stanowisku). Dotychczasowe stawki ze słownika
+    przeszły do cennika jako stawki stałe; starsze wyceny (bez migawki) dalej biorą stawki ze słownika.
+65. **Migawka cennika** zapisuje się przy tworzeniu wyceny (także kopii wersji). Technolog bez flagi marż nie widzi cennika,
+    ale widzi stawki w swojej wycenie (jak dotąd - koszt robocizny jest w wycenie). „Odśwież stawki z cennika” najpierw
+    zapisuje zmiany wyceny.
+66. **Rodzaj kosztu zakupów**: reguły słów kluczowych (PL/EN) edytuje dział handlowy, prezes i administrator w zakładce
+    „Reguły klasyfikacji” modułu Historyczny cennik (Ustawienia są tylko dla administratora). Przy obecnych danych bufor
+    „Do klasyfikacji” jest pusty po dopisaniu słowa „spawalnicz”.
+67. **Karty dostawy w PDF** (wydruk z Optimy) czytają się bez AI tym samym parserem co XLS - wszystkie przykładowe karty
+    mają sumę pozycji zgodną ze stopką.

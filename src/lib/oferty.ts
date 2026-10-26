@@ -39,6 +39,8 @@ export interface FormularzOferty {
   dostawca_id: string | null
   dostawca_nowy: { nazwa: string; nip: string; osoba: string; email: string; telefon: string } | null
   zapytanie_id: string | null
+  /** Prośba działu handlowego, na którą odpowiada oferta (kooperacja, badania, transport). */
+  prosba_id?: string | null
   nr_zo: string
   numer_oferty: string
   data_oferty: string
@@ -86,6 +88,13 @@ export function pustyFormularz(): FormularzOferty {
 }
 
 const normalizujNazweFirmy = (n: string) => n.toLowerCase().replace(/sp\.?\s*z\s*o\.?\s*o\.?|s\.a\.|spółka.*$|sp\.\s*k\.?|[^a-ząćęłńóśźż0-9]/gi, '')
+
+/** Dostawca po domenie adresu nadawcy maila (adresy w kontaktach dostawcy) - przed dopasowaniem po nazwie. */
+export function dostawcaPoDomenie(email: string | null | undefined, dostawcy: { id: string; kontakty?: { email?: string | null }[] | null }[]) {
+  const domena = (/@([\w.-]+)$/.exec((email ?? '').trim().toLowerCase())?.[1]) ?? ''
+  if (!domena || /^(gmail|outlook|hotmail|wp|o2|onet|interia|op)\./.test(domena)) return null
+  return dostawcy.find((d) => (d.kontakty ?? []).some((k) => (k.email ?? '').toLowerCase().endsWith(`@${domena}`))) ?? null
+}
 
 /** Dopasowanie dostawcy po nazwie albo aliasie (różne zapisy: "ACME-STAL S.A." / "Acme-Stal"). */
 export function znajdzDostawce(nazwa: string | null, dostawcy: { id: string; nazwa: string; aliasy: string[] }[]) {
@@ -193,7 +202,7 @@ export async function zapiszOferte(f: FormularzOferty, s: Slowniki, status: 'zat
   }
 
   const naglowek = {
-    dostawca_id: dostawcaId, zapytanie_id: zapytanieId, nr_zo: f.nr_zo || null,
+    dostawca_id: dostawcaId, zapytanie_id: zapytanieId, nr_zo: f.nr_zo || null, ...(f.prosba_id ? { prosba_id: f.prosba_id } : {}),
     numer_oferty: f.numer_oferty || null, data_oferty: f.data_oferty || null,
     waluta: f.waluta, kurs: f.kurs, kurs_data: f.kurs_data, kurs_zrodlo: f.kurs_zrodlo,
     warunki_dostawy: f.warunki_dostawy || null, miejsce_dostawy: f.miejsce_dostawy || null, platnosc: f.platnosc || null,

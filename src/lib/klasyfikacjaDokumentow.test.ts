@@ -14,7 +14,7 @@ describe('klasyfikacja dokumentów bez AI', () => {
     expect(klasyfikujDokument(d({ nazwa: 'ABC_r4_Rys zbiornika.pdf' })).typ).toBe('rysunek')
     expect(klasyfikujDokument(d({ nazwa: 'General arrangement V-1.pdf' })).typ).toBe('rysunek_zestawieniowy')
     expect(klasyfikujDokument(d({ nazwa: 'szkic.jpg', rodzaj: 'obraz' })).typ).toBe('szkic')
-    expect(klasyfikujDokument(d({ nazwa: 'Oferta nr 410.pdf' })).typ).toBe('oferta_dostawcy')
+    expect(klasyfikujDokument(d({ nazwa: 'Oferta nr 12.pdf' })).typ).toBe('oferta_dostawcy')
     expect(klasyfikujDokument(d({ nazwa: 'Standard ABC-01 malowanie.pdf' })).typ).toBe('standard_klienta')
   })
   it('treść, format arkusza, CAD i maile', () => {

@@ -53,7 +53,7 @@ export function FormularzOferty({ poczatkowy, zapisz, anuluj }: Props) {
       if (!aktywne) return
       if (k) {
         setF((x) => ({ ...x, kurs: k.kurs, kurs_data: k.data, kurs_zrodlo: `NBP ${k.tabela ?? ''}`.trim() }))
-        setKursInfo(t('Kurs NBP z {0}{1}', k.data, k.data !== f.data_oferty ? ' (ostatni przed datą oferty)' : ''))
+        setKursInfo(t('Kurs NBP z {0}{1}', k.data, k.data !== f.data_oferty ? t(' (ostatni przed datą oferty)') : ''))
       } else setKursInfo(t('Brak kursu {0} w bazie dla tej daty - wpisz kurs ręcznie.', f.waluta))
     })
     return () => { aktywne = false }

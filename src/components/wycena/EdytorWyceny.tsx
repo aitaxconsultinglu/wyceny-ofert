@@ -76,6 +76,7 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
     return () => window.removeEventListener('beforeunload', h)
   }, [zmieniony])
 
+  const kontekstUslug = useMemo(() => (stan ? { zapytanieId: stan.zapytanie.id, numer: stan.zapytanie.numer, wycenaId: stan.wycena.id } : undefined), [stan?.zapytanie.id, stan?.zapytanie.numer, stan?.wycena.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const par = useMemo(() => (stan ? parametry(stan.wycena, up.widziMarze ? stan.marze : null, s) : null), [stan, s, up.widziMarze])
   const wynik = useMemo(() => (stan && par ? policzWycene(stan.aparaty, par) : null), [stan, par])
   const ostrz = useMemo(() => (stan ? liczOstrzezenia(stan.aparaty, {
@@ -157,6 +158,9 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
 
   function wstawCene(c: WybranaCena) {
     if (!szukana) return
+    // „Użyj w wycenie”: prośba pozycji zapamiętuje wybraną ofertę (wybór można zmienić).
+    const prosba = (szukana.pozycja.dodatkowe as { prosba_id?: string } | undefined)?.prosba_id
+    if (prosba && c.zrodlo_ceny === 'oferta' && c.zrodlo_id) void supabase.from('prosby_o_oferte').update({ oferta_id: c.zrodlo_id }).eq('id', prosba)
     ustAparat(szukana.aparat)((a) => ({ ...a, pozycje: a.pozycje.map((p) => (p.klucz === szukana.pozycja.klucz ? { ...p, ...c, wartosc_reczna: null } : p)) }))
     setSzukana(null)
   }
@@ -291,8 +295,8 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
       {zakladka === 'materialy' && <Materialy aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} importuj={() => setImportOtwarty(true)} zapytanieId={stan.zapytanie.id}
         znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: false })} />}
       {zakladka === 'robocizna' && <Pracochlonnosc aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} wycenaId={w.id} kto={profil.nazwa ?? profil.email} />}
-      {zakladka === 'kooperacja' && <Kooperacja aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
-      {zakladka === 'badania' && <BadaniaOdbioryTransport aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
+      {zakladka === 'kooperacja' && <Kooperacja aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} kontekst={kontekstUslug} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
+      {zakladka === 'badania' && <BadaniaOdbioryTransport aparat={aparat} par={par} tylkoOdczyt={tylkoOdczyt} zmien={zmienAparat} kontekst={kontekstUslug} znajdz={(p) => setSzukana({ aparat: aparat.klucz, pozycja: p, uslugi: true })} />}
       {zakladka === 'podsumowanie' && (
         <Podsumowanie wynik={wynik} wycena={w} marze={up.widziMarze ? stan.marze : null} ostrzezenia={ostrz} tylkoOdczyt={tylkoOdczyt}
           jestPrezesem={jestPrezesem} zmienMarze={ustMarze} zmienWycene={ustWycene} pobierzKurs={() => void pobierzKurs()} />

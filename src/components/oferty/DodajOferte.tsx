@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileText, Mail, Paperclip, Sparkles, Upload } from 'lucide-react'
+import { FileSearch, FileText, Mail, Paperclip, Sparkles, Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSlowniki } from '@/lib/slowniki'
 import { liczba } from '@/lib/format'
@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 import { base64ZBajtow, przeskalujObraz, renderujStrone, wczytajPlik, wczytajDane, type PominietyZalacznik, type WczytanyPlik } from '@/lib/dokumenty'
 import { szacujAi, wywolajAi, type KlasyfikacjaMaila, type OfertaAi, type SzacunekAi } from '@/lib/ai'
 import { zapiszDokument } from '@/lib/magazyn'
-import { formularzZAi, pustyFormularz, zapiszOferte, type FormularzOferty as Formularz } from '@/lib/oferty'
+import { dostawcaPoDomenie, formularzZAi, nowyKlucz, pustaPozycja, pustyFormularz, znajdzDostawce, zapiszOferte, type FormularzOferty as Formularz } from '@/lib/oferty'
+import { ofertaZTekstu } from '@/lib/prosby'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { FormularzOferty } from './FormularzOferty'
@@ -46,7 +47,10 @@ async function przygotujTresc(plik: WczytanyPlik, wybrane: Set<string>) {
   return { tekst: czesci.join('\n\n==========\n\n'), obrazy }
 }
 
-export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) {
+/** Kontekst oferty dodawanej z wyceny albo z kolejki próśb: zapytanie, prośba, kategoria usługi. */
+export interface KontekstOferty { zapytanie_id: string; nr_zo: string; prosba_id?: string | null; kategoria_uslugi?: string | null; opis?: string }
+
+export function DodajOferte({ gotowe, kontekst }: { gotowe: (ofertaId: string) => void; kontekst?: KontekstOferty }) {
   const s = useSlowniki()
   const [plik, setPlik] = useState<WczytanyPlik | null>(null)
   const [wybrane, setWybrane] = useState<Set<string>>(new Set())
@@ -54,14 +58,14 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
   const [szacunek, setSzacunek] = useState<SzacunekAi | null>(null)
   const [klasyfikacja, setKlasyfikacja] = useState<KlasyfikacjaMaila | null>(null)
   const [formularz, setFormularz] = useState<Formularz | null>(null)
-  const [dostawcy, setDostawcy] = useState<{ id: string; nazwa: string; aliasy: string[] }[]>([])
+  const [dostawcy, setDostawcy] = useState<{ id: string; nazwa: string; aliasy: string[]; kontakty: { email?: string | null }[] }[]>([])
   const [blad, setBlad] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [zajety, setZajety] = useState<string | null>(null)
   const [przeciaganie, setPrzeciaganie] = useState(false)
 
   useEffect(() => {
-    void supabase.from('dostawcy').select('id, nazwa, aliasy').then(({ data }) => setDostawcy((data ?? []) as typeof dostawcy))
+    void supabase.from('dostawcy').select('id, nazwa, aliasy, kontakty').then(({ data }) => setDostawcy((data ?? []) as typeof dostawcy))
   }, [])
 
   async function przyjmij(pliki: FileList | File[]) {
@@ -82,6 +86,34 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
     if (!wklejony.trim()) return
     setPlik(await wczytajDane('wklejona-tresc.txt', new TextEncoder().encode(wklejony)))
     setWybrane(new Set())
+  }
+
+  /** Formularz z kontekstem: zapytanie i prośba z wyceny / kolejki, kategoria usługi w pozycjach. */
+  const zKontekstem = (f: Formularz): Formularz => (kontekst
+    ? { ...f, zapytanie_id: kontekst.zapytanie_id, nr_zo: f.nr_zo || kontekst.nr_zo, prosba_id: kontekst.prosba_id ?? null,
+        pozycje: f.pozycje.map((p) => ({ ...p, kategoria_uslugi: p.kategoria_uslugi ?? kontekst.kategoria_uslugi ?? null, kategoria_materialu: kontekst.kategoria_uslugi ? null : p.kategoria_materialu })) }
+    : f)
+
+  /** Odczyt bez AI: kwoty z walutą, jm, termin, ważność, Incoterms z treści maila i załączników z tekstem; dostawca po domenie. */
+  function odczytajBezAi() {
+    if (!plik) return
+    const teksty = [plik.tekst, ...plik.zalaczniki.filter((z) => wybrane.has(z.nazwa)).map((z) => z.tekst)].filter(Boolean).join('\n')
+    const o = ofertaZTekstu(teksty)
+    const f = pustyFormularz()
+    const d = dostawcaPoDomenie(String(plik.metadane.od_email ?? ''), dostawcy) ?? znajdzDostawce(String(plik.metadane.od ?? ''), dostawcy)
+    f.dostawca_id = d?.id ?? null
+    if (!d && plik.metadane.od) f.dostawca_nowy = { nazwa: String(plik.metadane.od), nip: '', osoba: '', email: String(plik.metadane.od_email ?? ''), telefon: '' }
+    if (typeof plik.metadane.data === 'string' && /^\d{4}-\d{2}-\d{2}/.test(plik.metadane.data)) f.data_oferty = plik.metadane.data.slice(0, 10)
+    f.waluta = o.waluta; f.termin_realizacji = o.termin_realizacji; f.termin_dni = o.termin_dni
+    f.waznosc_do = o.waznosc_do ?? ''; f.waznosc_opis = o.waznosc_opis; f.warunki_dostawy = o.warunki_dostawy
+    f.zrodlo = plik.rodzaj === 'mail' ? 'mail' : plik.rodzaj === 'pdf' ? 'pdf' : 'reczne'
+    f.pozycje = o.pozycje.length
+      ? o.pozycje.map((p, i) => ({ ...pustaPozycja(i + 1), klucz: nowyKlucz(), opis: p.opis || kontekst?.opis || '', ilosc: p.ilosc, jm: p.jm, cena_jedn: p.cena_jedn, wartosc: p.wartosc, pewnosc: 0.7 }))
+      : [{ ...pustaPozycja(1), opis: kontekst?.opis ?? '' }]
+    setFormularz(zKontekstem(f))
+    setInfo(o.wystarczy
+      ? t('Odczytano bez AI: {0} cen ({1}). Sprawdź pozycje, dostawcę i warunki przed zapisem.', o.pozycje.length, o.waluta)
+      : t('Bez AI nie znaleziono ceny - uzupełnij ręcznie albo użyj odczytu AI.'))
   }
 
   async function oszacuj() {
@@ -108,13 +140,15 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
     const zrodlo = plik.rodzaj === 'mail' ? 'mail' : plik.rodzaj === 'pdf' ? (plik.metadane.skan ? 'skan' : 'pdf') : plik.rodzaj === 'obraz' ? 'skan' : 'reczne'
     const f = formularzZAi(odp.wynik, dostawcy, zrodlo)
     if (!f.nr_zo && k?.wynik.nr_zo) f.nr_zo = k.wynik.nr_zo
-    setFormularz(f)
+    setFormularz(zKontekstem(f))
     setInfo(t('Odczytano {0} pozycji (model {1}, koszt {2} zł). Sprawdź dane przed zatwierdzeniem.', odp.wynik.pozycje.length, odp.model, liczba(odp.koszt_pln, 3)) +
       (odp.wynik.czy_oferta ? '' : t(' Uwaga: model ocenił, że to nie jest oferta.')))
   }
 
   async function zapisz(f: Formularz, status: 'zatwierdzona' | 'do_przejrzenia') {
     const id = await zapiszOferte(f, s, status)
+    // Oferta do prośby: prośba przechodzi w stan „oferta otrzymana” (wybór oferty - w wycenie).
+    if (f.prosba_id) await supabase.from('prosby_o_oferte').update({ status: 'oferta_otrzymana' }).eq('id', f.prosba_id).in('status', ['nowa', 'przyjeta', 'wyslana'])
     // Dokument źródłowy po zapisie oferty (dokument musi być z czymś powiązany).
     if (plik && plik.nazwa !== 'wklejona-tresc.txt') {
       try {
@@ -169,7 +203,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
           <textarea className="pole min-h-[7rem] flex-1" value={wklejony} onChange={(e) => setWklejony(e.target.value)} />
           <div className="flex gap-2">
             <Button rozmiar="maly" disabled={!wklejony.trim()} onClick={() => void plikZWklejonego()}>{t('Użyj wklejonej treści')}</Button>
-            <Button rozmiar="maly" wariant="cichy" onClick={() => setFormularz(pustyFormularz())}>{t('Wprowadź ofertę ręcznie')}</Button>
+            <Button rozmiar="maly" wariant="cichy" onClick={() => setFormularz(zKontekstem({ ...pustyFormularz(), pozycje: [{ ...pustaPozycja(1), opis: kontekst?.opis ?? '' }] }))}>{t('Wprowadź ofertę ręcznie')}</Button>
           </div>
         </div>
       </div>
@@ -205,6 +239,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            <Button wariant="glowny" disabled={!!zajety} onClick={odczytajBezAi} title={t('Kwoty, waluta, termin i ważność z treści maila i załączników PDF z tekstem - bez kosztów')}><FileSearch className="h-4 w-4" /> {t('Odczytaj bez AI')}</Button>
             {!szacunek ? (
               <Button wariant="akcent" disabled={!!zajety} onClick={() => void oszacuj()}><Sparkles className="h-4 w-4" /> {t('Odczytaj ofertę (AI) - najpierw szacunek kosztu')}</Button>
             ) : (
@@ -215,7 +250,7 @@ export function DodajOferte({ gotowe }: { gotowe: (ofertaId: string) => void }) 
                 <Button wariant="glowny" disabled={!!zajety} onClick={() => void odczytaj()}><Sparkles className="h-4 w-4" /> {t('Uruchom odczyt')}</Button>
               </>
             )}
-            <Button wariant="cichy" onClick={() => setFormularz({ ...pustyFormularz(), zrodlo: plik.rodzaj === 'mail' ? 'mail' : 'pdf' })}>{t('Wprowadź ręcznie')}</Button>
+            <Button wariant="cichy" onClick={() => setFormularz(zKontekstem({ ...pustyFormularz(), zrodlo: plik.rodzaj === 'mail' ? 'mail' : 'pdf' }))}>{t('Wprowadź ręcznie')}</Button>
           </div>
         </section>
       )}

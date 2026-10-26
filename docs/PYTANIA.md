@@ -157,3 +157,11 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
 60. **Pola karty zapytania z dokumentów** (bez AI): numer zapytania klienta, termin składania ofert, klient (po słowniku) -
     tylko puste pola, ze źródłem „plik, str. N” pod polem; ręczna zmiana pola usuwa znacznik źródła. Arkusz danych PDF
     z warstwą tekstową daje odczyt „Dane projektowe z arkusza danych” do sprawdzenia w zakładce rysunków.
+61. **Prośby o oferty**: stan pozycji usługi (brak oferty / prośba wysłana / oferta otrzymana / wybrana) liczy się z prośby
+    zapisanej w pozycji i z ofert do niej; bez prośby - z ofert do zapytania w tej kategorii usługi. Prośby się nie usuwa
+    (status „anulowana”); usunięte zapytanie zabiera prośby do kosza i przywraca je razem z ofertami.
+62. **Porównanie ofert usług** - okno „Znajdź cenę” przy pozycji: domyślnie tylko oferty do tego zapytania (najtańsza i
+    najszybsza oznaczone, przeterminowane na czerwono), wybór kopiuje cenę i źródło do wyceny i zapisuje wybraną ofertę
+    w prośbie. Zakupy z Optimy nie są źródłem cen usług.
+63. **Mail z ofertą** czyta się najpierw bez AI (kwoty z walutą i jm, „ilość × cena”, termin, ważność, Incoterms; dostawca
+    po domenie nadawcy z kontaktów dostawców); odczyt AI zostaje jako druga opcja z szacunkiem kosztu.

@@ -23,12 +23,13 @@ import { WersjeEdytowalne } from './components/edytowalne/WersjeEdytowalne'
 import { Kosz } from './components/kosz/Kosz'
 import { Button } from './components/ui/button'
 import { PasekHistorii } from './components/ui/PasekHistorii'
+import { KolejkaProsb } from './components/prosby/KolejkaProsb'
 import { ustawUzytkownikaTabel } from '@/lib/tabela'
 import { JEZYKI, jezyk, t, ustawJezyk, type Jezyk } from '@/i18n'
 
-type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'kosz' | 'zatwierdzanie' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
+type Widok = 'zapytania' | 'wyceny' | 'edytowalne' | 'kosz' | 'zatwierdzanie' | 'prosby' | 'oferty' | 'zakupy' | 'uslugi' | 'projekty' | 'ustawienia' | 'uzytkownicy' | 'instrukcja'
 
-const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'kosz', 'zatwierdzanie', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
+const WIDOKI: Widok[] = ['zapytania', 'wyceny', 'edytowalne', 'kosz', 'zatwierdzanie', 'prosby', 'oferty', 'zakupy', 'uslugi', 'projekty', 'ustawienia', 'uzytkownicy', 'instrukcja']
 
 /** Widok w adresie (#/zapytania/<id>, #/wyceny/<id>) - odświeżenie strony nie wyrzuca na start. */
 function useWidok(): [{ widok: Widok; id: string | null }, (w: Widok, id?: string | null) => void] {
@@ -137,14 +138,30 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
     ustawJezyk(j)
   }
 
+  // Licznik kolejki próśb o oferty (znaczek w menu) - odświeżany co 2 minuty i po powrocie do karty przeglądarki.
+  const [prosbyDoObslugi, setProsbyDoObslugi] = useState(0)
+  const odswiezLicznik = useCallback(async () => {
+    const { data } = await supabase.rpc('prosby_do_obslugi')
+    setProsbyDoObslugi(Number(data ?? 0))
+  }, [])
+  useEffect(() => {
+    if (!profil) return
+    void odswiezLicznik()
+    const i = window.setInterval(() => void odswiezLicznik(), 120_000)
+    const przy = () => { if (document.visibilityState === 'visible') void odswiezLicznik() }
+    document.addEventListener('visibilitychange', przy)
+    return () => { window.clearInterval(i); document.removeEventListener('visibilitychange', przy) }
+  }, [profil, odswiezLicznik])
+
   // Dwa moduły: proces od zapytania do wyceny i dane historyczne (cennik). Ustawienia, użytkownicy, instrukcja - osobno.
-  const modul1: { id: Widok; etykieta: string }[] = [
+  const modul1: { id: Widok; etykieta: string; licznik?: number }[] = [
     { id: 'zapytania', etykieta: t('Zapytania') },
     { id: 'edytowalne', etykieta: t('Wersje edytowalne') },
+    { id: 'prosby', etykieta: t('Prośby o oferty'), licznik: prosbyDoObslugi },
     { id: 'oferty', etykieta: t('Oferty dostawców') },
     ...(profil.rola === 'prezes' ? [{ id: 'zatwierdzanie' as Widok, etykieta: t('Do zatwierdzenia') }] : []),
   ]
-  const modul2: { id: Widok; etykieta: string }[] = [
+  const modul2: { id: Widok; etykieta: string; licznik?: number }[] = [
     { id: 'zakupy', etykieta: t('Zakupy (Optima)') },
     { id: 'uslugi', etykieta: t('Usługi kooperacyjne') },
     { id: 'projekty', etykieta: t('Projekty zrealizowane') },
@@ -213,6 +230,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
                 className={cn('rounded-md px-3 py-1 text-sm font-medium',
                   (aktywny === z.id || (aktywny === 'wyceny' && z.id === 'zapytania')) ? 'bg-limonka-jasna text-slate-900' : 'text-slate-600 hover:bg-slate-100')}>
                 {z.etykieta}
+                {!!z.licznik && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-xs font-semibold text-white" title={t('Prośby do obsłużenia przez dział handlowy')}>{z.licznik}</span>}
               </button>
             ))}
           </div>
@@ -239,6 +257,8 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             : <ListaZapytan otworz={(z) => ustawWidok('zapytania', z)} />
         ) : aktywny === 'wyceny' && id ? (
           <EdytorWyceny key={id} id={id} profil={profil} otworzWycene={(w) => ustawWidok('wyceny', w)} />
+        ) : aktywny === 'prosby' ? (
+          <KolejkaProsb profil={profil} poZmianie={() => void odswiezLicznik()} />
         ) : aktywny === 'kosz' ? (
           <Kosz profil={profil} />
         ) : aktywny === 'edytowalne' ? (

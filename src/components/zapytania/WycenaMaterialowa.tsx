@@ -47,9 +47,9 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
   return (
     <Dialog open={otwarty} onOpenChange={(o) => { if (!o && !postep) zamknij() }}>
       <DialogContent className="max-w-2xl">
-        <DialogTitle>{t('Wycena materiałowa -')}{' '}{zapytanie.numer}</DialogTitle>
+        <DialogTitle>{t('Wycena automatyczna bez AI -')}{' '}{zapytanie.numer}</DialogTitle>
         <DialogDescription>
-          {t('Lista materiałów i parametry projektu z rysunków zapytania, ceny z kart dostawy Optimy i ofert na materiały zebranych do tego zapytania. Bez kosztów AI: rysunki z CAD są czytane z warstwy tekstowej, skany - z odczytów zapisanych w zakładce Rysunki i listy.')}
+          {t('Lista materiałów i parametry projektu z rysunków zapytania, ceny z kart dostawy Optimy i ofert na materiały zebranych do tego zapytania. Bez kosztów AI: rysunki z CAD są czytane z warstwy tekstowej, skany - z odczytów zapisanych w zakładce Rysunki i listy materiałowe.')}
         </DialogDescription>
         <div className="mt-3 space-y-3 text-sm">
           {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
@@ -77,7 +77,7 @@ export function WycenaMaterialowa({ otwarty, zamknij, zapytanie, otworzWycene, p
               <Komunikat rodzaj="sukces">{t('Wycena v')}{raport.wersja} {t('„Wycena materiałowa”:')}{' '}{raport.pozycji} {t('pozycji materiałów.')}</Komunikat>
               <ul className="list-disc space-y-1 pl-5">
                 <li>{t('Rysunki z CAD odczytane z tekstu:')}{' '}{raport.stron_tekst} {t('str.; parametrów projektu')}{' '}{raport.parametrow}{t(', króćców')}{' '}{raport.krocow}.</li>
-                {raport.skany_bez_odczytu.length > 0 && <li className="text-amber-800">{t('Skany bez odczytu (')}{raport.skany_bez_odczytu.join('; ')}{t(') - odczytaj wykaz części w zakładce Rysunki i listy (AI z potwierdzeniem kosztu), potem uruchom wycenę materiałową jeszcze raz.')}</li>}
+                {raport.skany_bez_odczytu.length > 0 && <li className="text-amber-800">{t('Skany bez odczytu (')}{raport.skany_bez_odczytu.join('; ')}{t(') - odczytaj wykaz części w zakładce Rysunki i listy materiałowe (AI z potwierdzeniem kosztu), potem uruchom wycenę automatyczną jeszcze raz.')}</li>}
                 <li>{t('Ceny: z ofert do tego zapytania')}{' '}{raport.z_oferty_zapytania}{t(', z kart dostawy Optimy')}{' '}{raport.z_optimy}{t(', bez ceny')}{' '}{raport.bez_ceny}.
                   {raport.z_innego_gatunku > 0 && t(' W tym {0} cen zastępczych (inny gatunek tej samej grupy stali - gatunku z rysunku nie ma w zakupach; potwierdź ofertą).', raport.z_innego_gatunku)}</li>
                 {raport.braki_szablonu.length > 0 && <li>{t('Elementy szablonu do uzupełnienia (ilość / masa z rysunku):')}{' '}{raport.braki_szablonu.join(', ')}.</li>}

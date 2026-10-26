@@ -119,5 +119,7 @@ export interface RysunekAi {
   dane_projektowe: Record<'kod_projektowy' | 'cisnienie_obliczeniowe' | 'temperatura_obliczeniowa' | 'mdmt' | 'naddatek_korozyjny'
     | 'pwht' | 'badania_ndt' | 'kategoria_ped' | 'dozor_udt' | 'masa_pusta', string | null>
   uwagi_do_wyceny: string[]
+  /** Własne tabele (obszar oznaczony jako "własna tabela: nazwa"); starsze odpowiedzi nie mają pola. */
+  tabele_wlasne?: { nazwa: string; kolumny: string[]; wiersze: string[][] }[]
   uwagi_odczytu: string
 }

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
-import { pozycjeZListy } from '@/lib/importListy'
-import { PROG_PEWNOSCI, listaZRysunku, type PozycjaRysunku } from '@/lib/rysunki'
+import { PROG_PEWNOSCI } from '@/lib/rysunki'
+import { pozycjeZOdczytu, scalZOdczytem, zrodloPozycji, type OdczytDoPrzeniesienia } from '@/lib/przeniesienieOdczytu'
 import { ETYKIETY_STATUSU_WYCENY, nowyAparat, wczytajWycene, zapiszWycene, type StanWyceny, type StatusWyceny } from '@/lib/wyceny'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
@@ -14,14 +14,17 @@ interface Props {
   otwarty: boolean
   zamknij: () => void
   zapytanieId: string
-  pozycje: PozycjaRysunku[]
-  opisZrodla: string
+  /** Zapisany odczyt (id potrzebne do kluczy źródła - ponowne przeniesienie aktualizuje pozycje). */
+  odczyt: OdczytDoPrzeniesienia | null
   widziMarze: boolean
   otworzWycene: (id: string) => void
 }
 
-/** Pozycje wykazu części -> zakładka Materiały wybranego aparatu w wersji roboczej wyceny. */
-export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZrodla, widziMarze, otworzWycene }: Props) {
+/**
+ * Odczyt -> wybrany aparat w wersji roboczej wyceny: wykaz części do Materiałów (element szablonu z obszaru), króćce jako rury
+ * króćców i kołnierze, tabela badań do zakładki Badania. Ponowne przeniesienie tego samego odczytu aktualizuje pozycje (klucz: odczyt + wiersz).
+ */
+export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, odczyt, widziMarze, otworzWycene }: Props) {
   const [wersje, setWersje] = useState<{ id: string; wersja: number; nazwa: string | null; status: StatusWyceny }[]>([])
   const [wycenaId, setWycenaId] = useState('')
   const [stan, setStan] = useState<StanWyceny | null>(null)
@@ -47,9 +50,11 @@ export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZ
     if (!wycenaId) return
     wczytajWycene(wycenaId).then((s) => {
       setStan(s)
-      setAparat(s.aparaty.length ? '0' : 'nowy')
+      // Domyślnie aparat, do którego ten odczyt już przeniesiono (aktualizacja), inaczej pierwszy.
+      const juz = odczyt ? s.aparaty.findIndex((a) => a.pozycje.some((p) => zrodloPozycji(p)?.odczyt_id === odczyt.id)) : -1
+      setAparat(juz >= 0 ? String(juz) : s.aparaty.length ? '0' : 'nowy')
     }).catch((e) => setBlad(e instanceof Error ? e.message : String(e)))
-  }, [wycenaId])
+  }, [wycenaId, odczyt])
 
   async function nowaWycena() {
     const { data, error } = await supabase.rpc('nowa_wycena', { p_zapytanie: zapytanieId, p_nazwa: null })
@@ -69,21 +74,27 @@ export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZ
         a = nowyAparat(s.aparaty.length + 1, nazwaAparatu.trim() || `Aparat ${s.aparaty.length + 1}`)
         s.aparaty.push(a)
       }
-      const nowe = pozycjeZListy(listaZRysunku(pozycje), opisZrodla)
-      a.pozycje = [...a.pozycje, ...nowe]
+      const w = scalZOdczytem(a.pozycje, pozycje)
+      a.pozycje = w.pozycje
       await zapiszWycene(s, widziMarze)
-      setGotowe(t('Dodano {0} pozycji do zakładki Materiały ({1}). Ceny uzupełnij przyciskiem „Znajdź cenę”.', nowe.length, a.nazwa))
+      setGotowe([
+        t('Aparat {0}: dodano {1}, zaktualizowano {2}, bez zmian {3}.', a.nazwa, w.dodane, w.zaktualizowane, w.bezZmian),
+        w.usunieteWZrodle ? t('{0} pozycji nie ma już w odczycie - zostały w wycenie, usuń je ręcznie, jeśli trzeba.', w.usunieteWZrodle) : '',
+        w.dodane ? t('Ceny nowych pozycji uzupełnij przyciskiem „Znajdź cenę”.') : '',
+      ].filter(Boolean).join(' '))
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
     setZajety(false)
   }
 
-  const niepewne = pozycje.filter((p) => p.pewnosc < PROG_PEWNOSCI).length
+  const pozycje = odczyt ? pozycjeZOdczytu(odczyt) : []
+  const niepewne = pozycje.filter((p) => (p.pewnosc ?? 1) < PROG_PEWNOSCI).length
+  const doZakladki = (z: string) => pozycje.filter((p) => p.zakladka === z).length
   return (
     <Dialog open={otwarty} onOpenChange={(o) => !o && zamknij()}>
       <DialogContent className="max-w-lg">
-        <DialogTitle>{t('Przenieś wykaz części do wyceny')}</DialogTitle>
+        <DialogTitle>{t('Przenieś odczyt do wyceny')}</DialogTitle>
         <DialogDescription>
-          {pozycje.length} {t('pozycji trafi do zakładki Materiały wybranego aparatu (kategorie, wymiary i gatunki z siatki, cena do uzupełnienia).')}
+          {t('Materiały: {0} poz., Badania: {1} poz. - do wybranego aparatu (kategorie, wymiary i gatunki z siatki, cena do uzupełnienia). Ponowne przeniesienie aktualizuje pozycje zamiast je dublować.', doZakladki('materialy'), doZakladki('badania'))}
           {niepewne > 0 && t(' {0} niepewnych odczytów dostanie w uwagach dopisek „(?)” - sprawdź je w wycenie.', niepewne)}
         </DialogDescription>
         <div className="mt-3 space-y-3">
@@ -104,7 +115,7 @@ export function PrzeniesDoWyceny({ otwarty, zamknij, zapytanieId, pozycje, opisZ
                     {wersje.length === 0 && <option value="">{t('brak wersji roboczej')}</option>}
                     {wersje.map((w) => <option key={w.id} value={w.id}>v{w.wersja}{w.nazwa ? ` - ${w.nazwa}` : ''} ({ETYKIETY_STATUSU_WYCENY[w.status]})</option>)}
                   </select>
-                  <Button rozmiar="maly" title={t('Nowa wersja wyceny')} onClick={() => void nowaWycena()}><Plus className="h-3 w-3" /> nowa</Button>
+                  <Button rozmiar="maly" title={t('Nowa wersja wyceny')} onClick={() => void nowaWycena()}><Plus className="h-3 w-3" /> {t('nowa')}</Button>
                 </div>
               </label>
               {stan && (

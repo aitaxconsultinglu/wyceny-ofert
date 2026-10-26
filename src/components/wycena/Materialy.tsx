@@ -1,4 +1,7 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileSearch, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { pozycjeZOdczytu, scalZOdczytem, zmienioneWZrodle, zrodloPozycji, type OdczytDoPrzeniesienia } from '@/lib/przeniesienieOdczytu'
 import { useSlowniki } from '@/lib/slowniki'
 import { liczba, zl } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -34,6 +37,21 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
   const sekcje = [...new Set([...pozycje.map((p) => p.sekcja ?? 'inne')])].sort((a, b) => kolejnosc.indexOf(a) - kolejnosc.indexOf(b))
   const wolne = s.kategorieMaterialow.filter((k) => !sekcje.includes(k.kod))
 
+  // Odczyty rysunków, z których pochodzą pozycje - wykrycie zmian w źródle po przeniesieniu.
+  const idsOdczytow = [...new Set(aparat.pozycje.map((p) => zrodloPozycji(p)?.odczyt_id).filter((x): x is string => !!x))].sort().join(',')
+  const [odczyty, setOdczyty] = useState<OdczytDoPrzeniesienia[]>([])
+  useEffect(() => {
+    if (!idsOdczytow) { setOdczyty([]); return }
+    void supabase.from('odczyty_rysunkow').select('id, nazwa_pliku, strona, nazwa, rodzaj_tabeli, obszary, wynik').in('id', idsOdczytow.split(','))
+      .then(({ data }) => setOdczyty((data ?? []) as OdczytDoPrzeniesienia[]))
+  }, [idsOdczytow])
+  const zmienione = zmienioneWZrodle(aparat.pozycje, odczyty)
+  const aktualizuj = () => zmien((a) => {
+    const obecne = new Set(a.pozycje.map((p) => { const z = zrodloPozycji(p); return z ? `${z.odczyt_id}|${z.wiersz}` : '' }))
+    const zOdczytow = odczyty.flatMap((o) => pozycjeZOdczytu(o)).filter((p) => obecne.has(`${zrodloPozycji(p)!.odczyt_id}|${zrodloPozycji(p)!.wiersz}`))
+    return { ...a, pozycje: scalZOdczytem(a.pozycje, zOdczytow).pozycje }
+  })
+
   const ustPoz = (kl: string, zm: Partial<PozycjaWyceny>) => zmien((a) => ({ ...a, pozycje: a.pozycje.map((p) => (p.klucz === kl ? { ...p, ...zm } : p)) }))
   const usun = (kl: string) => zmien((a) => ({ ...a, pozycje: a.pozycje.filter((p) => p.klucz !== kl) }))
   const dodaj = (sekcja: string) => {
@@ -49,6 +67,13 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
 
   return (
     <div className="space-y-4">
+      {zmienione.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {t('{0} pozycji zmieniło się w odczytach rysunków po przeniesieniu: {1}.', zmienione.length, zmienione.slice(0, 5).map((p) => p.nazwa).join(', ') + (zmienione.length > 5 ? '...' : ''))}
+          {!tylkoOdczyt && <Button rozmiar="maly" onClick={aktualizuj}><RefreshCw className="h-3 w-3" /> {t('Zaktualizować z odczytów?')}</Button>}
+          <span className="text-xs">{t('Ceny i źródła cen zostaną bez zmian.')}</span>
+        </div>
+      )}
       {zapytanieId && <SzablonIParametry aparat={aparat} zapytanieId={zapytanieId} masaPozycji={koszty.materialy.masa_brutto} tylkoOdczyt={tylkoOdczyt} zmien={zmien} />}
       <div className="flex flex-wrap items-center gap-2">
         {!tylkoOdczyt && (
@@ -86,7 +111,12 @@ export function Materialy({ aparat, par, tylkoOdczyt, zmien, znajdz, importuj, z
                     return (
                       <tr key={p.klucz} className={cn(p.pewnosc !== null && p.pewnosc !== undefined && p.pewnosc < 0.8 && 'bg-amber-50', p.opcjonalna && 'text-slate-500')}>
                         <td className="komorka w-8 text-center text-xs text-slate-500">{i + 1}</td>
-                        <td className="komorka min-w-[11rem]"><input className="pole-komorki" disabled={tylkoOdczyt} value={p.nazwa} onChange={(e) => ustPoz(p.klucz, { nazwa: e.target.value })} /></td>
+                        <td className="komorka min-w-[11rem]">
+                          <div className="flex items-center gap-1">
+                            <input className="pole-komorki" disabled={tylkoOdczyt} value={p.nazwa} onChange={(e) => ustPoz(p.klucz, { nazwa: e.target.value })} />
+                            {zrodloPozycji(p) && <span title={t('Źródło: {0}', zrodloPozycji(p)!.opis)} className={cn('shrink-0', zmienione.includes(p) ? 'text-amber-600' : 'text-slate-400')}><FileSearch className="h-3.5 w-3.5" /></span>}
+                          </div>
+                        </td>
                         <td className="komorka w-28"><input className="pole-komorki" disabled={tylkoOdczyt} value={p.rodzaj ?? ''} onChange={(e) => ustPoz(p.klucz, { rodzaj: e.target.value || null })} /></td>
                         <td className="komorka w-28"><input className="pole-komorki" list="gatunki-wyceny" disabled={tylkoOdczyt} value={p.gatunek ?? ''} onChange={(e) => ustPoz(p.klucz, { gatunek: e.target.value || null })} /></td>
                         {liczbowa(p, 'd_zew')}{liczbowa(p, 'd_wew')}{liczbowa(p, 'grubosc')}{liczbowa(p, 'szerokosc')}{liczbowa(p, 'dlugosc', 'w-16')}

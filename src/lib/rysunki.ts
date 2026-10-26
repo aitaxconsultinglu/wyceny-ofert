@@ -12,15 +12,38 @@ import { nazwyPLEN } from './terminy'
 /** Prostokąt w pikselach albo - dla obszarów - we współrzędnych względnych 0..1 strony (po obrocie, jak na ekranie). */
 export interface Prostokat { x: number; y: number; w: number; h: number }
 
-export type RodzajObszaru = 'czesci' | 'krocce' | 'parametry' | 'tabliczka'
+/** Struktura odczytu obszaru (jak jest układany i przenoszony do wyceny) - rodzaj tabeli ze słownika ma jedną z nich. */
+export type RodzajObszaru = 'czesci' | 'krocce' | 'parametry' | 'tabliczka' | 'uwagi' | 'wlasna'
 export const ETYKIETY_OBSZARU: Record<RodzajObszaru, string> = {
   czesci: t('wykaz części'), krocce: t('tabela króćców'), parametry: t('dane projektowe'), tabliczka: t('tabliczka rysunkowa'),
+  uwagi: t('uwagi do wyceny'), wlasna: t('własna tabela'),
 }
 export const KOLORY_OBSZARU: Record<RodzajObszaru, string> = {
-  czesci: '#0ea5e9', krocce: '#a855f7', parametry: '#f59e0b', tabliczka: '#64748b',
+  czesci: '#0ea5e9', krocce: '#a855f7', parametry: '#f59e0b', tabliczka: '#64748b', uwagi: '#ef4444', wlasna: '#10b981',
 }
 
-export interface Obszar extends Prostokat { id: string; rodzaj: RodzajObszaru }
+/**
+ * Zaznaczony obszar strony. `rodzaj` - struktura odczytu; `rodzaj_tabeli` - kod ze słownika rodzaje_tabel (zależny od rodzaju
+ * aparatu), `nazwa` - własna nazwa tabeli ("Tabela dennic"), `element` - element szablonu, do którego trafiają pozycje,
+ * `kolumny` - kolumny własnej tabeli.
+ */
+export interface Obszar extends Prostokat {
+  id: string
+  rodzaj: RodzajObszaru
+  rodzaj_tabeli?: string | null
+  nazwa?: string | null
+  element?: string | null
+  kolumny?: string[]
+}
+
+/** Opis obszaru dla AI: własna tabela z nazwą i kolumnami (model zwraca ją w tabele_wlasne), inaczej struktura i nazwa. */
+export function opisObszaruDlaAi(o: Pick<Obszar, 'rodzaj' | 'nazwa' | 'kolumny'>) {
+  if (o.rodzaj === 'wlasna') return `własna tabela: ${o.nazwa?.trim() || 'tabela'}${o.kolumny?.length ? ` (kolumny: ${o.kolumny.join(', ')})` : ''}`
+  return o.nazwa?.trim() && o.nazwa.trim() !== ETYKIETY_OBSZARU[o.rodzaj] ? `${ETYKIETY_OBSZARU[o.rodzaj]} - ${o.nazwa.trim()}` : ETYKIETY_OBSZARU[o.rodzaj]
+}
+
+/** Etykieta obszaru na podglądzie i w listach: własna nazwa albo nazwa struktury. */
+export const etykietaObszaru = (o: Pick<Obszar, 'rodzaj' | 'nazwa'>) => o.nazwa?.trim() || ETYKIETY_OBSZARU[o.rodzaj]
 export type ObszarZrodlowy = Prostokat & { strona: number }
 
 export interface PozycjaRysunku {
@@ -67,14 +90,46 @@ export interface ParametrRysunku {
   nazwa_en?: string
 }
 
+/** Własna tabela odczytu: dowolne kolumny (nazwane przez technologa albo z nagłówka tabeli). */
+export interface TabelaWlasna {
+  id: string
+  /** Obszar, z którego pochodzi (null - wklejona / dodana ręcznie). */
+  obszar_id: string | null
+  nazwa: string
+  kolumny: string[]
+  wiersze: string[][]
+}
+
 export interface WynikRysunku {
   pozycje: PozycjaRysunku[]
   krocce: KrociecRysunku[]
   parametry: ParametrRysunku[]
   uwagi: string[]
+  /** Własne tabele (starsze odczyty nie mają tego pola). */
+  tabele?: TabelaWlasna[]
 }
 
-export const PUSTY_WYNIK: WynikRysunku = { pozycje: [], krocce: [], parametry: [], uwagi: [] }
+export const PUSTY_WYNIK: WynikRysunku = { pozycje: [], krocce: [], parametry: [], uwagi: [], tabele: [] }
+
+/** Liczba wierszy wyniku (wszystkie struktury) - do list i komunikatów. */
+export const wierszyWyniku = (w: WynikRysunku) => w.pozycje.length + w.krocce.length + w.parametry.length + w.uwagi.length + (w.tabele ?? []).reduce((a, x) => a + x.wiersze.length, 0)
+
+/**
+ * Wiersze tabeli (z tekstu PDF, schowka albo AI) -> własna tabela. Kolumny: podane (zmienione przez technologa) albo
+ * pierwszy wiersz, gdy wygląda na nagłówek (żadna komórka nie jest samą liczbą); inaczej "Kolumna 1..n".
+ */
+export function tabelaWlasna(wiersze: string[][], opcje: { nazwa: string; obszar_id?: string | null; kolumny?: string[]; id?: string }): TabelaWlasna {
+  const niepuste = wiersze.filter((w) => w.some((k) => k.trim()))
+  const szer = Math.max(opcje.kolumny?.length ?? 0, ...niepuste.map((w) => w.length), 1)
+  const naglowek = !opcje.kolumny?.length && niepuste.length > 1 && niepuste[0].every((k) => !/^[\d\s.,]+$/.test(k.trim()))
+  const kolumny = opcje.kolumny?.length ? [...opcje.kolumny] : naglowek ? niepuste[0].map((k, i) => k.trim() || `${t('Kolumna')} ${i + 1}`) : []
+  while (kolumny.length < szer) kolumny.push(`${t('Kolumna')} ${kolumny.length + 1}`)
+  const dane = (naglowek ? niepuste.slice(1) : niepuste).map((w) => kolumny.map((_, i) => (w[i] ?? '').trim()))
+  return { id: opcje.id ?? crypto.randomUUID(), obszar_id: opcje.obszar_id ?? null, nazwa: opcje.nazwa, kolumny, wiersze: dane }
+}
+
+/** Uwagi do wyceny z wierszy tabeli: każdy niepusty wiersz to jedna uwaga. */
+export const uwagiZTabeli = (wiersze: string[][]) => wiersze.map((w) => w.filter((k) => k.trim()).join(' ').trim()).filter(Boolean)
 export const PROG_PEWNOSCI = 0.8
 
 // --- Kafle -------------------------------------------------------------------------------------
@@ -370,17 +425,17 @@ export const ETYKIETY_DANYCH_PROJEKTOWYCH: Record<keyof RysunekAi['dane_projekto
 }
 
 /** Opis kafla wysyłany przed obrazem - model zwraca numer kafla, z którego odczytał wiersz. */
-export function opisKafla(nr: number, rodzaj: RodzajObszaru, k: Prostokat, wszystkie: Prostokat[]) {
+export function opisKafla(nr: number, rodzaj: RodzajObszaru, k: Prostokat, wszystkie: Prostokat[], etykieta = ETYKIETY_OBSZARU[rodzaj]) {
   const kolumny = [...new Set(wszystkie.map((x) => x.x))].sort((a, b) => a - b)
   const wiersze = [...new Set(wszystkie.map((x) => x.y))].sort((a, b) => a - b)
-  return `Kafel ${nr}: ${ETYKIETY_OBSZARU[rodzaj]}, wiersz ${wiersze.indexOf(k.y) + 1}/${wiersze.length}, kolumna ${kolumny.indexOf(k.x) + 1}/${kolumny.length}`
+  return `Kafel ${nr}: ${etykieta}, wiersz ${wiersze.indexOf(k.y) + 1}/${wiersze.length}, kolumna ${kolumny.indexOf(k.x) + 1}/${kolumny.length}`
 }
 
 /**
  * Odpowiedź modelu -> wynik siatki. `kafle[i]` to obszar kafla nr i+1 na stronie (podgląd źródła wiersza).
  * Kategoria: z AI, gdy jest w słowniku, inaczej z reguł. Dane projektowe idą na początek parametrów.
  */
-export function zWynikuAi(ai: RysunekAi, kafle: ObszarZrodlowy[], kody: string[]): WynikRysunku {
+export function zWynikuAi(ai: RysunekAi, kafle: ObszarZrodlowy[], kody: string[], obszarId: string | null = null): WynikRysunku {
   const zrodlo = (k: number | null) => (k && kafle[k - 1]) || null
   const dane = (Object.keys(ETYKIETY_DANYCH_PROJEKTOWYCH) as (keyof RysunekAi['dane_projektowe'])[])
     .filter((k) => ai.dane_projektowe?.[k])
@@ -399,6 +454,7 @@ export function zWynikuAi(ai: RysunekAi, kafle: ObszarZrodlowy[], kody: string[]
     krocce: ai.krocce.map((k) => ({ ...k, pewnosc: Math.max(0, Math.min(1, k.pewnosc)), obszar_zrodlowy: zrodlo(k.kafel) })).map(({ kafel: _k, ...r }) => { void _k; return r }),
     parametry: [...dane, ...ai.parametry.map((x) => ({ ...x, ...nazwyPLEN(x.nazwa) }))],
     uwagi: ai.uwagi_do_wyceny,
+    tabele: (ai.tabele_wlasne ?? []).map((x) => tabelaWlasna(x.wiersze, { nazwa: x.nazwa, kolumny: x.kolumny, obszar_id: obszarId })),
   }
 }
 
@@ -430,6 +486,14 @@ export function polaczWyniki(...wyniki: WynikRysunku[]): WynikRysunku {
     krocce: unikalne(wyniki.flatMap((w) => w.krocce), (k) => norm(k.oznaczenie) || `#${bezKlucza++}`),
     parametry: unikalne(wyniki.flatMap((w) => w.parametry), (p) => `${norm(p.nazwa)}|${norm(p.przestrzen)}`),
     uwagi: [...new Set(wyniki.flatMap((w) => w.uwagi))],
+    // Własne tabele z kilku wywołań (kafle jednego obszaru) - jedna tabela na obszar i nazwę, wiersze bez powtórzeń.
+    tabele: [...wyniki.flatMap((w) => w.tabele ?? []).reduce((m, x) => {
+      const k = `${x.obszar_id ?? x.id}|${norm(x.nazwa)}`
+      const b = m.get(k)
+      if (!b) m.set(k, { ...x, wiersze: [...x.wiersze] })
+      else for (const w of x.wiersze) if (!b.wiersze.some((y) => y.join('|') === w.join('|'))) b.wiersze.push(w)
+      return m
+    }, new Map<string, TabelaWlasna>()).values()],
   }
 }
 

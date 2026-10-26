@@ -8,9 +8,10 @@ import {
 import type { KategoriaMaterialu } from '@/lib/types'
 import { PoleLiczby } from '../PoleLiczby'
 import { Button } from '../ui/button'
+import { TabeleWlasne } from './TabeleWlasne'
 import { t } from '@/i18n'
 
-export type ZakladkaSiatki = 'pozycje' | 'krocce' | 'parametry' | 'uwagi'
+export type ZakladkaSiatki = 'pozycje' | 'krocce' | 'parametry' | 'uwagi' | 'tabele'
 
 interface Props {
   wynik: WynikRysunku
@@ -77,6 +78,7 @@ export function SiatkaOdczytu({ wynik, zmien, kategorie, zakladka, setZakladka, 
     ['krocce', t('Króćce'), wynik.krocce.length, niepewnych(wynik.krocce)],
     ['parametry', t('Dane projektowe'), wynik.parametry.length, niepewnych(wynik.parametry)],
     ['uwagi', t('Uwagi do wyceny'), wynik.uwagi.length, 0],
+    ['tabele', t('Własne tabele'), (wynik.tabele ?? []).length, 0],
   ]
 
   return (
@@ -122,7 +124,7 @@ export function SiatkaOdczytu({ wynik, zmien, kategorie, zakladka, setZakladka, 
             </tbody>
           </table>
           <div className="flex items-center justify-between gap-2 p-2">
-            {!tylkoOdczyt && <Button rozmiar="maly" onClick={() => zmien({ ...wynik, pozycje: [...wynik.pozycje, nowaPozycjaRysunku(wynik.pozycje.length + 1)] })}><Plus className="h-3 w-3" /> wiersz</Button>}
+            {!tylkoOdczyt && <Button rozmiar="maly" onClick={() => zmien({ ...wynik, pozycje: [...wynik.pozycje, nowaPozycjaRysunku(wynik.pozycje.length + 1)] })}><Plus className="h-3 w-3" /> {t('wiersz')}</Button>}
             {masa > 0 && <span className="text-xs text-slate-600">{t('Suma mas z wykazu:')}{' '}<strong>{liczba(masa, 1)} kg</strong> {t('(porównaj z masą na rysunku)')}</span>}
           </div>
         </div>
@@ -151,7 +153,7 @@ export function SiatkaOdczytu({ wynik, zmien, kategorie, zakladka, setZakladka, 
             </tbody>
           </table>
           {!tylkoOdczyt && (
-            <div className="p-2"><Button rozmiar="maly" onClick={() => zmien({ ...wynik, krocce: [...wynik.krocce, { oznaczenie: `N${wynik.krocce.length + 1}`, ilosc: 1, dn: null, pn: null, przylacze: null, przeznaczenie: null, uwagi: null, pewnosc: 1, obszar_zrodlowy: null }] })}><Plus className="h-3 w-3" /> wiersz</Button></div>
+            <div className="p-2"><Button rozmiar="maly" onClick={() => zmien({ ...wynik, krocce: [...wynik.krocce, { oznaczenie: `N${wynik.krocce.length + 1}`, ilosc: 1, dn: null, pn: null, przylacze: null, przeznaczenie: null, uwagi: null, pewnosc: 1, obszar_zrodlowy: null }] })}><Plus className="h-3 w-3" /> {t('wiersz')}</Button></div>
           )}
         </div>
       )}
@@ -175,7 +177,7 @@ export function SiatkaOdczytu({ wynik, zmien, kategorie, zakladka, setZakladka, 
             </tbody>
           </table>
           {!tylkoOdczyt && (
-            <div className="p-2"><Button rozmiar="maly" onClick={() => zmien({ ...wynik, parametry: [...wynik.parametry, { nazwa: '', przestrzen: null, wartosc: '', jednostka: null, pewnosc: 1 }] })}><Plus className="h-3 w-3" /> wiersz</Button></div>
+            <div className="p-2"><Button rozmiar="maly" onClick={() => zmien({ ...wynik, parametry: [...wynik.parametry, { nazwa: '', przestrzen: null, wartosc: '', jednostka: null, pewnosc: 1 }] })}><Plus className="h-3 w-3" /> {t('wiersz')}</Button></div>
           )}
         </div>
       )}
@@ -193,11 +195,13 @@ export function SiatkaOdczytu({ wynik, zmien, kategorie, zakladka, setZakladka, 
             <div className="flex gap-2">
               <input className="pole text-sm" placeholder={t('Nowa uwaga do wyceny')} value={nowaUwaga} onChange={(e) => setNowaUwaga(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && nowaUwaga.trim()) { zmien({ ...wynik, uwagi: [...wynik.uwagi, nowaUwaga.trim()] }); setNowaUwaga('') } }} />
-              <Button rozmiar="maly" disabled={!nowaUwaga.trim()} onClick={() => { zmien({ ...wynik, uwagi: [...wynik.uwagi, nowaUwaga.trim()] }); setNowaUwaga('') }}><Plus className="h-3 w-3" /> dodaj</Button>
+              <Button rozmiar="maly" disabled={!nowaUwaga.trim()} onClick={() => { zmien({ ...wynik, uwagi: [...wynik.uwagi, nowaUwaga.trim()] }); setNowaUwaga('') }}><Plus className="h-3 w-3" /> {t('dodaj')}</Button>
             </div>
           )}
         </div>
       )}
+
+      {zakladka === 'tabele' && <TabeleWlasne tabele={wynik.tabele ?? []} tylkoOdczyt={tylkoOdczyt} zmien={(tb) => zmien({ ...wynik, tabele: tb })} />}
     </div>
   )
 }

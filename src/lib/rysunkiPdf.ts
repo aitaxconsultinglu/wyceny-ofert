@@ -4,10 +4,28 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { pdfjs } from './dokumenty'
 import { dpiObszaru, kafle, type ElementTekstu, type Prostokat } from './rysunki'
+import { jestObrazem, pdfZJpeg, wymiaryJpeg } from './obrazPdf'
 
 interface Plotno { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }
 interface FabrykaPlocien { create(w: number, h: number): Plotno; destroy(p: Plotno): void }
 const fabryka = (doc: PDFDocumentProxy) => (doc as unknown as { canvasFactory: FabrykaPlocien }).canvasFactory
+
+/**
+ * Bajty pliku rysunku do otwarcia w pdf.js: PDF bez zmian, JPG / PNG jako jednostronicowy PDF z obrazem
+ * (PNG i nieczytelny JPEG przez płótno przeglądarki - białe tło pod przezroczystością).
+ */
+export async function bajtyRysunku(dane: Uint8Array, nazwa: string): Promise<Uint8Array> {
+  if (!jestObrazem(nazwa)) return dane
+  if (/\.jpe?g$/i.test(nazwa) && wymiaryJpeg(dane)) return pdfZJpeg(dane)
+  const bitmapa = await createImageBitmap(new Blob([dane.slice()]))
+  const c = document.createElement('canvas')
+  c.width = bitmapa.width; c.height = bitmapa.height
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height)
+  ctx.drawImage(bitmapa, 0, 0)
+  const blob = await new Promise<Blob>((ok, zle) => c.toBlob((b) => (b ? ok(b) : zle(new Error('Nie udało się przetworzyć obrazu.'))), 'image/jpeg', 0.92))
+  return pdfZJpeg(new Uint8Array(await blob.arrayBuffer()))
+}
 
 export async function otworzRysunek(dane: Uint8Array): Promise<PDFDocumentProxy> {
   const lib = await pdfjs()

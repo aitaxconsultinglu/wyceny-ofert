@@ -16,7 +16,23 @@ interface Props {
   wybierz: (id: string | null) => void
   dodaj: (p: Prostokat) => void
   usun: (id: string) => void
+  /** Przesunięcie / zmiana rozmiaru wybranego obszaru (przeciągnięcie środka albo narożnika); brak = obszary stałe. */
+  zmien?: (id: string, p: Prostokat) => void
   alt?: string
+}
+
+type Uchwyt = 'srodek' | 'nw' | 'ne' | 'sw' | 'se'
+
+/** Nowy prostokąt po przeciągnięciu środka (przesunięcie) albo narożnika (rozmiar) o (dx, dy); zawsze w granicach strony. */
+export function przeciagnij(p: Prostokat, uchwyt: Uchwyt, dx: number, dy: number): Prostokat {
+  const min = 0.01
+  if (uchwyt === 'srodek') return { ...p, x: Math.min(1 - p.w, Math.max(0, p.x + dx)), y: Math.min(1 - p.h, Math.max(0, p.y + dy)) }
+  let [x0, y0, x1, y1] = [p.x, p.y, p.x + p.w, p.y + p.h]
+  if (uchwyt === 'nw' || uchwyt === 'sw') x0 = Math.min(x1 - min, Math.max(0, x0 + dx))
+  if (uchwyt === 'ne' || uchwyt === 'se') x1 = Math.max(x0 + min, Math.min(1, x1 + dx))
+  if (uchwyt === 'nw' || uchwyt === 'ne') y0 = Math.min(y1 - min, Math.max(0, y0 + dy))
+  if (uchwyt === 'sw' || uchwyt === 'se') y1 = Math.max(y0 + min, Math.min(1, y1 + dy))
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
 const proc = (v: number) => `${(v * 100).toFixed(3)}%`
@@ -45,13 +61,39 @@ export function krokPrzewijania(pozycja: number, poczatek: number, koniec: numbe
  * przewija, więc da się zaznaczyć tabelę dłuższą niż ekran; kółko myszy też przewija w trakcie zaznaczania.
  * Współrzędne są względne (0..1), więc nie zależą od powiększenia ani rozdzielczości podglądu.
  */
-export function ZaznaczanieObszarow({ dataUrl, obszary, kolorNowego, zoom, wybrany, podswietlony, tylkoOdczyt, wybierz, dodaj, usun, alt = 'Strona dokumentu' }: Props) {
+export function ZaznaczanieObszarow({ dataUrl, obszary, kolorNowego, zoom, wybrany, podswietlony, tylkoOdczyt, wybierz, dodaj, usun, zmien, alt = 'Strona dokumentu' }: Props) {
   const warstwa = useRef<HTMLDivElement>(null)
   const swiatlo = useRef<HTMLDivElement>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
   const ostatni = useRef<{ x: number; y: number } | null>(null)
   const klatka = useRef<number | null>(null)
   const [biezacy, setBiezacy] = useState<Prostokat | null>(null)
+  // Edycja wybranego obszaru: uchwyt, punkt startu, prostokąt przed i w trakcie przeciągania.
+  const edycja = useRef<{ id: string; uchwyt: Uchwyt; start: { x: number; y: number }; przed: Prostokat } | null>(null)
+  const [podglad, setPodglad] = useState<{ id: string; p: Prostokat } | null>(null)
+
+  function edycjaStart(e: PointerEvent<HTMLElement>, o: ObszarNaPodgladzie, uchwyt: Uchwyt) {
+    e.stopPropagation()
+    wybierz(o.id)
+    if (!zmien || tylkoOdczyt || e.button !== 0 || (uchwyt === 'srodek' && o.id !== wybrany)) return
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* bez przechwycenia */ }
+    edycja.current = { id: o.id, uchwyt, start: punkt({ x: e.clientX, y: e.clientY }), przed: { x: o.x, y: o.y, w: o.w, h: o.h } }
+  }
+  function edycjaRuch(e: PointerEvent<HTMLElement>) {
+    const ed = edycja.current
+    if (!ed) return
+    const c = punkt({ x: e.clientX, y: e.clientY })
+    setPodglad({ id: ed.id, p: przeciagnij(ed.przed, ed.uchwyt, c.x - ed.start.x, c.y - ed.start.y) })
+  }
+  function edycjaKoniec(e: PointerEvent<HTMLElement>) {
+    const ed = edycja.current
+    if (!ed) return
+    edycja.current = null
+    const c = punkt({ x: e.clientX, y: e.clientY })
+    const p = przeciagnij(ed.przed, ed.uchwyt, c.x - ed.start.x, c.y - ed.start.y)
+    setPodglad(null)
+    if (Math.abs(p.x - ed.przed.x) + Math.abs(p.y - ed.przed.y) + Math.abs(p.w - ed.przed.w) + Math.abs(p.h - ed.przed.h) > 0.001) zmien?.(ed.id, p)
+  }
 
   useEffect(() => {
     if (podswietlony) swiatlo.current?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
@@ -113,13 +155,21 @@ export function ZaznaczanieObszarow({ dataUrl, obszary, kolorNowego, zoom, wybra
         className={tylkoOdczyt ? 'absolute inset-0' : 'absolute inset-0 cursor-crosshair touch-none'}
         onPointerDown={wcisniety} onPointerMove={ruch} onPointerUp={puszczony} onPointerCancel={puszczony}
       >
-        {obszary.map((o) => (
+        {obszary.map((x) => {
+          const o = podglad?.id === x.id ? { ...x, ...podglad.p } : x
+          const edytowalny = !!zmien && !tylkoOdczyt && o.id === wybrany
+          return (
           <div
             key={o.id}
-            className="absolute border-2"
+            className={edytowalny ? 'absolute cursor-move border-2' : 'absolute border-2'}
             style={{ left: proc(o.x), top: proc(o.y), width: proc(o.w), height: proc(o.h), borderColor: o.kolor, background: o.id === wybrany ? `${o.kolor}22` : 'transparent' }}
-            onPointerDown={(e) => { e.stopPropagation(); wybierz(o.id) }}
+            onPointerDown={(e) => edycjaStart(e, o, 'srodek')} onPointerMove={edycjaRuch} onPointerUp={edycjaKoniec} onPointerCancel={edycjaKoniec}
           >
+            {edytowalny && (['nw', 'ne', 'sw', 'se'] as const).map((u) => (
+              <span key={u} className="absolute h-3 w-3 rounded-sm border border-white" title={t('Przeciągnij, aby zmienić rozmiar')}
+                style={{ background: o.kolor, cursor: u === 'nw' || u === 'se' ? 'nwse-resize' : 'nesw-resize', left: u.endsWith('w') ? -6 : undefined, right: u.endsWith('e') ? -6 : undefined, top: u.startsWith('n') ? -6 : undefined, bottom: u.startsWith('s') ? -6 : undefined }}
+                onPointerDown={(e) => edycjaStart(e, o, u)} onPointerMove={edycjaRuch} onPointerUp={edycjaKoniec} onPointerCancel={edycjaKoniec} />
+            ))}
             <span className="absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap rounded px-1 text-[11px] font-medium text-white" style={{ background: o.kolor }}>
               {o.etykieta}
               {!tylkoOdczyt && o.id === wybrany && (
@@ -127,7 +177,8 @@ export function ZaznaczanieObszarow({ dataUrl, obszary, kolorNowego, zoom, wybra
               )}
             </span>
           </div>
-        ))}
+          )
+        })}
         {biezacy && (
           <div className="pointer-events-none absolute border-2 border-dashed" style={{ left: proc(biezacy.x), top: proc(biezacy.y), width: proc(biezacy.w), height: proc(biezacy.h), borderColor: kolorNowego }} />
         )}

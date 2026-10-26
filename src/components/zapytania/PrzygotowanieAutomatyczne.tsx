@@ -106,7 +106,7 @@ export function PrzygotowanieAutomatyczne({ otwarty, zamknij, zapytanie, widziMa
   return (
     <Dialog open={otwarty} onOpenChange={(o) => { if (!o && etap !== 'trwa' && etap !== 'planowanie') zamknij() }}>
       <DialogContent className="max-w-2xl">
-        <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blekit-ciemny" /> {t('Przygotuj automatycznie -')}{' '}{zapytanie.numer}</DialogTitle>
+        <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blekit-ciemny" /> {t('Wycena automatyczna z AI -')}{' '}{zapytanie.numer}</DialogTitle>
         <DialogDescription>{t('Wynik to wersja wstępna do weryfikacji przez pracownika - niczego nie wysyła klientowi.')}</DialogDescription>
         <div className="mt-3 space-y-3 text-sm">
           {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}

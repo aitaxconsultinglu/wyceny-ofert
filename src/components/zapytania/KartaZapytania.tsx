@@ -21,6 +21,7 @@ import { ZapytaniaDoDostawcow } from '../zapytaniaDostawcow/ZapytaniaDoDostawcow
 import { PrzygotowanieAutomatyczne } from './PrzygotowanieAutomatyczne'
 import { FLAGA_PRZYGOTUJ } from './NoweZMaila'
 import { WycenaMaterialowa } from './WycenaMaterialowa'
+import { WycenaAutomatyczna } from './WycenaAutomatyczna'
 import { useZakladkaWAdresie } from '@/lib/adres'
 import { t } from '@/i18n'
 
@@ -46,6 +47,7 @@ const zPola = (v: string) => (v ? new Date(v).toISOString() : null)
 export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: string; profil: Profil; zamknij: () => void; otworzWycene: (id: string) => void }) {
   const up = uprawnienia(profil)
   const [materialowa, setMaterialowa] = useState(false)
+  const [automat, setAutomat] = useState(false)
   const [z, setZ] = useState<Zapytanie | null>(null)
   const [klienci, setKlienci] = useState<{ id: string; nazwa: string }[]>([])
   const [ludzie, setLudzie] = useState<{ id: string; nazwa: string }[]>([])
@@ -207,19 +209,12 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
         <button className="text-xs text-slate-500 underline" onClick={() => setZmianaRodzaju(!zmianaRodzaju)}>{t('zmień rodzaj')}</button>
         <span className="ml-auto" />
         <Button rozmiar="maly" wariant="cichy" title={t('Przenieś zapytanie do kosza')} onClick={() => void usunZapytanie()}><Trash2 className="h-4 w-4" /> {t('Usuń')}</Button>
-        {(
-          <Button rozmiar="maly" wariant="akcent" onClick={() => setMaterialowa(true)}
-            title={t('Lista materiałów i parametry z rysunków, ceny z kart dostawy Optimy i ofert do tego zapytania')}>
-            <Sparkles className="h-4 w-4" /> {t('Wycena materiałowa')}
-          </Button>
-        )}
-        {(
-          <Button rozmiar="maly" wariant="akcent" onClick={() => setPrzygotowanie('reczne')}
-            title={t('Analiza zapytania, listy z rysunków, wstępna wycena i projekt oferty - do weryfikacji')}>
-            <Sparkles className="h-4 w-4" /> {t('Przygotuj automatycznie')}
-          </Button>
-        )}
+        <Button rozmiar="maly" wariant="akcent" onClick={() => setAutomat(true)}
+          title={t('Bez AI (materiały z rysunków i cennika) albo z AI (analiza, rysunki, wycena, projekt oferty) - wynik do weryfikacji')}>
+          <Sparkles className="h-4 w-4" /> {t('Wycena automatyczna')}
+        </Button>
       </div>
+      <WycenaAutomatyczna otwarty={automat} zamknij={() => setAutomat(false)} wybierz={(x) => (x === 'bez_ai' ? setMaterialowa(true) : setPrzygotowanie('reczne'))} />
       {(
         <WycenaMaterialowa otwarty={materialowa} zamknij={() => setMaterialowa(false)} zapytanie={{ id, numer: z.numer, przedmiot: z.przedmiot, status: z.status, rodzaj_aparatu: z.rodzaj_aparatu, zakres_wymiennika: z.zakres_wymiennika, zakres_opis: z.zakres_opis }}
           otworzWycene={otworzWycene} poZakonczeniu={() => void wczytaj()} />
@@ -277,14 +272,14 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
       </section>
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {([['dokumenty', t('Dokumenty')], ['rysunki', t('Rysunki i listy')], ['analiza', t('Karta analizy')], ['wyceny', t('Wyceny ({0})', wersje.length)], ['dostawcy', t('Zapytania do dostawców')], ['oferty', t('Oferty dostawców')], ['historia', t('Historia zmian')]] as [Zakladka, string][]).map(([k, et]) => (
+        {([['dokumenty', t('Dokumenty')], ['rysunki', t('Rysunki i listy materiałowe')], ['analiza', t('Karta analizy')], ['wyceny', t('Wyceny ({0})', wersje.length)], ['dostawcy', t('Zapytania do dostawców')], ['oferty', t('Oferty dostawców')], ['historia', t('Historia zmian')]] as [Zakladka, string][]).map(([k, et]) => (
           <button key={k} onClick={() => { setZakladka(k); setGeneratorZAnalizy(false) }}
             className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
         ))}
       </div>
 
       {zakladka === 'dokumenty' && <DokumentyZapytania zapytanieId={id} numer={z.numer} profil={profil} />}
-      {zakladka === 'rysunki' && <RysunkiZapytania zapytanieId={id} numer={z.numer} profil={profil} otworzWycene={otworzWycene} />}
+      {zakladka === 'rysunki' && <RysunkiZapytania zapytanieId={id} numer={z.numer} profil={profil} otworzWycene={otworzWycene} rodzajAparatu={z.rodzaj_aparatu} />}
       {zakladka === 'analiza' && (
         <KartaAnalizy
           zapytanie={{ id, numer: z.numer, przedmiot: z.przedmiot, klient: klienci.find((k) => k.id === z.klient_id)?.nazwa ?? null, nr_zapytania_klienta: z.nr_zapytania_klienta, termin_oferty: z.termin_oferty, status: z.status }}

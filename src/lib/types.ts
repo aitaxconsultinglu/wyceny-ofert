@@ -111,6 +111,21 @@ export interface KategoriaUslugi {
   kolejnosc: number
 }
 
+/** Rodzaj tabeli na rysunku (słownik rodzaje_tabel) - lista do zaznaczania zależy od rodzaju aparatu zapytania. */
+export interface RodzajTabeli {
+  id: number
+  rodzaj_aparatu: 'zbiornik' | 'wymiennik'
+  kod: string
+  nazwa: string
+  nazwa_en?: string | null
+  nazwa_pl?: string
+  struktura: 'czesci' | 'krocce' | 'parametry' | 'tabliczka' | 'uwagi' | 'wlasna'
+  kolumny: string[]
+  element_szablonu: string | null
+  do_materialow: boolean
+  kolejnosc: number
+}
+
 export interface KursWaluty {
   waluta: string
   data: string

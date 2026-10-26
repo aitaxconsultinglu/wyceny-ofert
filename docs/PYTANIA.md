@@ -132,3 +132,17 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     nie przejdzie - oryginał. Limit 50 MB na plik (Ustawienia → Limity planu).
 50. **Prośby o oferty** nie wysyłają maili z serwera; dział handlowy widzi kolejkę z licznikiem w menu, a zapytania do kooperantów
     generuje jak dotąd (mailto).
+51. **Kolejność faz.** Na prośbę zamawiającego najpierw moduł wycen (faza 7), potem rysunki (faza 6), dokumenty (faza 5),
+    kooperacja i prośby o oferty (faza 8), a historyczny cennik (faza 4) na końcu. Do czasu fazy 4 robocizna szczegółowa
+    bierze stawki ze słownika stawek (Ustawienia); stanowisko, przedział czasu i technolog są już zapisywane w pozycjach.
+52. **Ocena działów** (kompletność dokumentacji, ocena technologiczna i spawalnicza, terminy zakupów, problemy) ma jedno
+    źródło - kartę analizy; zakładka Wycena edytuje te same dane. „Data i podpis” to zapis kto / kiedy przy bloku.
+53. **Odczyt całego dokumentu (AI)** czyta najwyżej 10 pierwszych stron pliku (koszt); dalsze strony - zaznaczeniem.
+    Wynik strony dzieli się na osobne odczyty: wykaz części, króćce, dane projektowe, uwagi i tabele własne (np. badania).
+54. **Kilka tabel na jednym arkuszu.** Do wyceny automatycznej bierzemy najnowszy odczyt każdej nazwanej tabeli strony
+    (dawniej: najnowszy odczyt strony). Ta sama lista z innego pliku (kopia rysunku) - nadal raz.
+55. **Przeniesienie do wyceny**: wykaz części do Materiałów, króćce jako rura króćca + kołnierz, tabela „Badania i wymagania”
+    do zakładki Badania. Dane projektowe trafiają do parametrów projektu (jak dotąd, z odczytów). Pozycja usunięta
+    z odczytu zostaje w wycenie (komunikat przy przeniesieniu) - nie kasujemy pozycji, które mogły dostać cenę.
+56. **Obrazy JPG / PNG** otwierają się jak jednostronicowy skan (200 DPI przyjęte do wymiarów strony); odczyt bez AI
+    jest możliwy tylko dla PDF z warstwą tekstową.

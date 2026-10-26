@@ -70,8 +70,8 @@ async function odczytajRysunkiTekstowo(zapytanieId: string, postep: Postep, db: 
 
 /** Wszystkie odczyty zapytania połączone: wykaz części z ilościami (najnowszy odczyt strony, który go ma), tabela materiałów, króćce, parametry. */
 export async function zebraneOdczyty(zapytanieId: string, db: SupabaseClient = supabase) {
-  const { data } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, wynik, zmodyfikowano').eq('zapytanie_id', zapytanieId).order('zmodyfikowano', { ascending: false })
-  const odczyty = (data ?? []) as { nazwa_pliku: string; strona: number; wynik: WynikRysunku }[]
+  const { data } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, nazwa, wynik, zmodyfikowano').eq('zapytanie_id', zapytanieId).order('zmodyfikowano', { ascending: false })
+  const odczyty = (data ?? []) as { nazwa_pliku: string; strona: number; nazwa: string | null; wynik: WynikRysunku }[]
   const czesci: { plik: string; pozycje: PozycjaRysunku[] }[] = []
   const materialy: PozycjaRysunku[] = []
   const krocce: KrociecRysunku[] = []
@@ -79,7 +79,8 @@ export async function zebraneOdczyty(zapytanieId: string, db: SupabaseClient = s
   const strony = new Set<string>()
   const podpisy = new Set<string>()
   for (const o of odczyty) {
-    const k = `${o.nazwa_pliku}:${o.strona}`
+    // Najnowszy odczyt strony - osobno dla każdej nazwanej tabeli (kilka tabel na jednym arkuszu).
+    const k = `${o.nazwa_pliku}:${o.strona}:${o.nazwa ?? ''}`
     const zIloscia = o.wynik.pozycje.filter((p) => p.uwagi !== ZNACZNIK_TABELI && p.ilosc !== null)
     const podpis = zIloscia.map((p) => `${p.poz}|${p.nazwa}`.toLowerCase()).sort().join('\n')
     if (zIloscia.length && !strony.has(k) && !podpisy.has(podpis)) { czesci.push({ plik: `${o.nazwa_pliku}, str. ${o.strona}`, pozycje: zIloscia }); strony.add(k); podpisy.add(podpis) }

@@ -247,6 +247,9 @@ Rysunki są często skanami z drobnym pismem, po polsku, po angielsku albo dwuj�
    badania NDT, kategoria PED, dozór UDT, masa pusta. Dla wymiennika podaj wartości dla obu przestrzeni ("płaszcz: ..., rurki: ...").
 5. uwagi_do_wyceny - wymagania wpływające na koszt widoczne w obszarze (np. PWHT, 100% RT, próba szczelności helem, materiały
    z udarnością, wymagania antykorozyjne), krótko, po polsku (to notatka dla technologa).
+6. tabele_wlasne - TYLKO dla obszaru opisanego jako "własna tabela: <nazwa>" (opis kafla albo nagłówek tekstu): cała tabela
+   z obszaru - nazwa jak w opisie, kolumny jak w nagłówku tabeli (gdy podano kolumny w opisie - w tej kolejności), wiersze jako
+   teksty komórek jak w źródle (niepewne z "(?)"). Takiego obszaru nie rozkładaj na pozycje / króćce / parametry. W innych obszarach: [].
 
 Zasady odczytu:
 - Zwróć KAŻDY wiersz widocznych tabel, po kolei, także przy słabym skanie - nie pomijaj wierszy i nie streszczaj tabeli.
@@ -287,6 +290,10 @@ ${ZASADY}`,
           dozor_udt: tekstLubNull, masa_pusta: tekstLubNull,
         }),
         uwagi_do_wyceny: { type: 'array', items: { type: 'string' } },
+        tabele_wlasne: {
+          type: 'array',
+          items: obiekt({ nazwa: tekstTabeli, kolumny: { type: 'array', items: { type: 'string' } }, wiersze: { type: 'array', items: { type: 'array', items: { type: 'string' } } } }),
+        },
         uwagi_odczytu: { type: 'string' },
       })
     },

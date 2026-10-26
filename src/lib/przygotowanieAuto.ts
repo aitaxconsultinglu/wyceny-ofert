@@ -8,8 +8,9 @@ import { komunikatPL } from './config'
 import { szacujAi, wywolajAi, type DaneAi, type RysunekAi, type TrybAi } from './ai'
 import { uzupelnijKarte, terminOfertyISO, zWynikuAnalizyAi, type AnalizaAi, type KartaAnalizy, type KrokPrzygotowania, type RaportPrzygotowania } from './analiza'
 import { dokumentyZapytania, przygotujAnalize } from './analizaZapytania'
-import { kafelNaStronie, kafliOdmiana, listaZRysunku, opisKafla, polaczWyniki, ulozWTabele, zWynikuAi, type ObszarZrodlowy, type WynikRysunku } from './rysunki'
-import { infoStrony, kafleObszaru, natywneDpi, otworzRysunek, tekstStrony } from './rysunkiPdf'
+import { listaZRysunku, polaczWyniki, zWynikuAi, type ObszarZrodlowy, type WynikRysunku } from './rysunki'
+import { otworzRysunek } from './rysunkiPdf'
+import { zadaniaStrony } from './odczytDokumentu'
 import { pozycjeZListy } from './importListy'
 import { dobierzCene, wczytajCeny } from './bazaCen'
 import { BUCKET } from './magazyn'
@@ -22,8 +23,6 @@ import { t } from '@/i18n'
 
 export const MAKS_STRON_RYSUNKOW = 8
 const STRON_NA_RYSUNEK = 3
-const KAFLE_NA_WYWOLANIE = 12
-const MIN_ELEMENTOW_TEKSTU = 30
 
 export interface ZapytanieDoPrzygotowania { id: string; numer: string; przedmiot: string; klient: string | null; klient_id: string | null; nr_zapytania_klienta: string | null; termin_oferty: string | null; status: string }
 export interface SlownikiPrzygotowania {
@@ -75,29 +74,16 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
       if (error || !plik) { pominiete.push(`Rysunek ${d.nazwa_pliku}: nie udało się pobrać`); continue }
       const pdf = await otworzRysunek(new Uint8Array(await plik.arrayBuffer()))
       for (let nr = 1; nr <= Math.min(pdf.numPages, STRON_NA_RYSUNEK) && stron < MAKS_STRON_RYSUNKOW; nr++, stron++) {
-        const info = await infoStrony(pdf, nr)
-        const meta = { plik: d.nazwa_pliku, strona: nr, obszar: 'cały arkusz' }
-        const wspolne = { zapytanie_id: z.id, dokument_id: d.id, metadane: meta }
-        if (info.elementowTekstu >= MIN_ELEMENTOW_TEKSTU) {
-          // Rysunek z CAD: cała warstwa tekstowa (tanio) - model sam znajduje tabele.
-          const tab = ulozWTabele(await tekstStrony(pdf, nr))
-          const wiersze = tab.wiersze.map((r) => r.filter(Boolean).join(' | ')).join('\n')
-          // Ten sam rysunek w kilku plikach (np. z zaznaczoną antykorozją / izolacją) - lista raz, inaczej pozycje by się powieliły.
-          const ten = juzCzytane.get(wiersze)
+        const strona = await zadaniaStrony(pdf, nr, { zapytanie_id: z.id, dokument_id: d.id }, d.nazwa_pliku)
+        // Ten sam rysunek w kilku plikach (np. z zaznaczoną antykorozją / izolacją) - lista raz, inaczej pozycje by się powieliły.
+        const tresc = strona[0]?.tresc
+        if (tresc) {
+          const ten = juzCzytane.get(tresc)
           if (ten) { pominiete.push(`Rysunek ${d.nazwa_pliku}, str. ${nr}: ta sama treść co ${ten} - lista materiałów raz`); continue }
-          juzCzytane.set(wiersze, `${d.nazwa_pliku}, str. ${nr}`)
-          const tekst = `Rysunek ${d.nazwa_pliku}, strona ${nr} - cała warstwa tekstowa (komórki rozdzielone " | ")\n${wiersze}`.slice(0, 60_000)
-          zadania.push({ rodzaj: 'rysunek', opis: t('{0}, str. {1}: tekst PDF', d.nazwa_pliku, nr), tryb: 'wyciagnij_liste_z_rysunku', dane: { ...wspolne, tekst }, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: [] })
-        } else {
-          const obszar = { x: 0, y: 0, w: 1, h: 1 }
-          const k = await kafleObszaru(pdf, nr, obszar, { natywne: await natywneDpi(pdf, nr) })
-          const prost = k.kafle.map((x) => x.prostokat)
-          const obrazy = k.kafle.map((x, i) => ({ media_type: 'image/jpeg' as const, dane: x.base64, opis: opisKafla(i + 1, 'czesci', x.prostokat, prost) }))
-          const naStronie = prost.map((p) => kafelNaStronie(p, obszar, k.szer, k.wys, nr))
-          for (let od = 0; od < obrazy.length; od += KAFLE_NA_WYWOLANIE) {
-            const paczka = obrazy.slice(od, od + KAFLE_NA_WYWOLANIE)
-            zadania.push({ rodzaj: 'rysunek', opis: t('{0}, str. {1}: {2} ({3} DPI)', d.nazwa_pliku, nr, kafliOdmiana(paczka.length), k.dpi), tryb: 'wyciagnij_liste_z_rysunku', dane: { ...wspolne, obrazy: paczka }, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: naStronie })
-          }
+          juzCzytane.set(tresc, `${d.nazwa_pliku}, str. ${nr}`)
+        }
+        for (const zs of strona) {
+          zadania.push({ rodzaj: 'rysunek', opis: zs.opis, tryb: 'wyciagnij_liste_z_rysunku', dane: zs.dane, koszt_pln: null, dokument: { id: d.id, nazwa: d.nazwa_pliku }, strona: nr, kafleNaStronie: zs.kafleNaStronie })
         }
       }
     }
@@ -221,11 +207,12 @@ export async function wykonajPrzygotowanie(
     }))
 
     // Materiały z odczytów rysunków (najnowszy odczyt każdej strony).
-    const { data: od } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, wynik, zmodyfikowano').eq('zapytanie_id', z.id).order('zmodyfikowano', { ascending: false })
+    const { data: od } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, nazwa, wynik, zmodyfikowano').eq('zapytanie_id', z.id).order('zmodyfikowano', { ascending: false })
     const widziane = new Set<string>()
     const podpisy = new Set<string>()
     const odczyty = (od ?? []).filter((o) => {
-      const k = `${o.nazwa_pliku}:${o.strona}`
+      // Najnowszy odczyt strony - osobno dla każdej nazwanej tabeli (kilka tabel na jednym arkuszu).
+      const k = `${o.nazwa_pliku}:${o.strona}:${o.nazwa ?? ''}`
       if (widziane.has(k)) return false
       widziane.add(k)
       const poz = (o.wynik as WynikRysunku).pozycje

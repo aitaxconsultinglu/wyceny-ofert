@@ -28,6 +28,7 @@ function Podglad() {
         zapytanieId="dev" numer="DEV" profil={PROFIL} odczyt={null} bajty={bajty}
         dokument={{ id: 'dev', nazwa_pliku: sciezka.split('/').pop() ?? sciezka, sciezka: null, metadane: {} }}
         zamknij={() => undefined} otworzWycene={() => undefined}
+        rodzajAparatu={new URLSearchParams(location.search).get('aparat') === 'wymiennik' ? 'wymiennik' : 'zbiornik'}
       />
     </div>
   )

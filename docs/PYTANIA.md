@@ -185,3 +185,10 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     i odczyt oferty przez AI nie były testowane płatnym wywołaniem.
 70. **Instrukcja** jest w obu językach (treść w `src/components/instrukcjaTresc.ts`); przykład stawki w instrukcji
     jest fikcyjny.
+71. **Wersje edytowalne - cały dokument i układ** (2026-10-29): odczyt, tłumaczenie i Word obejmują domyślnie wszystkie
+    strony (wybór stron zakresem albo Ctrl+klik). Word odtwarza stronę oryginału: wymiary, marginesy, czcionki (fonty PDF
+    bez nazwy - Arial / Times wg rodzaju), odstęp znaków, wcięcia, odstępy, tabele, obrazy, nagłówek i stopkę. Formularze
+    z gęstą siatką linii dostają „dokładne położenie” (pola na tle strony bez tekstu). Tekst niewidoczny w PDF (biały,
+    zamazany) jest pomijany; napisy narysowane krzywymi trafiają jako obraz. Kursywa fontów bez nazwy nie jest rozpoznawana.
+72. **Strony czytane przez AI** mają układ płynny z położeniem bloków podanym przez model (przybliżone); układ dokładny
+    jest tylko dla odczytu bez AI (wymaga warstwy tekstowej do wycięcia tekstu z tła).

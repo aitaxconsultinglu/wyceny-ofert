@@ -194,7 +194,7 @@ export function kafelNaStronie(kafel: Prostokat, obszar: Prostokat, szerRenderu:
 /** Element tekstu PDF w układzie strony po obrocie: x od lewej, y = linia bazowa od góry, w/h w punktach. */
 export interface ElementTekstu { str: string; x: number; y: number; w: number; h: number }
 
-export interface TabelaTekstu { wiersze: string[][]; ramki: Prostokat[] }
+export interface TabelaTekstu { wiersze: string[][]; ramki: Prostokat[]; /** Granice użytych kolumn [x0, x1] (jednostki elementów). */ kolumny?: [number, number][] }
 
 const mediana = (l: number[]) => {
   const s = [...l].sort((a, b) => a - b)
@@ -216,7 +216,7 @@ export function elementyWObszarze(el: ElementTekstu[], p: Prostokat): ElementTek
  */
 export function ulozWTabele(elementy: ElementTekstu[]): TabelaTekstu {
   const el = elementy.filter((e) => e.str.trim())
-  if (!el.length) return { wiersze: [], ramki: [] }
+  if (!el.length) return { wiersze: [], ramki: [], kolumny: [] }
   const h = mediana(el.map((e) => e.h)) || 8
 
   // 1. Wiersze: linia bazowa w tolerancji ~0,45 wysokości znaku.
@@ -280,7 +280,7 @@ export function ulozWTabele(elementy: ElementTekstu[]): TabelaTekstu {
     const y1 = Math.max(...w.map((e) => e.y))
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 + 0.25 * h }
   })
-  return { wiersze: tabela.map((r) => r.filter((_, i) => uzyte[i])), ramki }
+  return { wiersze: tabela.map((r) => r.filter((_, i) => uzyte[i])), ramki, kolumny: kolumny.filter((_, i) => uzyte[i]) }
 }
 
 // --- Tabela -> struktury -------------------------------------------------------------------------

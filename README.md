@@ -37,7 +37,11 @@ Osobny moduł w menu, niezależny od zapytań i wycen: pliki (PDF, skany, JPG / 
 `pliki_edytowalne` i w bucket `dokumenty` pod `edytowalne/<id>/`. Odczyt bez AI (warstwa tekstowa PDF z czcionkami,
 struktura DOCX / arkuszy, teksty DXF) albo przez AI (tryb `odczytaj_dokument`, wycinki ~200 DPI, koszt przed wywołaniem),
 język wykrywany lokalnie, tłumaczenie na polski (`przetlumacz_dokument` albo razem z odczytem), eksport do Worda
-(`src/lib/wersjeEdytowalneWord.ts`). Dziennik `odczyty_plikow` (kto, co, strony, koszt) + `ai_uzycie.plik_id`.
+(`src/lib/wersjeEdytowalneWord.ts`). Odczyt, tłumaczenie i Word obejmują wybrane strony (domyślnie cały dokument). Bloki mają
+położenie na stronie (ramka), czcionkę, odstęp znaków i linii; odczyt bez AI wykrywa tabele (siatka linii albo kolumny tekstu),
+pogrubienie (także z renderu), podkreślenia, punktory, tekst niewidoczny (pomijany) i fragmenty narysowane krzywymi (obraz).
+Word: układ płynny (sekcja na stronę z wymiarami i marginesami oryginału, wcięcia, odstępy, bloki obok siebie w niewidocznej
+tabeli, nagłówek / stopka) albo dokładny (pola w miejscach oryginału na tle strony bez tekstu) - dla formularzy automatycznie. Dziennik `odczyty_plikow` (kto, co, strony, koszt) + `ai_uzycie.plik_id`.
 Podgląd deweloperski: `edytowalne-dev.html?plik=<ścieżka w folderze materiałów>`.
 
 ## Stan prac

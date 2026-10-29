@@ -6,8 +6,11 @@ import { linieTekstu } from './odczytTekstowy'
 import { elementyWObszarze, ulozWTabele, type ElementTekstu, type Prostokat } from './rysunki'
 import { t } from '@/i18n'
 
-export type TypBloku = 'naglowek' | 'akapit' | 'lista' | 'tabela' | 'podpis'
+export type TypBloku = 'naglowek' | 'akapit' | 'lista' | 'tabela' | 'podpis' | 'obraz'
 export type Wyrownanie = 'lewo' | 'srodek' | 'prawo' | 'wyjustowane'
+
+/** Położenie bloku na stronie oryginału - współrzędne względne 0..1 (od lewego górnego rogu). */
+export interface Ramka { x: number; y: number; w: number; h: number }
 
 export interface BlokDokumentu {
   typ: TypBloku
@@ -22,9 +25,41 @@ export interface BlokDokumentu {
   elementy: string[]
   wiersze: string[][]
   naglowek_tabeli: boolean
+  // Układ strony (odczyty od wersji z układem; starsze odczyty go nie mają - Word składa je jako zwykły tekst).
+  ramka?: Ramka | null
+  /** Rodzina czcionki oryginału (np. "Arial"). */
+  czcionka?: string | null
+  /** Odstęp między liniami w pt (0 = domyślny). */
+  interlinia?: number
+  /** Szerokości kolumn tabeli - udziały szerokości tabeli (suma 1). */
+  kolumny?: number[]
+  /** Tabela z liniami siatki w oryginale. */
+  obramowanie?: boolean
+  /** Styl komórek tabeli (litery): "b" - pogrubiona, "i" - kursywa, "c" - wyśrodkowana, "r" - do prawej; "" - zwykła. */
+  style_komorek?: string[][]
+  /** Tekst podkreślony w całości. */
+  podkreslony?: boolean
+  /** Odstęp między znakami w pt (ujemny - ciaśniej): wiersze w Wordzie łamią się tam, gdzie w oryginale. */
+  odstep_znakow?: number
+  /** Tłumaczenie dłuższe niż oryginał: zmniejszenie czcionki w układzie dokładnym (pole ma stały rozmiar). */
+  skala_czcionki?: number
+  /** Formatowanie wewnątrz akapitu (pogrubione / pochylone słowa) - fragmenty składające się na "tekst". */
+  fragmenty?: FragmentTekstu[]
 }
 
-export interface StronaTresci { bloki: BlokDokumentu[]; zrodlo: 'tekst' | 'ai'; jezyk: string | null }
+export interface FragmentTekstu { tekst: string; b: boolean; i: boolean }
+
+export interface WymiaryStrony { szerPt: number; wysPt: number }
+/**
+ * Układ strony w Wordzie: "plynny" - akapity, tabele i obrazy jeden pod drugim z wcięciami i odstępami oryginału
+ * (dokument do dalszej pracy); "dokladny" - tekst w polach dokładnie w miejscach oryginału na tle strony z liniami
+ * i grafiką (formularze, karty danych z gęstą siatką).
+ */
+export type UkladStrony = 'plynny' | 'dokladny'
+export interface StronaTresci { bloki: BlokDokumentu[]; zrodlo: 'tekst' | 'ai'; jezyk: string | null; wymiary?: WymiaryStrony | null; uklad?: UkladStrony }
+
+/** Strona-formularz (gęsta siatka linii) - w trybie automatycznym dostaje układ dokładny. */
+export const jestFormularzem = (g: GrafikaStrony) => g.linie.length >= 60
 export interface TrescPliku {
   strony: Record<string, StronaTresci>
   tlumaczenie: Record<string, { bloki: BlokDokumentu[] }>
@@ -119,32 +154,270 @@ export function jezykPliku(tresc: TrescPliku): string | null {
 
 // --- Bloki z warstwy tekstowej PDF ---------------------------------------------------------------------
 
-/** Element warstwy tekstowej z informacją o czcionce (pogrubienie / kursywa z nazwy fontu). */
-export interface ElementZCzcionka extends ElementTekstu { pogrubiony?: boolean; kursywa?: boolean }
+/** Element warstwy tekstowej z informacją o czcionce (pogrubienie, kursywa i rodzina - z nazwy fontu). */
+export interface ElementZCzcionka extends ElementTekstu {
+  pogrubiony?: boolean; kursywa?: boolean; czcionka?: string | null
+  /** Font PDF (id w dokumencie) - pogrubienie z renderu liczone dla całego fontu. */
+  font?: string
+  /** Pogrubienie / kursywa wynikają z nazwy fontu (np. "Arial-BoldMT"); fonty bez nazwy (CIDFont+F1) - z renderu. */
+  styl_z_nazwy?: boolean
+  /** Różnica szerokości znaku względem tej czcionki w systemie (pt na znak) - ciaśniej / luźniej złożony tekst. */
+  odstep?: number
+  /** Jasność tła pod tekstem (0-255) z renderu - jasny tekst na ciemnym pasku to tekst na tle, nie rysunek. */
+  tlo?: number
+}
+
+/**
+ * Grafika strony (w pt, od lewego górnego rogu): linie (odcinki i krawędzie prostokątów) i obrazy z listy operatorów PDF
+ * oraz plamy - narysowane miejsca bez tekstu (logo wektorowe, stopki z krzywych, podpisy) z renderu strony.
+ */
+export interface GrafikaStrony { linie: Prostokat[]; obrazy: Prostokat[]; plamy?: PlamaGrafiki[]; /** Drobne znaki grafiki (punktory rysowane jako kształt). */ kropki?: Prostokat[] }
+/** Plama grafiki: prostokąt (pt) i wiersze kratek (co krok pt od góry plamy) - czy w wierszu jest tusz. */
+export interface PlamaGrafiki extends Prostokat { krok: number; wiersze: boolean[]; kratek?: number }
+
+/** Plamy grafiki do obrazu (logo, stopka z krzywych, podpis) i kropki (punktory) - drobiazgi typu "°" pominięte. */
+export function podzielPlamy(wszystkie: PlamaGrafiki[]): { plamy: PlamaGrafiki[]; kropki: Prostokat[] } {
+  return {
+    plamy: wszystkie.filter((p) => p.w >= 15 && p.h >= 8 && (p.kratek ?? 99) >= 6),
+    kropki: wszystkie.filter((p) => p.w <= 10 && p.h <= 10 && p.w >= 1.5 && p.h >= 1.5),
+  }
+}
+
+/** Render strony do analizy: jasność i nasycenie pikseli, skala = piksele na pt. */
+export interface RenderStrony { szer: number; wys: number; skala: number; jasnosc: Uint8Array; nasycenie: Uint8Array }
+
+/**
+ * Tekst widoczny na renderze: w prostokącie elementu piksele różnią się od tła. Biały tekst na białym, tekst przykryty
+ * białym prostokątem (np. zamazane dane) - niewidoczny, więc nie trafia do wersji edytowalnej (jak w oryginale).
+ */
+export function widocznyTekst(r: RenderStrony, e: ElementTekstu): boolean {
+  return analizaElementu(r, e).widoczny
+}
+
+/** Piksele elementu na renderze: widoczność, jasność tła i gęstość tuszu (udział pikseli innych niż tło). */
+function analizaElementu(r: RenderStrony, e: ElementTekstu) {
+  const x0 = Math.max(0, Math.floor(e.x * r.skala))
+  const x1 = Math.min(r.szer, Math.ceil((e.x + e.w) * r.skala))
+  const y0 = Math.max(0, Math.floor((e.y - e.h * 0.8) * r.skala))
+  const y1 = Math.min(r.wys, Math.ceil((e.y + e.h * 0.15) * r.skala))
+  if (x1 <= x0 || y1 <= y0) return { widoczny: true, tlo: 255, gestosc: 0 }
+  const wartosci: number[] = []
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) wartosci.push(r.jasnosc[y * r.szer + x])
+  const tlo = mediana(wartosci)
+  const tusz = wartosci.filter((v) => Math.abs(v - tlo) > 50).length
+  return { widoczny: tusz >= Math.max(2, 0.01 * wartosci.length), tlo, gestosc: tusz / wartosci.length }
+}
+
+/**
+ * Tekst do wersji edytowalnej tak, jak go widać: elementy niewidoczne pominięte, a w elemencie widocznym tylko częściowo
+ * (np. nazwisko przykryte białym prostokątem) - tylko widoczne słowa. Pogrubienie fontów bez nazwy (CIDFont+F1) -
+ * z gęstości tuszu: font o wyraźnie grubszej kresce niż font treści jest pogrubiony. Tło pod tekstem zapisane w "tlo".
+ */
+export function tekstJakWidac(r: RenderStrony, el: ElementZCzcionka[]): ElementZCzcionka[] {
+  const wynik: (ElementZCzcionka & { gestosc: number })[] = []
+  for (const e of el) {
+    const a = analizaElementu(r, e)
+    const slowa = e.str.split(/(?<=\s)(?=\S)/)
+    if (a.widoczny && slowa.length > 1) {
+      // Słowo po słowie (szerokość proporcjonalna do liczby znaków).
+      let x = e.x
+      const czesci = slowa.map((sl) => { const w = (e.w * sl.length) / e.str.length; const c = { ...e, str: sl, x, w }; x += w; return c })
+      const widoczne = czesci.filter((c) => analizaElementu(r, { ...c, w: c.w * (c.str.trimEnd().length / c.str.length) }).widoczny)
+      if (widoczne.length < czesci.length) {
+        for (const c of widoczne) wynik.push({ ...c, str: c.str.trimEnd(), w: c.w * (c.str.trimEnd().length / c.str.length), tlo: a.tlo, gestosc: a.gestosc })
+        continue
+      }
+    }
+    if (a.widoczny) wynik.push({ ...e, tlo: a.tlo, gestosc: a.gestosc })
+  }
+  // Pogrubienie z renderu dla fontów bez stylu w nazwie: gęstość tuszu fontu względem najcieńszego fontu podobnej
+  // wielkości (+-30%, co najmniej 10 znaków) - mały druk ma inną gęstość niż duży, więc porównujemy podobne rozmiary.
+  // Font bywa ten sam dla zwykłego i "sztucznie" pogrubionego tekstu (obrys), więc decyduje element: gęstość elementu
+  // (krótkie - gęstość jego fontu) względem kwartyla dolnego najcieńszego fontu podobnej wielkości.
+  const fonty = new Map<string, { el: { g: number; n: number }[]; h: number; znaki: number }>()
+  for (const e of wynik) {
+    if (!e.font) continue
+    const f = fonty.get(e.font) ?? { el: [], h: 0, znaki: 0 }
+    f.el.push({ g: e.gestosc, n: e.str.trim().length }); f.h += e.h * e.str.length; f.znaki += e.str.length
+    fonty.set(e.font, f)
+  }
+  const kwartyl = (l: { g: number; n: number }[], q: number) => {
+    const s2 = [...l].sort((a, b) => a.g - b.g)
+    const suma = s2.reduce((x, y) => x + y.n, 0)
+    let acc = 0
+    for (const x of s2) { acc += x.n; if (acc >= q * suma) return x.g }
+    return s2[s2.length - 1]?.g ?? 0
+  }
+  const wysFontu = (f: { h: number; znaki: number }) => f.h / Math.max(1, f.znaki)
+  const odniesienie = new Map<string, number>()
+  const gestoscFontu = new Map<string, number>()
+  for (const [id, f] of fonty) {
+    const h = wysFontu(f)
+    const wzor = [...fonty.values()].filter((x) => x.znaki >= 10 && Math.abs(wysFontu(x) - h) <= 0.3 * h).map((x) => kwartyl(x.el, 0.25))
+    odniesienie.set(id, wzor.length ? Math.min(...wzor) : 0)
+    gestoscFontu.set(id, kwartyl(f.el, 0.5))
+  }
+  return wynik.map(({ gestosc, ...e }) => {
+    if (e.styl_z_nazwy || !e.font) return e
+    const ref = odniesienie.get(e.font) ?? 0
+    const g = e.str.trim().length >= 3 ? gestosc : gestoscFontu.get(e.font) ?? gestosc
+    return { ...e, pogrubiony: ref > 0 && g >= 1.25 * ref }
+  })
+}
+
+/**
+ * Plamy grafiki: tusz (ciemne albo kolorowe piksele) poza tekstem, liniami i obrazami, zebrany w kratki ~3 pt
+ * i połączony z sąsiadami do ~6 pt. Wynik w pt; drobiazgi (punktory, kropki) i tło całej strony pominięte.
+ */
+export function plamyGrafiki(r: RenderStrony, wyklucz: Prostokat[]): PlamaGrafiki[] {
+  const maska = new Uint8Array(r.szer * r.wys)
+  for (const o of wyklucz) {
+    const x0 = Math.max(0, Math.floor((o.x - 1) * r.skala)), x1 = Math.min(r.szer, Math.ceil((o.x + o.w + 1) * r.skala))
+    const y0 = Math.max(0, Math.floor((o.y - 1) * r.skala)), y1 = Math.min(r.wys, Math.ceil((o.y + o.h + 1) * r.skala))
+    for (let y = y0; y < y1; y++) maska.fill(1, y * r.szer + x0, y * r.szer + Math.max(x0, x1))
+  }
+  const k = Math.max(1, Math.round(3 * r.skala))
+  const gw = Math.ceil(r.szer / k), gh = Math.ceil(r.wys / k)
+  const tusz = new Uint16Array(gw * gh)
+  for (let y = 0; y < r.wys; y++) {
+    for (let x = 0; x < r.szer; x++) {
+      const i = y * r.szer + x
+      if (!maska[i] && (r.jasnosc[i] < 200 || r.nasycenie[i] > 60)) tusz[Math.floor(y / k) * gw + Math.floor(x / k)]++
+    }
+  }
+  const prog = Math.max(2, Math.round(k * k * 0.05))
+  const odwiedzone = new Uint8Array(gw * gh)
+  const wynik: PlamaGrafiki[] = []
+  for (let s = 0; s < gw * gh; s++) {
+    if (odwiedzone[s] || tusz[s] < prog) continue
+    let gx0 = gw, gx1 = 0, gy0 = gh, gy1 = 0, kratek = 0
+    const kolejka = [s]
+    odwiedzone[s] = 1
+    while (kolejka.length) {
+      const c = kolejka.pop()!
+      const cx = c % gw, cy = Math.floor(c / gw)
+      gx0 = Math.min(gx0, cx); gx1 = Math.max(gx1, cx); gy0 = Math.min(gy0, cy); gy1 = Math.max(gy1, cy); kratek++
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const nx = cx + dx, ny = cy + dy
+          if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue
+          const n = ny * gw + nx
+          if (!odwiedzone[n] && tusz[n] >= prog) { odwiedzone[n] = 1; kolejka.push(n) }
+        }
+      }
+    }
+    const wiersze = Array.from({ length: gy1 + 1 - gy0 }, (_, i) => {
+      for (let cx = gx0; cx <= gx1; cx++) if (tusz[(gy0 + i) * gw + cx] >= prog) return true
+      return false
+    })
+    const p = { x: (gx0 * k) / r.skala, y: (gy0 * k) / r.skala, w: ((gx1 + 1 - gx0) * k) / r.skala, h: ((gy1 + 1 - gy0) * k) / r.skala, krok: k / r.skala, wiersze }
+    const szerPt = r.szer / r.skala, wysPt = r.wys / r.skala
+    if ((p.w * p.h) / (szerPt * wysPt) < 0.4) wynik.push({ ...p, kratek } as PlamaGrafiki)
+  }
+  return wynik
+}
+
+const RODZINY: [RegExp, string][] = [
+  [/arial|helvetica|liberation ?sans|arimo|nimbus ?sans/i, 'Arial'], [/times|liberation ?serif|tinos|nimbus ?rom/i, 'Times New Roman'],
+  [/courier|liberation ?mono|cousine|nimbus ?mono/i, 'Courier New'], [/calibri|carlito/i, 'Calibri'], [/cambria|caladea/i, 'Cambria'],
+  [/verdana/i, 'Verdana'], [/tahoma/i, 'Tahoma'], [/segoe ?ui/i, 'Segoe UI'], [/georgia/i, 'Georgia'], [/garamond/i, 'Garamond'],
+  [/century ?gothic/i, 'Century Gothic'], [/trebuchet/i, 'Trebuchet MS'], [/dejavu ?sans/i, 'DejaVu Sans'],
+  [/franklin ?gothic/i, 'Franklin Gothic Book'], [/bookman/i, 'Bookman Old Style'], [/palatino|book ?antiqua/i, 'Palatino Linotype'],
+  // Nazwy ogólne (PDF z czcionką bez nazwy, np. CIDFont+F1) - najczęstsza czcionka danego rodzaju.
+  [/^sans|sans-serif/i, 'Arial'], [/^serif/i, 'Times New Roman'], [/^mono/i, 'Courier New'],
+]
+
+/** Czcionki standardowe Windows / Office - tylko ich szerokość można wiarygodnie zmierzyć w przeglądarce. */
+export const CZCIONKI_SYSTEMOWE = new Set(['Arial', 'Times New Roman', 'Courier New', 'Calibri', 'Cambria', 'Verdana', 'Tahoma', 'Segoe UI', 'Georgia', 'Garamond', 'Century Gothic', 'Trebuchet MS', 'Franklin Gothic Book', 'Bookman Old Style', 'Palatino Linotype'])
+
+/** Rodzina czcionki z nazwy fontu PDF ("ABCDEF+Arial-BoldMT" -> "Arial"); nierozpoznana - oczyszczona nazwa albo null. */
+export function rodzinaCzcionki(nazwa: string | null | undefined): string | null {
+  // Czcionki symboli (znaki jak °, ±) - tekst jest w Unicode, więc zostaje czcionka otoczenia.
+  if (!nazwa || /symbol|wingding|dingbat/i.test(nazwa)) return null
+  const bez = nazwa.replace(/^[A-Z]{6}\+/, '').replace(/([a-z])([A-Z])/g, '$1 $2')
+  for (const [w, r] of RODZINY) if (w.test(bez)) return r
+  const n = bez.split(/[-,]/)[0].replace(/\b(MT|PS|PSMT|Std|Pro|LT)\b/g, '').replace(/\s+/g, ' ').trim()
+  return /^[A-Za-z][A-Za-z ]{2,30}$/.test(n) && !/^(g_d|f\d|t\d|font|cid)/i.test(n) ? n : null
+}
 
 const mediana = (l: number[]) => {
   const s = [...l].sort((a, b) => a - b)
   return s.length ? s[Math.floor(s.length / 2)] : 0
 }
+const najczestszy = <T,>(l: T[]): T | null => {
+  const licz = new Map<T, number>()
+  for (const x of l) if (x !== null && x !== undefined) licz.set(x, (licz.get(x) ?? 0) + 1)
+  return [...licz.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+}
 const PUNKTOR = /^\s*([•●▪■◦○·\-–—*]|\(?\d{1,2}[.)]|\(?[a-z][.)])\s+/
+/** Punktor graficzny (lista punktowana w Wordzie); numeracja "1.", "a)" zostaje tekstem - jak w oryginale. */
+const PUNKTOR_ZNAK = /^\s*[•●▪■◦○·\-–—*]\s+/
+const NUMERACJA = /^\s*(\(?\d{1,2}(\.\d{1,2})*[.)]|\(?[a-z][.)])\s+/
 
-interface Linia { tekst: string; x0: number; x1: number; y: number; h: number; pogrubiony: boolean; kursywa: boolean }
+interface Linia {
+  tekst: string; x0: number; x1: number; y: number; h: number; gora: number; dol: number
+  pogrubiony: boolean; kursywa: boolean; czcionka: string | null; el: ElementZCzcionka[]
+  fragmenty: FragmentTekstu[]; podkreslony?: boolean
+}
+
+/** Fragmenty: sąsiednie o tym samym stylu sklejone, białe znaki jak w tekście linii (pojedyncze spacje, bez brzegów). */
+function uporzadkujFragmenty(f: FragmentTekstu[]): FragmentTekstu[] {
+  const wynik: FragmentTekstu[] = []
+  for (const x of f) {
+    let t = x.tekst.replace(/\s+/g, ' ')
+    const ost = wynik[wynik.length - 1]
+    if (ost && ost.tekst.endsWith(' ') && t.startsWith(' ')) t = t.slice(1)
+    if (!wynik.length) t = t.trimStart()
+    if (!t) continue
+    if (ost && ost.b === x.b && ost.i === x.i) ost.tekst += t
+    else wynik.push({ tekst: t, b: x.b, i: x.i })
+  }
+  const ost = wynik[wynik.length - 1]
+  if (ost) { ost.tekst = ost.tekst.trimEnd(); if (!ost.tekst) wynik.pop() }
+  return wynik
+}
+
+/** Indeksy górne i dolne (m³, H₂O) - mniejsze elementy tuż nad / pod linią - dołączone do tej linii. */
+function zIndeksami(linie: ElementTekstu[][]): ElementTekstu[][] {
+  const h = (l: ElementTekstu[]) => mediana(l.map((e) => e.h))
+  const wynik = linie.map((l) => [...l])
+  for (let i = 0; i < wynik.length; i++) {
+    const l = wynik[i]
+    if (!l.length) continue
+    for (const j of [i - 1, i + 1]) {
+      const n = wynik[j]
+      if (!n?.length || h(l) >= 0.8 * h(n)) continue
+      const yN = mediana(n.map((e) => e.y))
+      const yL = mediana(l.map((e) => e.y))
+      if (yL < yN - 0.75 * h(n) || yL > yN + 0.35 * h(n)) continue
+      n.push(...l); n.sort((a, b) => a.x - b.x)
+      wynik[i] = []
+      break
+    }
+  }
+  return wynik.filter((l) => l.length)
+}
 
 function linieZElementow(el: ElementZCzcionka[]): Linia[] {
-  return linieTekstu(el).map((l) => {
-    let tekst = ''
+  return zIndeksami(linieTekstu(el)).map((l) => {
+    const e0 = l as ElementZCzcionka[]
+    const fragmenty: FragmentTekstu[] = []
     let koniec = -Infinity
-    for (const e of l as ElementZCzcionka[]) {
+    for (const e of e0) {
       const odstep = e.x - koniec
-      tekst += tekst && odstep > Math.max(1, e.h * 0.2) && !tekst.endsWith(' ') && !e.str.startsWith(' ') ? ` ${e.str}` : e.str
+      const spacja = fragmenty.length && odstep > Math.max(1, e.h * 0.2) && !fragmenty[fragmenty.length - 1].tekst.endsWith(' ') && !e.str.startsWith(' ')
+      fragmenty.push({ tekst: spacja ? ` ${e.str}` : e.str, b: !!e.pogrubiony, i: !!e.kursywa })
       koniec = e.x + e.w
     }
+    const uporz = uporzadkujFragmenty(fragmenty)
     const znaki = l.reduce((s, e) => s + e.str.length, 0) || 1
-    const pogrubione = (l as ElementZCzcionka[]).filter((e) => e.pogrubiony).reduce((s, e) => s + e.str.length, 0)
-    const kursywa = (l as ElementZCzcionka[]).filter((e) => e.kursywa).reduce((s, e) => s + e.str.length, 0)
+    const pogrubione = e0.filter((e) => e.pogrubiony).reduce((s, e) => s + e.str.length, 0)
+    const kursywa = e0.filter((e) => e.kursywa).reduce((s, e) => s + e.str.length, 0)
+    const glowne = e0.filter((e) => e.h >= 0.8 * mediana(l.map((x) => x.h)))
     return {
-      tekst: tekst.replace(/\s+/g, ' ').trim(), x0: Math.min(...l.map((e) => e.x)), x1: Math.max(...l.map((e) => e.x + e.w)),
-      y: l[0].y, h: mediana(l.map((e) => e.h)), pogrubiony: pogrubione / znaki > 0.6, kursywa: kursywa / znaki > 0.6,
+      tekst: uporz.map((f) => f.tekst).join(''), fragmenty: uporz, x0: Math.min(...l.map((e) => e.x)), x1: Math.max(...l.map((e) => e.x + e.w)),
+      y: mediana(glowne.map((e) => e.y)), h: mediana(l.map((e) => e.h)), gora: Math.min(...l.map((e) => e.y - e.h * 0.8)), dol: Math.max(...l.map((e) => e.y + e.h * 0.22)),
+      pogrubiony: pogrubione / znaki > 0.6, kursywa: kursywa / znaki > 0.6, czcionka: najczestszy(e0.map((e) => e.czcionka ?? null)), el: e0,
     }
   }).filter((l) => l.tekst)
 }
@@ -157,79 +430,434 @@ function wyrownanieLinii(l: Linia, szer: number): Wyrownanie {
   return 'lewo'
 }
 
+/** Prostokąt w pt -> ramka względna strony (bez wysokości strony - brak ramki). */
+const ramkaWzgledna = (x0: number, gora: number, x1: number, dol: number, szer: number, wys?: number): Ramka | null =>
+  wys ? { x: x0 / szer, y: gora / wys, w: (x1 - x0) / szer, h: (dol - gora) / wys } : null
+
+/** Układ bloku z jego linii: ramka, interlinia, czcionka; akapit z równym prawym brzegiem - wyjustowany. */
+function ukladBloku(b: BlokDokumentu, linie: Linia[], szer: number, wys?: number) {
+  const x0 = Math.min(...linie.map((l) => l.x0))
+  const x1 = Math.max(...linie.map((l) => l.x1))
+  b.ramka = ramkaWzgledna(x0, Math.min(...linie.map((l) => l.gora)), x1, Math.max(...linie.map((l) => l.dol)), szer, wys)
+  b.czcionka = najczestszy(linie.map((l) => l.czcionka))
+  // Odstęp znaków: wiersze wyjustowane są rozciągnięte, więc liczy się najciaśniejsza ćwiartka wierszy (np. ostatni).
+  const odstepy = linie.map((l) => l.el.filter((e) => e.odstep !== undefined && e.str.trim().length >= 4)).filter((x) => x.length)
+    .map((el) => mediana(el.flatMap((e) => Array<number>(Math.min(50, e.str.length)).fill(e.odstep!))))
+  if (odstepy.length) b.odstep_znakow = Math.round([...odstepy].sort((a, c) => a - c)[Math.floor((odstepy.length - 1) / 4)] * 100) / 100
+  b.interlinia = linie.length > 1 ? Math.round(mediana(linie.slice(1).map((l, i) => l.y - linie[i].y)) * 10) / 10 : 0
+  if (b.typ === 'akapit' && b.wyrownanie === 'lewo' && linie.length >= 3
+    && linie.slice(0, -1).every((l) => x1 - l.x1 < 0.015 * szer) && x1 - linie[linie.length - 1].x1 > 0.05 * szer) b.wyrownanie = 'wyjustowane'
+}
+
+/** Czcionka treści: rozmiar, którym napisano najwięcej znaków (nagłówki są krótkie, więc nie przesuwają wyniku). */
+function rozmiarTresci(linie: Linia[]): number {
+  const znaki: Record<number, number> = {}
+  for (const l of linie) znaki[Math.round(l.h * 2) / 2] = (znaki[Math.round(l.h * 2) / 2] ?? 0) + l.tekst.length
+  return Number(Object.entries(znaki).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0)
+}
+
 /**
  * Akapity, nagłówki i listy z linii tekstu: linie o tej samej czcionce i z małym odstępem łączą się w akapit; większa
- * czcionka albo krótka pogrubiona linia to nagłówek; linia z punktorem / numeracją - lista. szer = szerokość strony w pt.
+ * czcionka albo krótka pogrubiona linia to nagłówek; linia z punktorem / numeracją - lista. szer, wys = wymiary strony
+ * w pt (z wysokością bloki dostają ramkę - położenie na stronie); trescPt - rozmiar czcionki treści całej strony.
  */
-export function blokiZTekstu(el: ElementZCzcionka[], szer: number): BlokDokumentu[] {
-  const linie = linieZElementow(el)
+export function blokiZTekstu(el: ElementZCzcionka[], szer: number, opcje: { wys?: number; trescPt?: number } = {}): BlokDokumentu[] {
+  return blokiZLinii(linieZElementow(el), szer, opcje)
+}
+
+function blokiZLinii(linie: Linia[], szer: number, opcje: { wys?: number; trescPt?: number }): BlokDokumentu[] {
   if (!linie.length) return []
-  // Czcionka treści: rozmiar, którym napisano najwięcej znaków (nagłówki są krótkie, więc nie przesuwają wyniku).
-  const znakiWgRozmiaru: Record<number, number> = {}
-  for (const l of linie) znakiWgRozmiaru[Math.round(l.h * 2) / 2] = (znakiWgRozmiaru[Math.round(l.h * 2) / 2] ?? 0) + l.tekst.length
-  const tresc = Number(Object.entries(znakiWgRozmiaru).sort((a, b) => b[1] - a[1])[0][0])
+  const tresc = opcje.trescPt || rozmiarTresci(linie)
   const wynik: BlokDokumentu[] = []
-  let biezacy: { b: BlokDokumentu; ostatnia: Linia } | null = null
-  const zamknij = () => { if (biezacy) wynik.push(biezacy.b); biezacy = null }
+  let biezacy: { b: BlokDokumentu; ostatnia: Linia; linie: Linia[] } | null = null
+  const zamknij = () => {
+    const c = biezacy as { b: BlokDokumentu; linie: Linia[] } | null
+    if (c) {
+      ukladBloku(c.b, c.linie, szer, opcje.wys)
+      // Akapit zawija się na pełnej szerokości - gdy wiersz przed ostatnim jest wyraźnie krótszy, to tekst łamany
+      // wierszami (adres, nagłówek pisma): każdy wiersz osobno.
+      const maks = Math.max(...c.linie.map((l) => l.x1 - l.x0))
+      if (c.b.typ === 'akapit' && c.linie.slice(0, -1).some((l) => l.x1 - l.x0 < 0.85 * maks)) {
+        c.b.tekst = c.linie.map((l) => l.tekst).join('\n')
+        if (c.b.fragmenty) c.b.fragmenty = c.linie.flatMap((l, i) => [...(i ? [{ tekst: '\n', b: false, i: false }] : []), ...l.fragmenty.map((f) => ({ ...f }))])
+      }
+      c.b.podkreslony = c.linie.every((l) => l.podkreslony) || undefined
+      if (c.b.typ === 'akapit') c.b.pogrubiony = c.linie.filter((l) => l.pogrubiony).reduce((x, l) => x + l.tekst.length, 0) > 0.6 * c.b.tekst.length
+      // Formatowanie wewnątrz akapitu tylko, gdy jest mieszane (inaczej wystarczy pogrubienie / kursywa bloku).
+      const f = c.b.fragmenty ?? []
+      if (!(f.some((x) => x.b) && f.some((x) => !x.b)) && !(f.some((x) => x.i) && f.some((x) => !x.i))) delete c.b.fragmenty
+      wynik.push(c.b)
+    }
+    biezacy = null
+  }
   for (const l of linie) {
     const stosunek = l.h / (tresc || 1)
     const naglowek = stosunek >= 1.18 || (l.pogrubiony && l.tekst.length <= 90 && !/[.,;:]$/.test(l.tekst) && stosunek >= 0.95)
-    const punktor = PUNKTOR.exec(l.tekst)
-    const odstep: number = biezacy ? l.y - (biezacy as { ostatnia: Linia }).ostatnia.y : Infinity
+    const punktor = PUNKTOR_ZNAK.exec(l.tekst)
+    const cur = biezacy as { b: BlokDokumentu; ostatnia: Linia; linie: Linia[] } | null
+    const odstep: number = cur ? l.y - cur.ostatnia.y : Infinity
     const rozmiar = Math.round(l.h)
     const wyrownanie = wyrownanieLinii(l, szer)
     if (punktor && !naglowek) {
       const tekst = l.tekst.slice(punktor[0].length).trim()
-      const cur = biezacy as { b: BlokDokumentu; ostatnia: Linia } | null
-      if (cur && cur.b.typ === 'lista' && odstep < 2.2 * l.h) { cur.b.elementy.push(tekst); cur.ostatnia = l; continue }
+      if (cur && cur.b.typ === 'lista' && odstep < 2.2 * l.h) { cur.b.elementy.push(tekst); cur.ostatnia = l; cur.linie.push(l); continue }
       zamknij()
-      biezacy = { b: blok({ typ: 'lista', elementy: [tekst], rozmiar }), ostatnia: l }
+      biezacy = { b: blok({ typ: 'lista', elementy: [tekst], rozmiar }), ostatnia: l, linie: [l] }
       continue
     }
-    const cur = biezacy as { b: BlokDokumentu; ostatnia: Linia } | null
     if (cur && cur.b.typ === 'lista' && !naglowek && odstep < 1.8 * l.h && l.x0 > cur.ostatnia.x0 + 2) {
       // Zawinięta linia punktu listy.
-      cur.b.elementy[cur.b.elementy.length - 1] += ` ${l.tekst}`; cur.ostatnia = l; continue
+      cur.b.elementy[cur.b.elementy.length - 1] += ` ${l.tekst}`; cur.ostatnia = l; cur.linie.push(l); continue
     }
-    const pasuje = cur && cur.b.typ === (naglowek ? 'naglowek' : 'akapit') && odstep < 1.8 * Math.max(l.h, cur.ostatnia.h)
-      && Math.abs(cur.ostatnia.h - l.h) < 0.15 * l.h && cur.ostatnia.pogrubiony === l.pogrubiony && cur.b.wyrownanie === wyrownanie
+    const pasuje = cur && !NUMERACJA.test(l.tekst) && cur.b.typ === (naglowek ? 'naglowek' : 'akapit') && odstep < 1.8 * Math.max(l.h, cur.ostatnia.h)
+      && Math.abs(cur.ostatnia.h - l.h) < 0.15 * l.h && (cur.b.typ === 'akapit' || cur.ostatnia.pogrubiony === l.pogrubiony) && cur.b.wyrownanie === wyrownanie
     if (pasuje && cur) {
-      const laczenie = cur.b.tekst.endsWith('-') && /^[a-ząęłńóśźż]/.test(l.tekst) ? cur.b.tekst.slice(0, -1) : `${cur.b.tekst} `
+      // Linia urwana wcześniej, niż wymagała szerokość akapitu (pierwsze słowo następnej by się zmieściło) - twarde
+      // złamanie linii w oryginale (adres, nagłówek pisma); inaczej zwykłe zawinięcie.
+      const szerZnaku = (l.x1 - l.x0) / Math.max(1, l.tekst.length)
+      const pierwsze = (l.tekst.split(' ')[0]?.length ?? 0) * szerZnaku
+      const maks = Math.max(l.x1 - l.x0, ...cur.linie.map((x) => x.x1 - x.x0))
+      const twarde = (cur.ostatnia.x1 - cur.ostatnia.x0) + szerZnaku + pierwsze < maks - 2
+      const dzielenie = !twarde && cur.b.tekst.endsWith('-') && /^[a-ząęłńóśźż]/.test(l.tekst)
+      const laczenie = twarde ? `${cur.b.tekst}\n` : dzielenie ? cur.b.tekst.slice(0, -1) : `${cur.b.tekst} `
       cur.b.tekst = laczenie + l.tekst
+      if (cur.b.fragmenty) {
+        const ost = cur.b.fragmenty[cur.b.fragmenty.length - 1]
+        ost.tekst = dzielenie ? ost.tekst.slice(0, -1) : `${ost.tekst}${twarde ? '\n' : ' '}`
+        cur.b.fragmenty.push(...l.fragmenty.map((x) => ({ ...x })))
+      }
       cur.ostatnia = l
+      cur.linie.push(l)
       continue
     }
     zamknij()
     biezacy = {
       b: blok({
         typ: naglowek ? 'naglowek' : 'akapit', poziom: naglowek ? (stosunek >= 1.6 ? 1 : stosunek >= 1.3 ? 2 : 3) : 0,
-        tekst: l.tekst, pogrubiony: l.pogrubiony, kursywa: l.kursywa, wyrownanie, rozmiar,
+        tekst: l.tekst, pogrubiony: l.pogrubiony, kursywa: l.kursywa, wyrownanie, rozmiar, fragmenty: l.fragmenty.map((x) => ({ ...x })),
       }),
       ostatnia: l,
+      linie: [l],
     }
   }
   zamknij()
   return wynik
 }
 
-/** Tabela z elementów warstwy tekstowej w obszarze (te same kolumny co odczyt tabel rysunków). */
-export function tabelaZTekstu(el: ElementTekstu[]): BlokDokumentu | null {
+/** Tabela z elementów warstwy tekstowej (te same kolumny co odczyt tabel rysunków) z szerokościami kolumn i położeniem. */
+export function tabelaZTekstu(el: ElementZCzcionka[], opcje: { szer?: number; wys?: number; obszar?: Prostokat; obramowanie?: boolean; pionowe?: Prostokat[] } = {}): BlokDokumentu | null {
   const t = ulozWTabele(el)
   const wiersze = t.wiersze.filter((w) => w.some((k) => k.trim()))
-  return wiersze.length ? blok({ typ: 'tabela', wiersze, naglowek_tabeli: wiersze.length > 1 }) : null
+  if (!wiersze.length) return null
+  const x0 = Math.min(opcje.obszar?.x ?? Infinity, ...el.map((e) => e.x))
+  const x1 = Math.max(opcje.obszar ? opcje.obszar.x + opcje.obszar.w : -Infinity, ...el.map((e) => e.x + e.w))
+  const gora = opcje.obszar?.y ?? Math.min(...el.map((e) => e.y - e.h * 0.8))
+  const dol = opcje.obszar ? opcje.obszar.y + opcje.obszar.h : Math.max(...el.map((e) => e.y + e.h * 0.22))
+  // Granica kolumn w połowie przerwy między nimi - albo na pionowych liniach siatki, gdy jest ich tyle, ile granic.
+  const k = t.kolumny ?? []
+  let granice = [x0, ...k.slice(1).map((c, i) => (k[i][1] + c[0]) / 2), x1]
+  const xs: number[] = []
+  for (const l of opcje.pionowe ?? []) {
+    const x = l.x + l.w / 2
+    if (x > x0 + 3 && x < x1 - 3 && Math.min(l.y + l.h, dol) - Math.max(l.y, gora) > 0 && !xs.some((v) => Math.abs(v - x) < 3)) xs.push(x)
+  }
+  if (k.length > 1 && xs.length === k.length - 1) granice = [x0, ...xs.sort((a, b) => a - b), x1]
+  const kolumny = k.length === wiersze[0].length && x1 > x0 ? granice.slice(1).map((g, i) => Math.max(0.02, (g - granice[i]) / (x1 - x0))) : []
+  const suma = kolumny.reduce((s, x) => s + x, 0) || 1
+  // Styl komórek: wiersze wg linii bazowej (jak w ulozWTabele), kolumna wg granic; komórka pogrubiona / kursywą,
+  // gdy tak są zapisane wszystkie jej elementy.
+  const h = mediana(el.map((e) => e.h)) || 8
+  const rzedy: ElementZCzcionka[][] = []
+  for (const e of [...el].filter((x) => x.str.trim()).sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const ost = rzedy[rzedy.length - 1]
+    if (ost && Math.abs(e.y - ost.reduce((s2, x) => s2 + x.y, 0) / ost.length) <= 0.45 * h) ost.push(e)
+    else rzedy.push([e])
+  }
+  const kolumnaX = (x: number) => { let j = 0; granice.slice(1, -1).forEach((g, n) => { if (x >= g) j = n + 1 }); return j }
+  const style_komorek = rzedy.length === wiersze.length && kolumny.length
+    ? rzedy.map((r, i) => wiersze[i].map((_, c) => {
+      const w = r.filter((e) => kolumnaX(e.x + e.w / 2) === c)
+      if (!w.length) return ''
+      // Wyrównanie w komórce tabeli z siatką: tekst na środku kolumny albo przy jej prawej krawędzi.
+      let wyr = ''
+      if (opcje.obramowanie) {
+        const a = granice[c], b = granice[c + 1], sz = b - a
+        const t0 = Math.min(...w.map((e) => e.x)), t1 = Math.max(...w.map((e) => e.x + e.w))
+        if (t1 - t0 < 0.85 * sz && Math.abs((t0 + t1) / 2 - (a + b) / 2) < 0.08 * sz && t0 - a > 0.1 * sz) wyr = 'c'
+        else if (b - t1 < 0.08 * sz && t0 - a > 0.25 * sz) wyr = 'r'
+      }
+      return `${w.every((e) => e.pogrubiony) ? 'b' : ''}${w.every((e) => e.kursywa) ? 'i' : ''}${wyr}`
+    }))
+    : undefined
+  const naglowek = wiersze.length > 1 && (style_komorek ? style_komorek[0].every((x, c) => x.includes('b') || !wiersze[0][c]) : !!opcje.obramowanie)
+  return blok({
+    style_komorek,
+    typ: 'tabela', wiersze, naglowek_tabeli: naglowek, rozmiar: Math.round(mediana(el.map((e) => e.h))),
+    ramka: opcje.szer ? ramkaWzgledna(x0, gora, x1, dol, opcje.szer, opcje.wys) : null,
+    kolumny: kolumny.map((x) => Math.round((x / suma) * 1000) / 1000), obramowanie: !!opcje.obramowanie,
+    czcionka: najczestszy(el.map((e) => e.czcionka ?? null)),
+  })
+}
+
+/** Odcinki linii: elementy rozdzielone przerwą większą niż ~1,5 wysokości znaku (kolumny tabeli, tekst obok siebie). */
+function odcinkiLinii(l: Linia): { start: number; przerwa: number }[] {
+  const wynik: { start: number; przerwa: number }[] = []
+  let koniec = -Infinity
+  for (const e of l.el) {
+    const przerwa = e.x - koniec
+    if (przerwa > Math.max(1.0 * e.h, 6)) wynik.push({ start: e.x, przerwa })
+    koniec = Math.max(koniec, e.x + e.w)
+  }
+  return wynik
 }
 
 /**
- * Strona PDF z warstwą tekstową -> bloki. Bez obszarów: cała strona jako tekst. Z obszarami: w kolejności od góry,
- * obszar "tabela" jako tabela, "tekst" jako akapity. Obszary w punktach strony.
+ * Ciąg linii z odcinkami to tabela, gdy kolumny się powtarzają: co najmniej dwa początki odcinków wspólne dla połowy
+ * linii (np. wyśrodkowana stopka z kilkoma przerwami nie jest tabelą). Jedna linia - przy wyraźnej przerwie (>= 2,5 znaku).
  */
-export function blokiStrony(el: ElementZCzcionka[], szerPt: number, obszary: (Prostokat & { rodzaj: RodzajObszaruTekstu })[] = []): BlokDokumentu[] {
-  if (!obszary.length) return blokiZTekstu(el, szerPt)
-  return [...obszary].sort((a, b) => a.y - b.y || a.x - b.x).flatMap((o) => {
-    const wObszarze = elementyWObszarze(el, o) as ElementZCzcionka[]
-    if (o.rodzaj === 'tabela') { const t = tabelaZTekstu(wObszarze); return t ? [t] : [] }
-    return blokiZTekstu(wObszarze, szerPt)
+function ciagJestTabela(g: Linia[]): boolean {
+  const odc = g.map(odcinkiLinii)
+  if (g.length === 1) return odc[0].slice(1).some((o) => o.przerwa >= 2.5 * g[0].h)
+  const starty = odc.flat().map((o) => o.start)
+  const wspolne = [...new Set(starty.map((x) => Math.round(x / 4)))].filter((x) => odc.filter((l) => l.some((o) => Math.abs(o.start / 4 - x) <= 1)).length >= Math.max(2, g.length / 2))
+  return wspolne.length >= 2
+}
+
+/** Siatki tabel z linii grafiki: >= 3 poziome linie o tym samym zakresie X, jedna pod drugą. */
+export function siatkiTabel(linie: Prostokat[]): Prostokat[] {
+  const poziome = linie.filter((l) => l.h <= 2 && l.w >= 40).sort((a, b) => a.y - b.y)
+  const siatki: Prostokat[][] = []
+  for (const l of poziome) {
+    const s = siatki.find((g) => {
+      const o = g[g.length - 1]
+      return Math.abs(o.x - l.x) < 6 && Math.abs(o.x + o.w - l.x - l.w) < 6 && l.y - o.y < 90 && l.y - o.y > 2
+    })
+    if (s) s.push(l)
+    else siatki.push([l])
+  }
+  return siatki.filter((g) => g.length >= 3).map((g) => ({ x: g[0].x, y: g[0].y, w: g[0].w, h: g[g.length - 1].y - g[0].y }))
+}
+
+/** Tabela ma obramowanie, gdy w jej obszarze są co najmniej dwie poziome linie na połowę jej szerokości. */
+const maObramowanie = (o: Prostokat, linie: Prostokat[]) =>
+  linie.filter((l) => l.h <= 2 && l.y >= o.y - 4 && l.y <= o.y + o.h + 4 && Math.min(l.x + l.w, o.x + o.w) - Math.max(l.x, o.x) >= 0.5 * o.w).length >= 2
+
+/**
+ * Strona PDF z warstwą tekstową -> bloki z położeniem na stronie. Bez obszarów: tabele wykryte automatycznie (siatka linii
+ * albo kolejne linie z tekstem w kolumnach), reszta jako akapity / nagłówki / listy, obrazy (logo, rysunki) jako bloki
+ * "obraz". Z obszarami: w kolejności od góry, obszar "tabela" jako tabela, "tekst" jako akapity. Wymiary i obszary w pt.
+ */
+export function blokiStrony(
+  el: ElementZCzcionka[], szerPt: number, obszary: (Prostokat & { rodzaj: RodzajObszaruTekstu })[] = [],
+  opcje: { wysPt?: number; grafika?: GrafikaStrony } = {},
+): BlokDokumentu[] {
+  const wys = opcje.wysPt
+  const linieGrafiki = opcje.grafika?.linie ?? []
+  if (obszary.length) {
+    return [...obszary].sort((a, b) => a.y - b.y || a.x - b.x).flatMap((o) => {
+      const wObszarze = elementyWObszarze(el, o) as ElementZCzcionka[]
+      if (o.rodzaj === 'tabela') {
+        const t = tabelaZTekstu(wObszarze, { szer: szerPt, wys, obszar: o, obramowanie: maObramowanie(o, linieGrafiki), pionowe: linieGrafiki.filter((l) => l.w <= 2) })
+        return t ? [t] : []
+      }
+      return blokiZTekstu(wObszarze, szerPt, { wys })
+    })
+  }
+  const wszystkie = linieZElementow(el)
+  const trescPt = rozmiarTresci(wszystkie)
+  // Punktor narysowany jako kształt (kropka tuż przed początkiem linii) - dopisany jako znak listy.
+  for (const k of opcje.grafika?.kropki ?? []) {
+    const l = wszystkie.find((x) => k.y + k.h / 2 >= x.gora && k.y + k.h / 2 <= x.dol && x.x0 - (k.x + k.w) >= 2 && x.x0 - (k.x + k.w) <= 40 && !PUNKTOR_ZNAK.test(x.tekst))
+    if (l) { l.tekst = `• ${l.tekst}`; l.fragmenty.unshift({ tekst: '• ', b: false, i: false }); l.x0 = k.x }
+  }
+  // Podkreślenie: pozioma linia tuż pod linią bazową na prawie całej szerokości tekstu.
+  for (const l of wszystkie) {
+    // (linia dużo dłuższa od tekstu to krawędź komórki albo separator, nie podkreślenie)
+    l.podkreslony = linieGrafiki.some((g) => g.h <= 2 && g.w <= 1.3 * (l.x1 - l.x0) + 4 && g.y >= l.y - 0.5 && g.y <= l.y + 0.35 * l.h + 1.5 && Math.min(g.x + g.w, l.x1) - Math.max(g.x, l.x0) >= 0.8 * (l.x1 - l.x0))
+  }
+  // 0. Plamy grafiki (logo wektorowe, stopka z krzywych, podpis) idą do Worda jako obraz w swoim miejscu - pasami
+  //    wierszy z tuszem. Linia tekstu w wierszu z tuszem jest częścią rysunku (np. stopka, z której tylko kawałki są
+  //    tekstem) - inaczej byłaby dwa razy; linia w wierszu bez tuszu zostaje tekstem. Tekst na ciemnym tle (kolorowy
+  //    pasek z nagłówkiem) zostaje tekstem, a pasek jest tłem - pomijany.
+  const wPlamie = (l: Linia, o: Prostokat) => (l.x0 + l.x1) / 2 >= o.x - 2 && (l.x0 + l.x1) / 2 <= o.x + o.w + 2 && l.y - l.h / 2 >= o.y - 2 && l.y - l.h / 2 <= o.y + o.h + 2
+  const tuszWLinii = (l: Linia, o: PlamaGrafiki) => {
+    const a = Math.max(0, Math.floor((l.gora - o.y) / o.krok))
+    const b = Math.min(o.wiersze.length - 1, Math.floor((l.dol - o.y) / o.krok))
+    for (let i = a; i <= b; i++) if (o.wiersze[i]) return true
+    return false
+  }
+  const naTle = (l: Linia) => mediana(l.el.map((e) => e.tlo ?? 255)) < 128
+  const pasyPlam: Prostokat[] = []
+  const wRysunku = new Set<Linia>()
+  for (const o of opcje.grafika?.plamy ?? []) {
+    const wewnatrz = wszystkie.filter((l) => wPlamie(l, o))
+    if (wewnatrz.some(naTle)) continue
+    // Znaki w środku linii tekstu (indeksy, symbole narysowane krzywymi) - to nie rysunek, tekst zostaje.
+    const wLinii = wszystkie.some((l) => l.x0 < o.x - 2 && l.x1 > o.x + o.w + 2 && Math.min(l.dol, o.y + o.h) - Math.max(l.gora, o.y) > 0)
+    if (wLinii) continue
+    wewnatrz.filter((l) => tuszWLinii(l, o)).forEach((l) => wRysunku.add(l))
+    // Pasy: ciągłe wiersze z tuszem (przerwa do 2 wierszy w pasie).
+    let start = -1
+    let pusto = 0
+    o.wiersze.forEach((w, i) => {
+      if (w) { if (start < 0) start = i; pusto = 0 } else if (start >= 0 && ++pusto > 2) { pasyPlam.push({ x: o.x, y: o.y + start * o.krok, w: o.w, h: (i - pusto + 1 - start) * o.krok }); start = -1 }
+    })
+    if (start >= 0) pasyPlam.push({ x: o.x, y: o.y + start * o.krok, w: o.w, h: (o.wiersze.length - pusto - start) * o.krok })
+  }
+  // Linia tekstu w tym samym wierszu co pas rysunku i tuż obok niego (np. reszta zdania, którego początek jest
+  // narysowany) - też do obrazu, inaczej rysunek i tekst rozjechałyby się w Wordzie. Pas obejmuje wchłonięte linie.
+  for (let zmiana = true; zmiana;) {
+    zmiana = false
+    for (const p of pasyPlam) {
+      for (const l of wszystkie) {
+        const pion = Math.min(l.dol, p.y + p.h) - Math.max(l.gora, p.y)
+        const odstep = Math.max(l.x0 - (p.x + p.w), p.x - l.x1)
+        const wchlonieta = wRysunku.has(l) && pion > 0
+        if (!wchlonieta && (wRysunku.has(l) || naTle(l) || pion < 0.5 * (l.dol - l.gora) || odstep > 2 * l.h)) continue
+        wRysunku.add(l)
+        const x0 = Math.min(p.x, l.x0), x1 = Math.max(p.x + p.w, l.x1), y0 = Math.min(p.y, l.gora), y1 = Math.max(p.y + p.h, l.dol)
+        if (x0 < p.x - 0.5 || x1 > p.x + p.w + 0.5 || y0 < p.y - 0.5 || y1 > p.y + p.h + 0.5) { Object.assign(p, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }); zmiana = true }
+      }
+    }
+  }
+  const linie = wszystkie.filter((l) => !wRysunku.has(l))
+  // 1. Tabele: siatki z linii, potem ciągi linii z tekstem w kolumnach.
+  const siatki = siatkiTabel(linieGrafiki)
+  const wTabeli = new Map<Linia, number>()
+  const grupy: Linia[][] = []
+  siatki.forEach((s) => {
+    const g = linie.filter((l) => !wTabeli.has(l) && l.y - l.h / 2 >= s.y - 2 && l.y - l.h / 2 <= s.y + s.h + 2 && (l.x0 + l.x1) / 2 >= s.x && (l.x0 + l.x1) / 2 <= s.x + s.w)
+    if (g.length) { g.forEach((l) => wTabeli.set(l, grupy.length)); grupy.push(g) }
   })
+  let ciag: Linia[] = []
+  const zamknijCiag = () => { if (ciag.length && ciagJestTabela(ciag)) { ciag.forEach((l) => wTabeli.set(l, grupy.length)); grupy.push(ciag) } ciag = [] }
+  for (const l of linie) {
+    if (wTabeli.has(l)) { zamknijCiag(); continue }
+    const kolumny = odcinkiLinii(l).length >= 2 && !PUNKTOR_ZNAK.test(l.tekst)
+    const ost = ciag[ciag.length - 1]
+    if (kolumny && (!ost || l.y - ost.y < 2.6 * Math.max(l.h, ost.h))) { ciag.push(l); continue }
+    zamknijCiag()
+    if (kolumny) ciag.push(l)
+  }
+  zamknijCiag()
+  const tabele = grupy.map((g, i) => {
+    const s = siatki.find((x) => g.every((l) => l.y - l.h / 2 >= x.y - 2 && l.y - l.h / 2 <= x.y + x.h + 2))
+    const elementy = g.flatMap((l) => l.el)
+    const o = s ?? { x: Math.min(...g.map((l) => l.x0)), y: Math.min(...g.map((l) => l.gora)), w: Math.max(...g.map((l) => l.x1)) - Math.min(...g.map((l) => l.x0)), h: Math.max(...g.map((l) => l.dol)) - Math.min(...g.map((l) => l.gora)) }
+    const t = tabelaZTekstu(elementy, { szer: szerPt, wys, obszar: s, obramowanie: !!s || maObramowanie(o, linieGrafiki), pionowe: linieGrafiki.filter((l) => l.w <= 2) })
+    return { t, o, i }
+  }).filter((x) => x.t)
+  // 2. Reszta linii - kawałkami między tabelami (akapit nie przeskakuje nad tabelą).
+  const bloki: BlokDokumentu[] = tabele.map((x) => x.t!)
+  let kawalek: Linia[] = []
+  const zamknijKawalek = () => { bloki.push(...blokiZLinii(kawalek, szerPt, { wys, trescPt })); kawalek = [] }
+  for (const l of linie) {
+    if (wTabeli.has(l)) { zamknijKawalek(); continue }
+    kawalek.push(l)
+  }
+  zamknijKawalek()
+  // 3. Obrazy (bez tła całej strony i drobnych ozdobników) i plamy grafiki poza tabelami (cieniowanie wierszy to nie obraz).
+  if (wys) {
+    const wspolne = (a: Prostokat, b: Prostokat) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
+    const obrazy = (opcje.grafika?.obrazy ?? []).filter((o) => o.w >= 12 && o.h >= 12 && (o.w * o.h) / (szerPt * wys) <= 0.5)
+    const plamyPoza = pasyPlam.filter((p) => p.h >= 4 && !tabele.some((x) => wspolne(p, x.o) > 0.3 * p.w * p.h) && !obrazy.some((o) => wspolne(p, o) > 0.5 * p.w * p.h))
+    for (const o of [...obrazy, ...plamyPoza]) bloki.push(blok({ typ: 'obraz', ramka: ramkaWzgledna(o.x, o.y, o.x + o.w, o.y + o.h, szerPt, wys) }))
+  }
+  return wys ? posortujBloki(bloki) : bloki
+}
+
+/**
+ * Układ dokładny (formularze, karty danych): każdy odcinek linii tekstu (tekst rozdzielony dużą przerwą - zwykle komórka)
+ * to pole w miejscu oryginału; kolejne odcinki tej samej komórki (ten sam lewy brzeg, środek albo prawy brzeg, mały
+ * odstęp, bez linii siatki między nimi) łączą się w jedno pole z podziałem wierszy. Linie i grafikę daje tło strony.
+ */
+export function blokiDokladne(el: ElementZCzcionka[], szerPt: number, wysPt: number, grafika?: GrafikaStrony): BlokDokumentu[] {
+  const poziome = (grafika?.linie ?? []).filter((l) => l.h <= 2)
+  // Odcinki linii jako osobne "linie" (z fragmentami formatowania).
+  const odcinki: Linia[] = []
+  for (const l of linieZElementow(el)) {
+    let biez: ElementZCzcionka[] = []
+    let koniec = -Infinity
+    const zamknij = () => { if (biez.length) odcinki.push(...linieZElementow(biez)); biez = [] }
+    for (const e of l.el) {
+      if (biez.length && e.x - koniec > Math.max(1.0 * e.h, 6)) zamknij()
+      biez.push(e)
+      koniec = Math.max(koniec, e.x + e.w)
+    }
+    zamknij()
+  }
+  odcinki.sort((a, b) => a.y - b.y || a.x0 - b.x0)
+  const grupy: Linia[][] = []
+  for (const o of odcinki) {
+    const g = grupy.find((x) => {
+      const ost = x[x.length - 1]
+      if (o.y - ost.y <= 0 || o.y - ost.y > 1.7 * Math.max(o.h, ost.h) || Math.abs(o.h - ost.h) > 0.15 * o.h) return false
+      const lewy = Math.abs(o.x0 - ost.x0) <= 3, srodek = Math.abs((o.x0 + o.x1) / 2 - (ost.x0 + ost.x1) / 2) <= 3, prawy = Math.abs(o.x1 - ost.x1) <= 3
+      if (!lewy && !srodek && !prawy) return false
+      // Linia siatki między odcinkami - to już inna komórka.
+      return !poziome.some((l) => l.y > ost.dol - 1 && l.y < o.gora + 1 && Math.min(l.x + l.w, o.x1) - Math.max(l.x, o.x0) > 0)
+    })
+    if (g) g.push(o)
+    else grupy.push([o])
+  }
+  return grupy.map((g) => {
+    const x0 = Math.min(...g.map((l) => l.x0)), x1 = Math.max(...g.map((l) => l.x1))
+    const wyrownanie: Wyrownanie = g.length > 1 && g.every((l) => Math.abs(l.x0 - g[0].x0) <= 3) ? 'lewo'
+      : g.length > 1 && g.every((l) => Math.abs(l.x1 - g[0].x1) <= 3) ? 'prawo' : g.length > 1 ? 'srodek' : 'lewo'
+    const fragmenty = g.flatMap((l, i) => [...(i ? [{ tekst: '\n', b: false, i: false }] : []), ...l.fragmenty.map((f) => ({ ...f }))])
+    const b = blok({
+      typ: 'akapit', tekst: g.map((l) => l.tekst).join('\n'), wyrownanie, rozmiar: Math.round(mediana(g.map((l) => l.h)) * 2) / 2,
+      pogrubiony: g.filter((l) => l.pogrubiony).reduce((x, l) => x + l.tekst.length, 0) > 0.6 * g.reduce((x, l) => x + l.tekst.length, 0),
+      kursywa: g.every((l) => l.kursywa), fragmenty,
+    })
+    ukladBloku(b, g, szerPt, wysPt)
+    b.ramka = ramkaWzgledna(x0, Math.min(...g.map((l) => l.gora)), x1, Math.max(...g.map((l) => l.dol)), szerPt, wysPt)
+    const f = b.fragmenty ?? []
+    if (!(f.some((x) => x.b) && f.some((x) => !x.b && x.tekst !== '\n')) && !(f.some((x) => x.i) && f.some((x) => !x.i && x.tekst !== '\n'))) delete b.fragmenty
+    return b
+  })
+}
+
+/** Kolejność czytania: od góry (pas ~1% strony), w pasie od lewej; bloki bez ramki zostają na swoim miejscu. */
+export function posortujBloki(bloki: BlokDokumentu[]): BlokDokumentu[] {
+  if (!bloki.every((b) => b.ramka)) return bloki
+  return [...bloki].sort((a, b) => (Math.abs(a.ramka!.y - b.ramka!.y) < 0.01 ? a.ramka!.x - b.ramka!.x : a.ramka!.y - b.ramka!.y))
+}
+
+/** Wymiary strony w pt; zdjęcie (piksele) albo nietypowa skala - przeliczone na dłuższy bok A4. */
+export function wymiaryWorda(w?: WymiaryStrony | null): { W: number; H: number } {
+  if (!w || !(w.szerPt > 0) || !(w.wysPt > 0)) return { W: 595.3, H: 841.9 }
+  const bok = Math.max(w.szerPt, w.wysPt)
+  const k = bok > 1700 || bok < 300 ? 841.9 / bok : 1
+  return { W: w.szerPt * k, H: w.wysPt * k }
+}
+
+/** Zakres stron z tekstu "1-3, 5" (puste - wszystkie); strony spoza dokumentu pominięte. */
+export function parsujStrony(tekst: string, maks: number): number[] {
+  const wszystkie = Array.from({ length: maks }, (_, i) => i + 1)
+  if (!tekst.trim()) return wszystkie
+  const wynik = new Set<number>()
+  for (const c of tekst.split(/[,;\s]+/).filter(Boolean)) {
+    const m = /^(\d+)(?:\s*[-–]\s*(\d+))?$/.exec(c)
+    if (!m) continue
+    const a = Number(m[1])
+    const b = Number(m[2] ?? m[1])
+    for (let n = Math.min(a, b); n <= Math.max(a, b); n++) if (n >= 1 && n <= maks) wynik.add(n)
+  }
+  return [...wynik].sort((a, b) => a - b)
+}
+
+/** Strony jako zwięzły zakres: [1,2,3,5] -> "1-3, 5". */
+export function opisStron(strony: number[]): string {
+  const s = [...new Set(strony)].sort((a, b) => a - b)
+  const czesci: string[] = []
+  for (let i = 0; i < s.length; i++) {
+    let j = i
+    while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++
+    czesci.push(j > i ? `${s[i]}-${s[j]}` : String(s[i]))
+    i = j
+  }
+  return czesci.join(', ')
 }
 
 // --- Inne formaty -------------------------------------------------------------------------------------
@@ -308,22 +936,33 @@ export function blokiZHtml(html: string, parser: (h: string) => Document): BlokD
 
 // --- Wynik AI -----------------------------------------------------------------------------------------
 
-const TYPY: TypBloku[] = ['naglowek', 'akapit', 'lista', 'tabela', 'podpis']
+const TYPY: TypBloku[] = ['naglowek', 'akapit', 'lista', 'tabela', 'podpis', 'obraz']
 const WYROWNANIA: Wyrownanie[] = ['lewo', 'srodek', 'prawo', 'wyjustowane']
+const ulamek = (v: unknown) => Math.max(0, Math.min(1, (Number(v) || 0) / 100))
+
+/** Blok w odpowiedzi AI: pola BlokDokumentu + położenie w % strony i szerokości kolumn w % tabeli. */
+interface BlokAi extends Partial<Omit<BlokDokumentu, 'kolumny'>> { x?: number; y?: number; szer?: number; wys?: number; szer_kolumn?: number[] }
 
 /** Bloki z odpowiedzi AI z bezpiecznymi wartościami (nieznany typ -> akapit, tabela bez wierszy pominięta). */
 export function blokiZAi(bloki: unknown): BlokDokumentu[] {
   if (!Array.isArray(bloki)) return []
   return bloki.flatMap((x): BlokDokumentu[] => {
-    const b = (x ?? {}) as Partial<BlokDokumentu>
+    const b = (x ?? {}) as BlokAi
     const typ = TYPY.includes(b.typ as TypBloku) ? b.typ as TypBloku : 'akapit'
     const wiersze = Array.isArray(b.wiersze) ? b.wiersze.map((w) => (Array.isArray(w) ? w.map((k) => String(k ?? '')) : [])) : []
     const elementy = Array.isArray(b.elementy) ? b.elementy.map((k) => String(k ?? '')).filter((k) => k.trim()) : []
+    const ramka = Number(b.szer) > 0 && Number(b.wys) > 0
+      ? { x: ulamek(b.x), y: ulamek(b.y), w: Math.min(ulamek(b.szer), 1 - ulamek(b.x)), h: Math.min(ulamek(b.wys), 1 - ulamek(b.y)) } : null
+    const kol = Array.isArray(b.szer_kolumn) ? b.szer_kolumn.map((k) => Math.max(0, Number(k) || 0)) : []
+    const sumaKol = kol.reduce((s, k) => s + k, 0)
     const wynik = blok({
       typ, poziom: typ === 'naglowek' ? Math.min(3, Math.max(1, Number(b.poziom) || 1)) : 0, tekst: String(b.tekst ?? '').trim(),
       pogrubiony: !!b.pogrubiony, kursywa: !!b.kursywa, wyrownanie: WYROWNANIA.includes(b.wyrownanie as Wyrownanie) ? b.wyrownanie as Wyrownanie : 'lewo',
       rozmiar: Math.max(0, Math.min(72, Number(b.rozmiar) || 0)), elementy, wiersze, naglowek_tabeli: !!b.naglowek_tabeli,
+      ramka, obramowanie: !!b.obramowanie,
+      kolumny: typ === 'tabela' && sumaKol > 0 && kol.length === Math.max(0, ...wiersze.map((w) => w.length)) ? kol.map((k) => Math.round((k / sumaKol) * 1000) / 1000) : [],
     })
+    if (typ === 'obraz') return ramka && ramka.w > 0.01 && ramka.h > 0.01 ? [wynik] : []
     if (typ === 'tabela' && !wiersze.length) return []
     if (typ === 'lista' && !elementy.length) return wynik.tekst ? [{ ...wynik, typ: 'akapit' }] : []
     if (!['tabela', 'lista'].includes(typ) && !wynik.tekst) return []
@@ -331,11 +970,46 @@ export function blokiZAi(bloki: unknown): BlokDokumentu[] {
   })
 }
 
-/** Opis kafla przed obrazem dla AI: numer, fragment i położenie w siatce kafli (model łączy kafle bez powtórzeń). */
-export function opisKaflaDokumentu(nr: number, fragment: string, k: Prostokat, wszystkie: Prostokat[]) {
+/** Bloki do tłumaczenia przez AI: sama treść i struktura (bez obrazów i bez układu - ten zostaje z oryginału). */
+export function blokiDoTlumaczenia(bloki: BlokDokumentu[]) {
+  return bloki.filter((b) => b.typ !== 'obraz').map((b) => ({
+    typ: b.typ, poziom: b.poziom, tekst: b.tekst, pogrubiony: b.pogrubiony, kursywa: b.kursywa, wyrownanie: b.wyrownanie,
+    rozmiar: b.rozmiar, elementy: b.elementy, wiersze: b.wiersze, naglowek_tabeli: b.naglowek_tabeli,
+  }))
+}
+
+/**
+ * Tłumaczenie z układem oryginału: kolejne bloki tłumaczenia (bez obrazów) wchodzą w miejsce tekstu kolejnych bloków
+ * oryginału - położenie, czcionka, kolumny i obrazy zostają z oryginału. Tabela zachowuje liczbę wierszy i komórek
+ * oryginału, gdy tłumaczenie ma ten sam kształt. Nadmiarowe bloki tłumaczenia dopisane na końcu (bez położenia).
+ */
+export function scalTlumaczenie(oryginal: BlokDokumentu[], tlumaczenie: BlokDokumentu[]): BlokDokumentu[] {
+  const tl = tlumaczenie.filter((b) => b.typ !== 'obraz')
+  let i = 0
+  const wynik = oryginal.map((o) => {
+    if (o.typ === 'obraz') return o
+    const p = tl[i++]
+    if (!p) return o
+    const wiersze = o.typ === 'tabela' && p.wiersze.length
+      ? (p.wiersze.length === o.wiersze.length ? o.wiersze.map((w, r) => w.map((k, c) => p.wiersze[r][c] ?? k)) : p.wiersze) : o.wiersze
+    const elementy = o.typ === 'lista' && p.elementy.length ? p.elementy : o.elementy
+    const tekst = p.tekst || (o.typ === 'tabela' || o.typ === 'lista' ? o.tekst : p.elementy.join('\n') || o.tekst)
+    const skala = o.tekst && tekst.length > o.tekst.length * 1.1 ? Math.max(0.7, Math.round((o.tekst.length / tekst.length) * 100) / 100) : undefined
+    return { ...o, tekst, wiersze, elementy, fragmenty: undefined, skala_czcionki: skala }
+  })
+  return [...wynik, ...tl.slice(i).map((b) => ({ ...b, ramka: null }))]
+}
+
+/**
+ * Opis kafla przed obrazem dla AI: numer, fragment, położenie w siatce kafli (model łączy kafle bez powtórzeń) i zakres
+ * strony w procentach - model podaje położenie bloków w % całej strony.
+ */
+export function opisKaflaDokumentu(nr: number, fragment: string, k: Prostokat, wszystkie: Prostokat[], naStronie?: Prostokat) {
   const kolumny = [...new Set(wszystkie.map((x) => x.x))].sort((a, b) => a - b)
   const wiersze = [...new Set(wszystkie.map((x) => x.y))].sort((a, b) => a - b)
-  return `Kafel ${nr}: ${fragment}, wiersz ${wiersze.indexOf(k.y) + 1}/${wiersze.length}, kolumna ${kolumny.indexOf(k.x) + 1}/${kolumny.length}`
+  const proc = (v: number) => Math.round(v * 1000) / 10
+  const zakres = naStronie ? `, obejmuje strony: x ${proc(naStronie.x)}-${proc(naStronie.x + naStronie.w)}%, y ${proc(naStronie.y)}-${proc(naStronie.y + naStronie.h)}%` : ''
+  return `Kafel ${nr}: ${fragment}, wiersz ${wiersze.indexOf(k.y) + 1}/${wiersze.length}, kolumna ${kolumny.indexOf(k.x) + 1}/${kolumny.length}${zakres}`
 }
 
 /** Strony treści w kolejności numerów (klucze JSON to teksty). */

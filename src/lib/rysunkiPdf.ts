@@ -157,3 +157,69 @@ export async function tekstStrony(doc: PDFDocumentProxy, nr: number): Promise<El
   }
   return wynik
 }
+
+/** Wycinek strony (obszar względny) w zadanym DPI jako JPEG - obrazy (logo, rysunki) do wersji edytowalnej w Wordzie. */
+export async function wycinekJpeg(doc: PDFDocumentProxy, nr: number, obszar: Prostokat, dpi = 150, jakosc = 0.9) {
+  const strona = await doc.getPage(nr)
+  const v1 = strona.getViewport({ scale: 1 })
+  const s = dpi / 72
+  const { p } = await renderuj(doc, nr, s, { x: obszar.x * v1.width * s, y: obszar.y * v1.height * s, w: obszar.w * v1.width * s, h: obszar.h * v1.height * s })
+  const dataUrl = jpeg(p.canvas, jakosc)
+  fabryka(doc).destroy(p)
+  const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1))
+  const bajty = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bajty[i] = bin.charCodeAt(i)
+  return bajty
+}
+
+/** Strona w odcieniach szarości do analizy (widoczność tekstu, plamy grafiki): jasność i nasycenie koloru pikseli. */
+export async function renderSzary(doc: PDFDocumentProxy, nr: number, skala = 1.5) {
+  const { p, w, h } = await renderuj(doc, nr, skala)
+  const d = p.context.getImageData(0, 0, w, h).data
+  fabryka(doc).destroy(p)
+  const jasnosc = new Uint8Array(w * h)
+  const nasycenie = new Uint8Array(w * h)
+  for (let i = 0; i < w * h; i++) {
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2]
+    jasnosc[i] = (r * 299 + g * 587 + b * 114) / 1000
+    nasycenie[i] = Math.max(r, g, b) - Math.min(r, g, b)
+  }
+  return { szer: w, wys: h, skala, jasnosc, nasycenie }
+}
+
+/** Szerokość tekstu (pt) w czcionce systemowej - porównanie z szerokością w PDF daje odstęp znaków do Worda. */
+export function miaraTekstu(doc: PDFDocumentProxy) {
+  const p = fabryka(doc).create(10, 10)
+  return (tekst: string, czcionka: string, rozmiar: number, pogrubiony: boolean) => {
+    p.context.font = `${pogrubiony ? 'bold ' : ''}${rozmiar * 4}px "${czcionka}"`
+    return p.context.measureText(tekst).width / 4
+  }
+}
+
+/**
+ * Tło strony bez tekstu (JPEG): render strony, na którym prostokąty tekstu (pt) są zamalowane kolorem otoczenia -
+ * zostają linie, ramki, wypełnienia, obrazy i napisy narysowane krzywymi. Pod tekst w polach w trybie "dokładnym".
+ */
+export async function tloBezTekstu(doc: PDFDocumentProxy, nr: number, prostokaty: Prostokat[], dpi = 150, jakosc = 0.85) {
+  const s = dpi / 72
+  const { p, w, h } = await renderuj(doc, nr, s)
+  const ctx = p.context
+  const d = ctx.getImageData(0, 0, w, h).data
+  const px = (x: number, y: number) => { const i = (Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))) * 4; return [d[i], d[i + 1], d[i + 2]] }
+  for (const r of prostokaty) {
+    const x0 = Math.floor(r.x * s) - 1, x1 = Math.ceil((r.x + r.w) * s) + 1, y0 = Math.floor(r.y * s) - 1, y1 = Math.ceil((r.y + r.h) * s) + 1
+    // Kolor tła: najjaśniejszy z mediany pikseli tuż poza prostokątem (tekst na białym - biel, na pasku - kolor paska).
+    const brzeg: number[][] = []
+    for (let x = x0; x <= x1; x += 2) brzeg.push(px(x, y0 - 1), px(x, y1 + 1))
+    for (let y = y0; y <= y1; y += 2) brzeg.push(px(x0 - 1, y), px(x1 + 1, y))
+    const med = (k: number) => brzeg.map((c) => c[k]).sort((a, b) => a - b)[Math.floor(brzeg.length / 2)] ?? 255
+    ctx.fillStyle = `rgb(${med(0)},${med(1)},${med(2)})`
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0)
+  }
+  const dataUrl = jpeg(p.canvas, jakosc)
+  fabryka(doc).destroy(p)
+  const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1))
+  const bajty = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bajty[i] = bin.charCodeAt(i)
+  return bajty
+}

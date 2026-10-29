@@ -26,7 +26,7 @@ w profilu). Funkcje uśpione: `src/lib/funkcje.ts`. Plan i decyzje rundy 2: [`PL
 | Mail z ofertą: odczyt ceny bez AI (kwoty, waluta, termin, ważność, Incoterms, dostawca po domenie), AI jako druga opcja; porównanie ofert (najtańsza / najszybsza, przeterminowane), „Użyj w wycenie” | jw., Oferty dostawców | `oferty/DodajOferte.tsx`, `wycena/ZnajdzCene.tsx` |
 | Generator zapytań do dostawców i kooperantów (mailto, statusy odpowiedzi) | karta zapytania → Zapytania do dostawców | `zapytaniaDostawcow/*` |
 | Zatwierdzanie przez prezesa, korekta prezesa, marże | Do zatwierdzenia, wycena → Wycena / Podsumowanie | `wycena/KolejkaZatwierdzania.tsx`, migracja `0008` |
-| Wersje edytowalne: odczyt plików bez AI albo przez AI, język, tłumaczenie, Word, dziennik kosztów | menu → Wersje edytowalne | `edytowalne/*`, `lib/wersjeEdytowalne*.ts` |
+| Wersje edytowalne: wybór stron (domyślnie cały dokument), odczyt bez AI albo przez AI, język, tłumaczenie z zachowaniem układu, Word w układzie oryginału (wymiary i marginesy strony, czcionki, wcięcia, odstępy, tabele z ramkami i szerokościami kolumn, obrazy, nagłówek / stopka; tryb „dokładne położenie” dla formularzy), dziennik kosztów | menu → Wersje edytowalne | `edytowalne/*`, `lib/wersjeEdytowalne*.ts` |
 
 ## Moduł 2: Historyczny cennik
 

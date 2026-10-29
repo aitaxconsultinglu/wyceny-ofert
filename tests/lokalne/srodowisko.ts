@@ -40,6 +40,8 @@ export interface KonfiguracjaTestow {
   foldery_kompresji?: string[]
   /** Folder z kartami dostawy Optimy w PDF. */
   karty_dostawy_pdf?: string
+  /** Wersje edytowalne: wielostronicowy PDF z warstwą tekstową (dokument) i formularz z gęstą siatką (karta danych). */
+  edytowalne?: { dokument?: string; formularz?: string }
   /** Test odbioru rundy 2: oczekiwane kwoty arkusza wzorcowego, przykład stawki, foldery trzech zapytań. */
   odbior?: {
     arkusz_wzorcowy?: { plik: string; materialy: number; robocizna: number; masa_t: number; rbh_t: number; stawka: number; kooperacja: number; badania: number; koszty: number; zysk_proc: number; zysk: number; cena: number; kurs_eur: number; cena_eur: number }

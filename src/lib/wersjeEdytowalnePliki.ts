@@ -6,11 +6,12 @@ import { komunikatPL } from './config'
 import { pdfjs } from './dokumenty'
 import { BUCKET, bezpiecznaNazwa } from './magazyn'
 import { kafle, type Prostokat } from './rysunki'
-import { infoStrony, kafleObszaru, natywneDpi, otworzRysunek, renderujPodglad, type Kafel } from './rysunkiPdf'
+import { infoStrony, kafleObszaru, miaraTekstu, natywneDpi, otworzRysunek, renderSzary, renderujPodglad, tloBezTekstu, wycinekJpeg, type Kafel } from './rysunkiPdf'
 import { doKosza } from './kosz'
 import {
-  blok, blokiZArkusza, blokiZHtml, blokiZTekstuZwyklego, rodzajPliku, tekstyZDxf,
-  type BlokDokumentu, type ElementZCzcionka, type RodzajPliku, type TrescPliku,
+  CZCIONKI_SYSTEMOWE, blok, blokiZArkusza, blokiZHtml, blokiZTekstuZwyklego, plamyGrafiki, podzielPlamy, rodzajPliku, rodzinaCzcionki, tekstJakWidac, tekstyZDxf,
+  type RenderStrony,
+  type BlokDokumentu, type ElementZCzcionka, type GrafikaStrony, type RodzajPliku, type TrescPliku,
 } from './wersjeEdytowalne'
 import { t } from '@/i18n'
 
@@ -78,8 +79,14 @@ export interface ZrodloStron {
   info(nr: number): Promise<InfoStronyPliku>
   podglad(nr: number): Promise<{ dataUrl: string }>
   tekst(nr: number): Promise<ElementZCzcionka[]>
-  /** Obszar (względny 0..1) jako kafle JPEG do AI. */
-  kafle(nr: number, obszar: Prostokat): Promise<{ kafle: Kafel[]; dpi: number | null }>
+  /** Linie i obrazy strony (pt) - tabele z siatką i obrazy w wersji edytowalnej. */
+  grafika(nr: number): Promise<GrafikaStrony>
+  /** Obszar (względny 0..1) jako kafle JPEG do AI; szer / wys - wymiary obszaru w pikselach kafli. */
+  kafle(nr: number, obszar: Prostokat): Promise<{ kafle: Kafel[]; dpi: number | null; szer: number; wys: number }>
+  /** Obszar (względny 0..1) jako JPEG - obraz bloku do Worda. */
+  wycinek(nr: number, obszar: Prostokat): Promise<Uint8Array>
+  /** Strona bez tekstu (linie, wypełnienia, obrazy) jako JPEG - tło układu dokładnego; null - źródło bez warstwy tekstowej. */
+  tlo(nr: number): Promise<Uint8Array | null>
 }
 
 /** Warstwa tekstowa jak tekstStrony, z pogrubieniem i kursywą z nazwy fontu (fonty ładuje lista operatorów strony). */
@@ -89,14 +96,20 @@ async function tekstZCzcionka(doc: PDFDocumentProxy, nr: number): Promise<Elemen
   await strona.getOperatorList()
   const v = strona.getViewport({ scale: 1 })
   const tc = await strona.getTextContent()
-  const czcionki = new Map<string, { pogrubiony: boolean; kursywa: boolean }>()
+  const czcionki = new Map<string, { pogrubiony: boolean; kursywa: boolean; czcionka: string | null; font: string; styl_z_nazwy: boolean }>()
   const czcionka = (nazwa: string) => {
     if (!czcionki.has(nazwa)) {
-      type Font = { name?: string; bold?: boolean; italic?: boolean; black?: boolean }
+      type Font = { name?: string; fallbackName?: string; bold?: boolean; italic?: boolean; black?: boolean }
       const pobierz = (): Font | null => { try { return strona.commonObjs.get(nazwa) as Font } catch { return null } }
       const f = pobierz()
       const n = `${f?.name ?? ''} ${tc.styles[nazwa]?.fontFamily ?? ''}`
-      czcionki.set(nazwa, { pogrubiony: !!f?.bold || !!f?.black || /bold|black|heavy|semibold|demi/i.test(n), kursywa: !!f?.italic || /italic|oblique/i.test(n) })
+      czcionki.set(nazwa, {
+        pogrubiony: !!f?.bold || !!f?.black || /bold|black|heavy|semibold|demi/i.test(n), kursywa: !!f?.italic || /italic|oblique/i.test(n),
+        czcionka: rodzinaCzcionki(f?.name) ?? rodzinaCzcionki(f?.fallbackName) ?? rodzinaCzcionki(tc.styles[nazwa]?.fontFamily),
+        font: nazwa,
+        // Fonty bez nazwy (np. "ABCDEF+CIDFont+F2" z wydruku do PDF) nie mówią, czy są pogrubione - wtedy decyduje render.
+        styl_z_nazwy: f?.bold !== undefined || f?.italic !== undefined || (!!f?.name && !/cidfont|^([A-Z]{6}\+)?F\d+$|^T\d/i.test(f.name)),
+      })
     }
     return czcionki.get(nazwa)!
   }
@@ -110,18 +123,122 @@ async function tekstZCzcionka(doc: PDFDocumentProxy, nr: number): Promise<Elemen
   return wynik
 }
 
+/**
+ * Grafika strony z listy operatorów pdf.js: odcinki i krawędzie obrysowanych prostokątów (siatki tabel, podkreślenia)
+ * oraz miejsca obrazów (logo, rysunki, zdjęcia). Współrzędne w pt od lewego górnego rogu, jak warstwa tekstowa.
+ */
+async function grafikaStrony(doc: PDFDocumentProxy, nr: number): Promise<Omit<GrafikaStrony, 'plamy'>> {
+  const lib = await pdfjs()
+  const O = lib.OPS
+  const strona = await doc.getPage(nr)
+  const v = strona.getViewport({ scale: 1 })
+  const ops = await strona.getOperatorList()
+  type M = number[]
+  let ctm: M = [1, 0, 0, 1, 0, 0]
+  const stos: M[] = []
+  const linie: Prostokat[] = []
+  const obrazy: Prostokat[] = []
+  const prostokat = (pkt: [number, number][]): Prostokat => {
+    const m = lib.Util.transform(v.transform, ctm) as M
+    const p = pkt.map((x) => lib.Util.applyTransform(x, m) as [number, number])
+    const xs = p.map((x) => x[0])
+    const ys = p.map((x) => x[1])
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }
+  }
+  const linia = (r: Prostokat) => { if ((r.h <= 2 && r.w >= 8) || (r.w <= 2 && r.h >= 8)) linie.push(r) }
+  const OBRYS = new Set([O.stroke, O.closeStroke, O.fillStroke, O.eoFillStroke, O.closeFillStroke, O.closeEOFillStroke])
+  for (let j = 0; j < ops.fnArray.length; j++) {
+    const fn = ops.fnArray[j]
+    const a = ops.argsArray[j] as unknown[]
+    if (fn === O.save) stos.push(ctm)
+    else if (fn === O.restore) ctm = stos.pop() ?? ctm
+    else if (fn === O.transform) ctm = lib.Util.transform(ctm, a) as M
+    else if (fn === O.paintFormXObjectBegin) { stos.push(ctm); if (Array.isArray(a?.[0])) ctm = lib.Util.transform(ctm, a[0]) as M }
+    else if (fn === O.paintFormXObjectEnd) ctm = stos.pop() ?? ctm
+    else if (fn === O.paintImageXObject || fn === O.paintInlineImageXObject || fn === O.paintImageMaskXObject) obrazy.push(prostokat([[0, 0], [1, 0], [0, 1], [1, 1]]))
+    else if (fn === O.constructPath) {
+      const [podOps, argi] = a as [number[], number[]]
+      const obrys = OBRYS.has(ops.fnArray[j + 1])
+      let k = 0
+      let biez: [number, number] = [0, 0]
+      let start: [number, number] = [0, 0]
+      for (const op of podOps) {
+        if (op === O.rectangle) {
+          const [x, y, w, h] = argi.slice(k, k + 4); k += 4
+          const r = prostokat([[x, y], [x + w, y + h]])
+          if (r.h <= 2 || r.w <= 2) linia(r)
+          else if (obrys) {
+            linia({ x: r.x, y: r.y, w: r.w, h: 0 }); linia({ x: r.x, y: r.y + r.h, w: r.w, h: 0 })
+            linia({ x: r.x, y: r.y, w: 0, h: r.h }); linia({ x: r.x + r.w, y: r.y, w: 0, h: r.h })
+          }
+        } else if (op === O.moveTo) { biez = [argi[k], argi[k + 1]]; start = biez; k += 2 }
+        else if (op === O.lineTo) { const nowy: [number, number] = [argi[k], argi[k + 1]]; k += 2; if (obrys) linia(prostokat([biez, nowy])); biez = nowy }
+        else if (op === O.curveTo) { biez = [argi[k + 4], argi[k + 5]]; k += 6 }
+        else if (op === O.curveTo2 || op === O.curveTo3) { biez = [argi[k + 2], argi[k + 3]]; k += 4 }
+        else if (op === O.closePath) { if (obrys) linia(prostokat([biez, start])); biez = start }
+      }
+    }
+  }
+  // Obrazy pocięte na pasy (częste w PDF) - sklejone w jeden prostokąt.
+  const sklejone: Prostokat[] = []
+  for (const o of obrazy.sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const s = sklejone.find((x) => o.x < x.x + x.w + 1 && x.x < o.x + o.w + 1 && o.y < x.y + x.h + 1 && x.y < o.y + o.h + 1)
+    if (s) { const x1 = Math.max(s.x + s.w, o.x + o.w); const y1 = Math.max(s.y + s.h, o.y + o.h); s.x = Math.min(s.x, o.x); s.y = Math.min(s.y, o.y); s.w = x1 - s.x; s.h = y1 - s.y }
+    else sklejone.push({ ...o })
+  }
+  return { linie, obrazy: sklejone }
+}
+
 export async function zrodloPdf(bajty: Uint8Array): Promise<ZrodloStron> {
   const doc = await otworzRysunek(bajty)
+  // Render strony do analizy (widoczność tekstu, plamy grafiki) - raz na stronę.
+  const rendery = new Map<number, Promise<RenderStrony>>()
+  const render = (nr: number) => { if (!rendery.has(nr)) rendery.set(nr, renderSzary(doc, nr, 1.5)); return rendery.get(nr)! }
+  const teksty = new Map<number, Promise<ElementZCzcionka[]>>()
+  const miara = miaraTekstu(doc)
+  /** Warstwa tekstowa bez tekstu niewidocznego na stronie (biały na białym, przykryty). */
+  const tekst = (nr: number) => {
+    if (!teksty.has(nr)) {
+      teksty.set(nr, (async () => {
+        const el = await tekstZCzcionka(doc, nr)
+        if (!el.length) return el
+        const widoczne = tekstJakWidac(await render(nr), el)
+        // Szerokość w PDF względem tej samej czcionki w systemie - odstęp znaków dla Worda.
+        for (const e of widoczne) {
+          if (!e.czcionka || !CZCIONKI_SYSTEMOWE.has(e.czcionka) || e.str.length < 2) continue
+          e.odstep = (e.w - miara(e.str, e.czcionka, e.h, !!e.pogrubiony)) / e.str.length
+        }
+        return widoczne
+      })())
+    }
+    return teksty.get(nr)!
+  }
   const natywne: Record<number, number | null> = {}
   const dpiStrony = async (nr: number) => { if (!(nr in natywne)) natywne[nr] = await natywneDpi(doc, nr); return natywne[nr] }
   return {
     stron: doc.numPages,
     info: async (nr) => { const i = await infoStrony(doc, nr); return { ...i, natywneDpi: await dpiStrony(nr) } },
     podglad: (nr) => renderujPodglad(doc, nr),
-    tekst: (nr) => tekstZCzcionka(doc, nr),
+    tekst,
+    grafika: async (nr) => {
+      const g = await grafikaStrony(doc, nr)
+      const el = await tekst(nr)
+      // Strona bez tekstu (skan) czytana jest przez AI - plamy niepotrzebne.
+      if (!el.length) return { ...g, plamy: [], kropki: [] }
+      const wyklucz = [
+        ...el.map((e) => ({ x: e.x, y: e.y - e.h * 0.85, w: e.w, h: e.h * 1.05 })),
+        ...g.linie.map((l) => ({ x: l.x - 1, y: l.y - 1, w: l.w + 2, h: l.h + 2 })), ...g.obrazy,
+      ]
+      return { ...g, ...podzielPlamy(plamyGrafiki(await render(nr), wyklucz)) }
+    },
     kafle: async (nr, obszar) => {
       const k = await kafleObszaru(doc, nr, obszar, { dpi: DPI_DOKUMENTU, natywne: await dpiStrony(nr) })
-      return { kafle: k.kafle, dpi: k.dpi }
+      return { kafle: k.kafle, dpi: k.dpi, szer: k.szer, wys: k.wys }
+    },
+    wycinek: (nr, obszar) => wycinekJpeg(doc, nr, obszar),
+    tlo: async (nr) => {
+      const el = await tekst(nr)
+      return tloBezTekstu(doc, nr, el.map((e) => ({ x: e.x, y: e.y - e.h * 0.85, w: e.w, h: e.h * 1.08 })))
     },
   }
 }
@@ -144,6 +261,14 @@ export async function zrodloObrazu(bajty: Uint8Array, mime: string): Promise<Zro
       return { dataUrl: jpeg(c, 0.8) }
     },
     tekst: async () => [],
+    grafika: async () => ({ linie: [], obrazy: [] }),
+    tlo: async () => null,
+    wycinek: async (_nr, o) => {
+      const c = plotno(Math.max(1, Math.round(o.w * W)), Math.max(1, Math.round(o.h * H)))
+      c.getContext('2d')!.drawImage(bitmapa, Math.round(o.x * W), Math.round(o.y * H), c.width, c.height, 0, 0, c.width, c.height)
+      const d = jpeg(c, 0.9)
+      return Uint8Array.from(atob(d.slice(d.indexOf(',') + 1)), (z) => z.charCodeAt(0))
+    },
     kafle: async (_nr, o) => {
       const x = Math.round(o.x * W)
       const y = Math.round(o.y * H)
@@ -158,7 +283,7 @@ export async function zrodloObrazu(bajty: Uint8Array, mime: string): Promise<Zro
         const dataUrl = jpeg(c)
         wynik.push({ prostokat: k, dataUrl, base64: dataUrl.slice(dataUrl.indexOf(',') + 1) })
       }
-      return { kafle: wynik, dpi: null }
+      return { kafle: wynik, dpi: null, szer: w, wys: h }
     },
   }
 }

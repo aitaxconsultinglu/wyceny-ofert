@@ -3,7 +3,7 @@ import { Packer } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
 import {
   blok, blokiDokladne, blokiStrony, blokiZAi, jestFormularzem, opisStron, parsujStrony, plamyGrafiki, podzielPlamy, rodzinaCzcionki,
-  scalTlumaczenie, tekstJakWidac, widocznyTekst, type ElementZCzcionka, type RenderStrony,
+  scalTlumaczenie, skalaStronyTlumaczenia, tekstJakWidac, widocznyTekst, zeZnacznikami, zeZnacznikow, type ElementZCzcionka, type RenderStrony,
 } from './wersjeEdytowalne'
 import { dokumentWord, pasyStrony, podzialStrony } from './wersjeEdytowalneWord'
 
@@ -171,5 +171,41 @@ describe('Word w układzie oryginału', () => {
     expect(dokladny).toContain('w:framePr')
     expect(dokladny).toContain('behindDoc="1"')
     expect(dokladny).toContain('Cell text')
+  })
+})
+
+describe('akapity jak w oryginale', () => {
+  it('wcięcie wiszące (numer przed tekstem) i jedno twarde złamanie wiersza', () => {
+    const el = [
+      e('2)', 75, 100, 12), e('The tube bundle shall be stored in a dry warehouse and', 93, 100, 12),
+      e('located in a safe area away from the traffic of vehicles and', 93, 114, 12),
+      e('protected from rain.', 93, 128, 12),
+      e('If warehouse is not available follow point 3 of this procedure.', 93, 142, 12),
+    ]
+    const [b] = blokiStrony(el, W, [], { wysPt: H })
+    expect(b.wciecie).toBe(-18)
+    expect(b.wyrownanie).toBe('lewo')
+    expect(b.tekst.split('\n')).toHaveLength(2)
+  })
+  it('pojedyncza wcięta linia nie jest wyśrodkowana', () => {
+    const b = blokiStrony([e('Body text at the left margin of the page goes here.', 57, 100, 12), e('a) An indented point of the list in the text', 111, 140, 12)], W, [], { wysPt: H })
+    expect(b.map((x) => x.wyrownanie)).toEqual(['lewo', 'lewo'])
+  })
+})
+
+describe('tłumaczenie z formatowaniem', () => {
+  it('pogrubienie wewnątrz akapitu jako znaczniki i z powrotem', () => {
+    const b = blok({ typ: 'akapit', tekst: 'Delivery of new coalescer for unit', fragmenty: [{ tekst: 'Delivery of ', b: false, i: false }, { tekst: 'new coalescer', b: true, i: false }, { tekst: ' for unit', b: false, i: false }] })
+    expect(zeZnacznikami(b)).toBe('Delivery of [b]new coalescer[/b] for unit')
+    expect(zeZnacznikow('Dostawa [b]nowego koalescera[/b] dla instalacji')).toEqual({
+      tekst: 'Dostawa nowego koalescera dla instalacji',
+      fragmenty: [{ tekst: 'Dostawa ', b: false, i: false }, { tekst: 'nowego koalescera', b: true, i: false }, { tekst: ' dla instalacji', b: false, i: false }],
+    })
+  })
+  it('dłuższe tłumaczenie - mniejsza skala strony (najwyżej 20%)', () => {
+    const o = blok({ typ: 'akapit', tekst: 'x'.repeat(100) })
+    const [pl] = scalTlumaczenie([o], [blok({ typ: 'akapit', tekst: 'y'.repeat(125) })])
+    expect(skalaStronyTlumaczenia([pl])).toBeCloseTo(0.85, 2)
+    expect(skalaStronyTlumaczenia([o])).toBe(1)
   })
 })

@@ -63,7 +63,8 @@ export function PodgladUkladu({ bloki, wymiary, tlo }: { bloki: BlokDokumentu[];
             const jedenWiersz = !b.interlinia && !b.tekst.includes('\n') && b.typ !== 'tabela' && b.typ !== 'lista'
             const styl: CSSProperties = {
               position: 'absolute', left: (r.x - (b.typ === 'tabela' || b.typ === 'obraz' ? 0 : b.wyrownanie === 'prawo' ? 0.08 * r.w : b.wyrownanie === 'srodek' ? 0.04 * r.w : 0)) * W, top: r.y * H, width: r.w * W * (b.typ === 'tabela' || b.typ === 'obraz' ? 1 : 1.08), minHeight: r.h * H,
-              whiteSpace: jedenWiersz ? 'pre' : undefined, fontSize: (b.rozmiar || 10) * (b.skala_czcionki ?? 1), fontFamily: b.czcionka ?? undefined, lineHeight: b.interlinia ? `${b.interlinia}px` : 1.15,
+              whiteSpace: jedenWiersz ? 'pre' : undefined,
+              ...(b.wciecie ? { textIndent: b.wciecie, paddingLeft: b.wciecie < 0 ? -b.wciecie : 0 } : {}), fontSize: (b.rozmiar || 10) * (b.skala_czcionki ?? 1), fontFamily: b.czcionka ?? undefined, lineHeight: b.interlinia ? `${b.interlinia}px` : 1.15,
               fontWeight: b.pogrubiony ? 700 : 400, fontStyle: b.kursywa ? 'italic' : undefined, textDecoration: b.podkreslony ? 'underline' : undefined,
             }
             if (b.typ === 'obraz') {

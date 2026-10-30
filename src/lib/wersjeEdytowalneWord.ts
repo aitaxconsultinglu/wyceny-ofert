@@ -11,7 +11,7 @@ import {
   VerticalPositionRelativeFrom, WidthType, type ISectionOptions,
 } from 'docx'
 import { nazwaPliku, pobierzPlik } from './pobierz'
-import { wymiaryWorda, type BlokDokumentu, type UkladStrony, type Wyrownanie, type WymiaryStrony } from './wersjeEdytowalne'
+import { skalaStronyTlumaczenia, wymiaryWorda, type BlokDokumentu, type UkladStrony, type Wyrownanie, type WymiaryStrony } from './wersjeEdytowalne'
 
 const WYROWNANIE: Record<Wyrownanie, (typeof AlignmentType)[keyof typeof AlignmentType]> = {
   lewo: AlignmentType.LEFT, srodek: AlignmentType.CENTER, prawo: AlignmentType.RIGHT, wyjustowane: AlignmentType.JUSTIFIED,
@@ -31,6 +31,8 @@ export interface StronaWorda {
   wymiary?: WymiaryStrony | null
   /** Wycięte obrazy bloków "obraz" - indeks bloku -> bajty. */
   obrazy?: Record<number, ObrazBloku>
+  /** Skala odstępów między akapitami (tłumaczenie dłuższe niż oryginał) - ustawiana przy składaniu sekcji. */
+  skala?: number
   /** Układ strony (domyślnie płynny) i tło strony bez tekstu dla układu dokładnego. */
   uklad?: UkladStrony
   tlo?: ObrazBloku | null
@@ -135,7 +137,12 @@ function elementyBloku(b: BlokDokumentu, m: Miejsce, obraz?: ObrazBloku): (Parag
   // Tekst na całą szerokość może minimalnie wejść w prawy margines (pojedynczy wiersz do 4%, akapit 0,5%) - ostatnie
   // słowo nie przeskakuje do nowego wiersza przez różnicę miar czcionki.
   const zapas = prawe === 0 && m.margines ? Math.min(m.margines - 4, (jednaLinia ? 0.04 : 0.005) * m.szer) : 0
-  const indent = { left: tw(lewe), right: zapas > 0 ? -Math.round(zapas * 20) : tw(prawe) }
+  // Wcięcie wiszące (numer przed tekstem) - lewy brzeg akapitu na tekście, pierwszy wiersz wysunięty; wcięcie pierwszego wiersza - w prawo.
+  const wis = b.wciecie && b.wciecie < 0 ? -b.wciecie : 0
+  const indent = {
+    left: tw(lewe + wis), right: zapas > 0 ? -Math.round(zapas * 20) : tw(prawe),
+    ...(wis ? { hanging: tw(wis) } : b.wciecie && b.wciecie > 0 ? { firstLine: tw(b.wciecie) } : {}),
+  }
   const wyr = WYROWNANIE[b.wyrownanie] ?? AlignmentType.LEFT
   if (b.typ === 'obraz') {
     if (!obraz) return [odstep(m.przed, m.wys)]
@@ -191,7 +198,7 @@ function elementyPasow(pasy: Pas[], s: StronaWorda, W: number, mL: number, mR: n
   let dol = od
   for (const p of pasy) {
     // 10% luzu w odstępach - inna czcionka niż w PDF nie wypycha końca strony na następną.
-    const przed = Math.max(0, p.gora - dol) * 0.9
+    const przed = Math.max(0, p.gora - dol) * 0.9 * (s.skala ?? 1)
     if (p.bloki.length === 1) {
       const { b, i, p: q } = p.bloki[0]
       dzieci.push(...elementyBloku(b, { lewe: Math.max(0, q.x0 - mL), prawe: Math.max(0, W - mR - q.x1), przed, szer: q.x1 - q.x0, wys: q.dol - q.gora, margines: mR }, s.obrazy?.[i]))
@@ -247,7 +254,13 @@ export function podzialStrony(pasy: Pas[], H: number): { naglowek: Pas[]; tresc:
 }
 
 /** Strona w układzie oryginału: wymiary i marginesy oryginału, nagłówek, treść i stopka z odstępami jak na stronie. */
-export function sekcjaWUkladzie(s: StronaWorda): ISectionOptions {
+export function sekcjaWUkladzie(strona: StronaWorda): ISectionOptions {
+  // Tłumaczenie dłuższe niż oryginał - czcionka strony lekko mniejsza, żeby zachować podział na strony oryginału.
+  const f = skalaStronyTlumaczenia(strona.bloki)
+  const s: StronaWorda = f === 1 ? strona : {
+    ...strona, skala: f,
+    bloki: strona.bloki.map((b) => ({ ...b, rozmiar: b.rozmiar ? Math.round(b.rozmiar * f * 2) / 2 : b.rozmiar, interlinia: b.interlinia ? b.interlinia * f : b.interlinia })),
+  }
   const { W, H } = wymiaryWorda(s.wymiary)
   const z = s.bloki.filter((b) => b.ramka)
   const przytnij = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))

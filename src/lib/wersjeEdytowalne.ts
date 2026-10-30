@@ -41,8 +41,12 @@ export interface BlokDokumentu {
   podkreslony?: boolean
   /** Odstęp między znakami w pt (ujemny - ciaśniej): wiersze w Wordzie łamią się tam, gdzie w oryginale. */
   odstep_znakow?: number
+  /** Wcięcie pierwszego wiersza w pt: dodatnie - akapit z wcięciem, ujemne - wcięcie wiszące (punkt „1)”, „a)” przed tekstem). */
+  wciecie?: number
   /** Tłumaczenie dłuższe niż oryginał: zmniejszenie czcionki w układzie dokładnym (pole ma stały rozmiar). */
   skala_czcionki?: number
+  /** Tłumaczenie: liczba znaków bloku oryginału - Word dopasowuje czcionkę strony, żeby zachować podział stron. */
+  dl_oryginalu?: number
   /** Formatowanie wewnątrz akapitu (pogrubione / pochylone słowa) - fragmenty składające się na "tekst". */
   fragmenty?: FragmentTekstu[]
 }
@@ -57,6 +61,13 @@ export interface WymiaryStrony { szerPt: number; wysPt: number }
  */
 export type UkladStrony = 'plynny' | 'dokladny'
 export interface StronaTresci { bloki: BlokDokumentu[]; zrodlo: 'tekst' | 'ai'; jezyk: string | null; wymiary?: WymiaryStrony | null; uklad?: UkladStrony }
+
+/**
+ * Skan: strona bez warstwy tekstowej albo z kilkoma napisami na obrazie zajmującym większość strony. Strona z tekstem
+ * (nawet krótkim - spis treści, podpisy rysunków) czytana jest bez AI.
+ */
+export const jestSkanem = (el: unknown[], g: GrafikaStrony, szerPt: number, wysPt: number) =>
+  el.length === 0 || (el.length < 15 && g.obrazy.some((o) => o.w * o.h > 0.6 * szerPt * wysPt))
 
 /** Strona-formularz (gęsta siatka linii) - w trybie automatycznym dostaje układ dokładny. */
 export const jestFormularzem = (g: GrafikaStrony) => g.linie.length >= 60
@@ -422,10 +433,11 @@ function linieZElementow(el: ElementZCzcionka[]): Linia[] {
   }).filter((l) => l.tekst)
 }
 
-function wyrownanieLinii(l: Linia, szer: number): Wyrownanie {
+/** Wyrównanie pojedynczej linii: wyśrodkowana na środku strony albo treści (do 5 pt), do prawej przy prawym brzegu. */
+function wyrownanieLinii(l: Linia, szer: number, srodekTresci = szer / 2): Wyrownanie {
   const srodek = (l.x0 + l.x1) / 2
   const dlugosc = l.x1 - l.x0
-  if (dlugosc < 0.7 * szer && Math.abs(srodek - szer / 2) < 0.04 * szer && l.x0 > 0.15 * szer) return 'srodek'
+  if (dlugosc < 0.7 * szer && Math.min(Math.abs(srodek - szer / 2), Math.abs(srodek - srodekTresci)) < 5 && l.x0 > 0.15 * szer) return 'srodek'
   if (l.x1 > 0.85 * szer && l.x0 > 0.55 * szer) return 'prawo'
   return 'lewo'
 }
@@ -445,8 +457,31 @@ function ukladBloku(b: BlokDokumentu, linie: Linia[], szer: number, wys?: number
     .map((el) => mediana(el.flatMap((e) => Array<number>(Math.min(50, e.str.length)).fill(e.odstep!))))
   if (odstepy.length) b.odstep_znakow = Math.round([...odstepy].sort((a, c) => a - c)[Math.floor((odstepy.length - 1) / 4)] * 100) / 100
   b.interlinia = linie.length > 1 ? Math.round(mediana(linie.slice(1).map((l, i) => l.y - linie[i].y)) * 10) / 10 : 0
-  if (b.typ === 'akapit' && b.wyrownanie === 'lewo' && linie.length >= 3
-    && linie.slice(0, -1).every((l) => x1 - l.x1 < 0.015 * szer) && x1 - linie[linie.length - 1].x1 > 0.05 * szer) b.wyrownanie = 'wyjustowane'
+  if (linie.length > 1 && b.typ !== 'lista') {
+    // Wyrównanie z całego akapitu: wspólny lewy brzeg kolejnych wierszy - do lewej (pierwszy wiersz może mieć wcięcie
+    // albo wysunięty numer), wspólny środek - wyśrodkowany, wspólny prawy brzeg - do prawej.
+    const reszta = linie.slice(1)
+    const lewy = reszta.every((l) => Math.abs(l.x0 - reszta[0].x0) <= 3)
+    const srodek = linie.every((l) => Math.abs((l.x0 + l.x1) / 2 - (linie[0].x0 + linie[0].x1) / 2) <= 4)
+    const prawy = linie.every((l) => Math.abs(l.x1 - linie[0].x1) <= 4)
+    b.wyrownanie = lewy ? 'lewo' : srodek ? 'srodek' : prawy ? 'prawo' : 'lewo'
+    if (lewy && Math.abs(linie[0].x0 - reszta[0].x0) > 3) b.wciecie = Math.round((linie[0].x0 - reszta[0].x0) * 10) / 10
+  }
+  if (b.typ === 'akapit' && b.wyrownanie === 'lewo' && linie.length >= 2
+    && linie.slice(0, -1).every((l) => x1 - l.x1 < 0.015 * szer) && (linie.length >= 3 || x1 - linie[linie.length - 1].x1 > 0.05 * szer)
+    && x1 - linie[linie.length - 1].x1 > 0.02 * szer) b.wyrownanie = 'wyjustowane'
+}
+
+/**
+ * Kolejna linia pasuje do akapitu, gdy leży w tej samej kolumnie: lewy brzeg jak w akapicie (z tolerancją na wcięcie
+ * pierwszego wiersza albo wysunięty numer), wspólny środek (tekst wyśrodkowany) albo wspólny prawy brzeg.
+ */
+function wTejSamejKolumnie(linie: Linia[], l: Linia): boolean {
+  const ost = linie[linie.length - 1]
+  const lewy = linie.length > 1 ? Math.abs(l.x0 - ost.x0) <= 3 : Math.abs(l.x0 - ost.x0) <= 30
+  const srodek = Math.abs((l.x0 + l.x1) / 2 - (ost.x0 + ost.x1) / 2) <= 4
+  const prawy = Math.abs(l.x1 - ost.x1) <= 4 && l.x0 > ost.x0 + 3
+  return lewy || srodek || prawy
 }
 
 /** Czcionka treści: rozmiar, którym napisano najwięcej znaków (nagłówki są krótkie, więc nie przesuwają wyniku). */
@@ -465,21 +500,26 @@ export function blokiZTekstu(el: ElementZCzcionka[], szer: number, opcje: { wys?
   return blokiZLinii(linieZElementow(el), szer, opcje)
 }
 
-function blokiZLinii(linie: Linia[], szer: number, opcje: { wys?: number; trescPt?: number }): BlokDokumentu[] {
+function blokiZLinii(linie: Linia[], szer: number, opcje: { wys?: number; trescPt?: number; srodekTresci?: number }): BlokDokumentu[] {
   if (!linie.length) return []
   const tresc = opcje.trescPt || rozmiarTresci(linie)
+  const srodekTresci = opcje.srodekTresci ?? (Math.min(...linie.map((x) => x.x0)) + Math.max(...linie.map((x) => x.x1))) / 2
   const wynik: BlokDokumentu[] = []
   let biezacy: { b: BlokDokumentu; ostatnia: Linia; linie: Linia[] } | null = null
   const zamknij = () => {
     const c = biezacy as { b: BlokDokumentu; linie: Linia[] } | null
     if (c) {
       ukladBloku(c.b, c.linie, szer, opcje.wys)
-      // Akapit zawija się na pełnej szerokości - gdy wiersz przed ostatnim jest wyraźnie krótszy, to tekst łamany
-      // wierszami (adres, nagłówek pisma): każdy wiersz osobno.
+      // Akapit zawija się na pełnej szerokości - wiersz przed ostatnim wyraźnie krótszy to twarde złamanie w oryginale.
+      // Gdy takich wierszy jest co najmniej połowa (adres, nagłówek pisma) - każdy wiersz osobno; inaczej złamanie tylko
+      // po krótkim wierszu (dłuższe tłumaczenie zawija się wtedy normalnie, bez „poszarpanych” wierszy).
       const maks = Math.max(...c.linie.map((l) => l.x1 - l.x0))
-      if (c.b.typ === 'akapit' && c.linie.slice(0, -1).some((l) => l.x1 - l.x0 < 0.85 * maks)) {
-        c.b.tekst = c.linie.map((l) => l.tekst).join('\n')
-        if (c.b.fragmenty) c.b.fragmenty = c.linie.flatMap((l, i) => [...(i ? [{ tekst: '\n', b: false, i: false }] : []), ...l.fragmenty.map((f) => ({ ...f }))])
+      const krotkie = c.linie.slice(0, -1).map((l) => l.x1 - l.x0 < 0.85 * maks)
+      if (c.b.typ === 'akapit' && krotkie.some(Boolean)) {
+        const wszystkie = krotkie.filter(Boolean).length >= krotkie.length / 2
+        const sep = (i: number) => (wszystkie || krotkie[i - 1] ? '\n' : ' ')
+        c.b.tekst = c.linie.map((l, i) => (i ? sep(i) : '') + l.tekst).join('')
+        if (c.b.fragmenty) c.b.fragmenty = c.linie.flatMap((l, i) => [...(i ? [{ tekst: sep(i), b: false, i: false }] : []), ...l.fragmenty.map((f) => ({ ...f }))])
       }
       c.b.podkreslony = c.linie.every((l) => l.podkreslony) || undefined
       if (c.b.typ === 'akapit') c.b.pogrubiony = c.linie.filter((l) => l.pogrubiony).reduce((x, l) => x + l.tekst.length, 0) > 0.6 * c.b.tekst.length
@@ -497,7 +537,7 @@ function blokiZLinii(linie: Linia[], szer: number, opcje: { wys?: number; trescP
     const cur = biezacy as { b: BlokDokumentu; ostatnia: Linia; linie: Linia[] } | null
     const odstep: number = cur ? l.y - cur.ostatnia.y : Infinity
     const rozmiar = Math.round(l.h)
-    const wyrownanie = wyrownanieLinii(l, szer)
+    const wyrownanie = wyrownanieLinii(l, szer, srodekTresci)
     if (punktor && !naglowek) {
       const tekst = l.tekst.slice(punktor[0].length).trim()
       if (cur && cur.b.typ === 'lista' && odstep < 2.2 * l.h) { cur.b.elementy.push(tekst); cur.ostatnia = l; cur.linie.push(l); continue }
@@ -510,7 +550,7 @@ function blokiZLinii(linie: Linia[], szer: number, opcje: { wys?: number; trescP
       cur.b.elementy[cur.b.elementy.length - 1] += ` ${l.tekst}`; cur.ostatnia = l; cur.linie.push(l); continue
     }
     const pasuje = cur && !NUMERACJA.test(l.tekst) && cur.b.typ === (naglowek ? 'naglowek' : 'akapit') && odstep < 1.8 * Math.max(l.h, cur.ostatnia.h)
-      && Math.abs(cur.ostatnia.h - l.h) < 0.15 * l.h && (cur.b.typ === 'akapit' || cur.ostatnia.pogrubiony === l.pogrubiony) && cur.b.wyrownanie === wyrownanie
+      && Math.abs(cur.ostatnia.h - l.h) < 0.15 * l.h && (cur.b.typ === 'akapit' || cur.ostatnia.pogrubiony === l.pogrubiony) && wTejSamejKolumnie(cur.linie, l)
     if (pasuje && cur) {
       // Linia urwana wcześniej, niż wymagała szerokość akapitu (pierwsze słowo następnej by się zmieściło) - twarde
       // złamanie linii w oryginale (adres, nagłówek pisma); inaczej zwykłe zawinięcie.
@@ -690,6 +730,9 @@ export function blokiStrony(
   const pasyPlam: Prostokat[] = []
   const wRysunku = new Set<Linia>()
   for (const o of opcje.grafika?.plamy ?? []) {
+    const przyLinii = wszystkie.some((l) => Math.min(l.dol, o.y + o.h) - Math.max(l.gora, o.y) > 0 && o.h <= 1.6 * l.h && o.w < 40
+      && (Math.abs(o.x - l.x1) < 5 || Math.abs(o.x + o.w - l.x0) < 5))
+    if (przyLinii) continue
     const wewnatrz = wszystkie.filter((l) => wPlamie(l, o))
     if (wewnatrz.some(naTle)) continue
     // Znaki w środku linii tekstu (indeksy, symbole narysowane krzywymi) - to nie rysunek, tekst zostaje.
@@ -750,7 +793,8 @@ export function blokiStrony(
   // 2. Reszta linii - kawałkami między tabelami (akapit nie przeskakuje nad tabelą).
   const bloki: BlokDokumentu[] = tabele.map((x) => x.t!)
   let kawalek: Linia[] = []
-  const zamknijKawalek = () => { bloki.push(...blokiZLinii(kawalek, szerPt, { wys, trescPt })); kawalek = [] }
+  const srodekTresci = wszystkie.length ? (Math.min(...wszystkie.map((l) => l.x0)) + Math.max(...wszystkie.map((l) => l.x1))) / 2 : szerPt / 2
+  const zamknijKawalek = () => { bloki.push(...blokiZLinii(kawalek, szerPt, { wys, trescPt, srodekTresci })); kawalek = [] }
   for (const l of linie) {
     if (wTabeli.has(l)) { zamknijKawalek(); continue }
     kawalek.push(l)
@@ -970,12 +1014,55 @@ export function blokiZAi(bloki: unknown): BlokDokumentu[] {
   })
 }
 
+/** Liczba znaków treści bloku (tekst, punkty listy, komórki tabeli). */
+export const znakiBloku = (b: Pick<BlokDokumentu, 'tekst' | 'elementy' | 'wiersze'>) =>
+  b.tekst.length + b.elementy.reduce((s, e) => s + e.length, 0) + b.wiersze.reduce((s, w) => s + w.reduce((x, k) => x + k.length, 0), 0)
+
+/**
+ * Skala strony tłumaczenia: tekst dłuższy niż oryginał o więcej niż 3% - mniejsza czcionka, interlinia i odstępy
+ * (wydłużenie^-0,75, najwyżej o 20%), żeby strona tłumaczenia mieściła się na stronie, jak w oryginale.
+ */
+export function skalaStronyTlumaczenia(bloki: BlokDokumentu[]): number {
+  const z = bloki.filter((b) => b.dl_oryginalu)
+  const orig = z.reduce((s, b) => s + b.dl_oryginalu!, 0)
+  const tl = z.reduce((s, b) => s + znakiBloku(b), 0)
+  const r = orig ? tl / orig : 1
+  return r > 1.03 ? Math.max(0.8, Math.round(r ** -0.75 * 100) / 100) : 1
+}
+
 /** Bloki do tłumaczenia przez AI: sama treść i struktura (bez obrazów i bez układu - ten zostaje z oryginału). */
 export function blokiDoTlumaczenia(bloki: BlokDokumentu[]) {
   return bloki.filter((b) => b.typ !== 'obraz').map((b) => ({
-    typ: b.typ, poziom: b.poziom, tekst: b.tekst, pogrubiony: b.pogrubiony, kursywa: b.kursywa, wyrownanie: b.wyrownanie,
+    typ: b.typ, poziom: b.poziom, tekst: zeZnacznikami(b), pogrubiony: b.pogrubiony, kursywa: b.kursywa, wyrownanie: b.wyrownanie,
     rozmiar: b.rozmiar, elementy: b.elementy, wiersze: b.wiersze, naglowek_tabeli: b.naglowek_tabeli,
   }))
+}
+
+/** Formatowanie wewnątrz akapitu jako znaczniki [b]...[/b], [i]...[/i] - AI przenosi je na słowa tłumaczenia. */
+export function zeZnacznikami(b: Pick<BlokDokumentu, 'tekst' | 'fragmenty'>): string {
+  if (!b.fragmenty?.length || b.fragmenty.map((f) => f.tekst).join('') !== b.tekst) return b.tekst
+  return b.fragmenty.map((f) => {
+    const [lewa, srodek, prawa] = [f.tekst.match(/^\s*/)![0], f.tekst.trim(), f.tekst.match(/\s*$/)![0]]
+    if (!srodek) return f.tekst
+    const w = f.b ? `[b]${srodek}[/b]` : srodek
+    return lewa + (f.i ? `[i]${w}[/i]` : w) + prawa
+  }).join('')
+}
+
+/** Tekst ze znacznikami [b] / [i] -> tekst i fragmenty (bez znaczników - fragmenty puste). */
+export function zeZnacznikow(tekst: string): { tekst: string; fragmenty?: FragmentTekstu[] } {
+  if (!/\[\/?[bi]\]/.test(tekst)) return { tekst }
+  const fragmenty: FragmentTekstu[] = []
+  let b = false
+  let i = false
+  for (const c of tekst.split(/(\[\/?[bi]\])/)) {
+    if (c === '[b]') b = true
+    else if (c === '[/b]') b = false
+    else if (c === '[i]') i = true
+    else if (c === '[/i]') i = false
+    else if (c) fragmenty.push({ tekst: c, b, i })
+  }
+  return { tekst: fragmenty.map((f) => f.tekst).join(''), fragmenty }
 }
 
 /**
@@ -993,9 +1080,10 @@ export function scalTlumaczenie(oryginal: BlokDokumentu[], tlumaczenie: BlokDoku
     const wiersze = o.typ === 'tabela' && p.wiersze.length
       ? (p.wiersze.length === o.wiersze.length ? o.wiersze.map((w, r) => w.map((k, c) => p.wiersze[r][c] ?? k)) : p.wiersze) : o.wiersze
     const elementy = o.typ === 'lista' && p.elementy.length ? p.elementy : o.elementy
-    const tekst = p.tekst || (o.typ === 'tabela' || o.typ === 'lista' ? o.tekst : p.elementy.join('\n') || o.tekst)
+    const zm = zeZnacznikow(p.tekst || (o.typ === 'tabela' || o.typ === 'lista' ? o.tekst : p.elementy.join('\n') || o.tekst))
+    const tekst = zm.tekst
     const skala = o.tekst && tekst.length > o.tekst.length * 1.1 ? Math.max(0.7, Math.round((o.tekst.length / tekst.length) * 100) / 100) : undefined
-    return { ...o, tekst, wiersze, elementy, fragmenty: undefined, skala_czcionki: skala }
+    return { ...o, tekst, wiersze, elementy, fragmenty: zm.fragmenty, skala_czcionki: skala, dl_oryginalu: znakiBloku(o) }
   })
   return [...wynik, ...tl.slice(i).map((b) => ({ ...b, ramka: null }))]
 }

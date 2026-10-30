@@ -204,3 +204,8 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     do działu handlowego tworzy przycisk przy usłudze w Kooperacji albo w wycenie.
 77. **Terminy zakupu materiałów**: grupy z kategorii materiałów wyceny (bez materiałów - wg rodzaju aparatu), podpowiedź
     z najdłuższego terminu dostawy w ofertach do zapytania.
+78. **Wersje edytowalne - poprawki po teście (2026-10-30)**: strona z warstwą tekstową (nawet krótka - spis treści,
+    podpisy rysunków) nie jest już skanem; „Odczytaj przez AI” czyta takie strony silnikiem bez AI, a do AI wysyła tylko
+    skany. Akapity: wcięcie wiszące / pierwszego wiersza i wyrównanie liczone z całego akapitu, twarde złamania tylko tam,
+    gdzie są w oryginale. Tłumaczenie zachowuje pogrubienia wewnątrz akapitów (znaczniki [b] / [i]) i podział stron
+    (dłuższy tekst - czcionka i odstępy strony mniejsze, najwyżej o 20%). Wcześniejsze odczyty trzeba powtórzyć.

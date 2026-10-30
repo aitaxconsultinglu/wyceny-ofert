@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { szacujAi, wywolajAi, type DaneAi } from '@/lib/ai'
 import { kafliOdmiana, tokenyObrazu, type Prostokat } from '@/lib/rysunki'
 import {
-  ETYKIETY_OBSZARU_TEKSTU, KOLORY_OBSZARU_TEKSTU, NAZWY_JEZYKOW, blokiDokladne, blokiDoTlumaczenia, blokiStrony, blokiZAi, jestFormularzem, jezykPliku,
+  ETYKIETY_OBSZARU_TEKSTU, KOLORY_OBSZARU_TEKSTU, NAZWY_JEZYKOW, blokiDokladne, blokiDoTlumaczenia, blokiStrony, blokiZAi, jestFormularzem, jestSkanem, jezykPliku,
   numeryStron, opisKaflaDokumentu, opisStron, parsujStrony, scalTlumaczenie, tekstBlokow, wykryjJezyk,
   type BlokDokumentu, type ObszarTekstu, type RodzajObszaruTekstu, type TrescPliku, type WymiaryStrony,
 } from '@/lib/wersjeEdytowalne'
@@ -22,8 +22,6 @@ import { ZaznaczanieObszarow } from '../ui/ZaznaczanieObszarow'
 import { PodgladBlokow, PodgladUkladu } from './PodgladBlokow'
 import { t } from '@/i18n'
 
-/** Strona ma warstwę tekstową, gdy ma co najmniej tyle elementów tekstu - inaczej to skan. */
-const MIN_ELEMENTOW_TEKSTU = 15
 /** Kafli w jednym wywołaniu AI (limit funkcji to 20 obrazów). */
 const KAFLE_NA_WYWOLANIE = 12
 const RODZAJE: RodzajObszaruTekstu[] = ['tekst', 'tabela']
@@ -58,6 +56,8 @@ export function PlikWersji({ plik: poczatkowy, zamknij, bajty: bajtyDev }: {
   /** Wybór stron jako tekst ("1-3, 5"); pusty - cały dokument. */
   const [wyborStron, setWyborStron] = useState('')
   const [skany, setSkany] = useState<number[]>([])
+  /** AI także dla stron z warstwą tekstową (domyślnie: te strony czyta silnik bez AI - dokładniej i bez kosztów). */
+  const [aiDlaTekstu, setAiDlaTekstu] = useState(false)
   /** Układ w Wordzie przy odczycie bez AI: automatycznie (formularze - dokładny), płynny tekst albo dokładne położenie. */
   const [trybUkladu, setTrybUkladu] = useState<'auto' | 'plynny' | 'dokladny'>('auto')
   const [zajety, setZajety] = useState<string | null>(null)
@@ -132,8 +132,18 @@ export function PlikWersji({ plik: poczatkowy, zamknij, bajty: bajtyDev }: {
   /** Zaznaczone fragmenty dotyczą strony w podglądzie - wtedy czytamy tylko je. */
   const tylkoZaznaczone = obszary.length > 0
 
+  /**
+   * „Odczytaj przez AI” dla stron: strony z warstwą tekstową czyta silnik bez AI (układ, czcionki, tabele dokładnie
+   * jak w PDF, bez kosztów), do AI idą tylko skany - chyba że zaznaczono AI także dla stron z tekstem albo fragmenty.
+   */
+  async function odczytajAutomatycznie() {
+    if (tylkoZaznaczone || aiDlaTekstu || plik.rodzaj !== 'pdf') { void przygotujAi(tylkoZaznaczone ? [strona] : wybraneStrony, false); return }
+    const skany = await odczytajBezAi()
+    if (skany?.length) void przygotujAi(skany, false)
+  }
+
   // --- Odczyt bez AI ---------------------------------------------------------------------------------
-  async function odczytajBezAi() {
+  async function odczytajBezAi(): Promise<number[] | undefined> {
     setBlad(null); setKomunikat(null); setSkany([])
     try {
       if (!zPodgladem) {
@@ -155,10 +165,10 @@ export function PlikWersji({ plik: poczatkowy, zamknij, bajty: bajtyDev }: {
       for (const [k, nr] of strony.entries()) {
         setZajety(t('Odczyt warstwy tekstowej, strona {0} ({1}/{2})...', nr, k + 1, strony.length))
         const el = await tekstStrony(nr)
-        if (el.length < MIN_ELEMENTOW_TEKSTU) { bezTekstu.push(nr); continue }
         const i = nr === strona && info ? info : await zrodlo!.info(nr)
-        const zaznaczone = tylkoZaznaczone ? obszary.map((o) => ({ ...wPunktach(o), rodzaj: o.rodzaj })) : []
         const grafika = await zrodlo!.grafika(nr)
+        if (jestSkanem(el, grafika, i.szerPt, i.wysPt)) { bezTekstu.push(nr); continue }
+        const zaznaczone = tylkoZaznaczone ? obszary.map((o) => ({ ...wPunktach(o), rodzaj: o.rodzaj })) : []
         const dokladny = !zaznaczone.length && (trybUkladu === 'dokladny' || (trybUkladu === 'auto' && jestFormularzem(grafika)))
         const bloki = dokladny ? blokiDokladne(el, i.szerPt, i.wysPt, grafika) : blokiStrony(el, i.szerPt, zaznaczone, { wysPt: i.wysPt, grafika })
         nowa.strony[nr] = {
@@ -172,12 +182,15 @@ export function PlikWersji({ plik: poczatkowy, zamknij, bajty: bajtyDev }: {
         await dziennik({ rodzaj: 'tekst', strony: odczytane, obszarow: tylkoZaznaczone ? obszary.length : 0, jezyk: jezykPliku(nowa) })
       }
       setSkany(bezTekstu)
+      setZajety(null)
       setKomunikat([
         odczytane.length ? t('Odczytano bez AI: {0} ({1}). Język: {2}.', stronyTekst(odczytane.length), opisStron(odczytane), nazwaJezyka(jezykPliku(nowa))) : '',
         bezTekstu.length ? t('Bez warstwy tekstowej (skan): str. {0} - odczytaj je przez AI.', opisStron(bezTekstu)) : '',
       ].filter(Boolean).join(' '))
+      return bezTekstu
     } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
     setZajety(null)
+    return undefined
   }
 
   // --- Odczyt przez AI ---------------------------------------------------------------------------------
@@ -327,7 +340,7 @@ export function PlikWersji({ plik: poczatkowy, zamknij, bajty: bajtyDev }: {
   }
 
   const pozostaloDzis = budzet ? budzet.limit_dzienny_pln - budzet.dzis_uzytkownik_pln : null
-  const tekstowa = (info?.elementowTekstu ?? 0) >= MIN_ELEMENTOW_TEKSTU
+  const tekstowa = (info?.elementowTekstu ?? 0) > 0
   const zakresPrzycisku = tylkoZaznaczone ? t('zaznaczone na str. {0}', strona) : calyDokument ? t('cały dokument') : t('str. {0}', opisStron(wybraneStrony))
   const stanStrony = (n: number) => (tresc.tlumaczenie[n]?.bloki.length ? 'pl' : tresc.strony[n]?.zrodlo ?? null)
   const KOLOR_STANU: Record<string, string> = { pl: 'border-emerald-400 bg-emerald-50', ai: 'border-violet-400 bg-violet-50', tekst: 'border-sky-400 bg-sky-50' }
@@ -446,13 +459,18 @@ export function PlikWersji({ plik: poczatkowy, zamknij, bajty: bajtyDev }: {
                   </select>
                 </label>
               )}
+              {plik.rodzaj === 'pdf' && !tylkoZaznaczone && (
+                <label className="flex items-center gap-1 text-xs text-slate-600" title={t('Domyślnie strony z warstwą tekstową czyta silnik bez AI - dokładniej i bez kosztów; AI czyta tylko skany.')}>
+                  <input type="checkbox" checked={aiDlaTekstu} onChange={(e) => setAiDlaTekstu(e.target.checked)} /> {t('AI także dla stron z tekstem')}
+                </label>
+              )}
               <span className="ml-auto" />
               <Button rozmiar="maly" disabled={plik.rodzaj !== 'pdf' || !!zajety || !wybraneStrony.length} onClick={() => void odczytajBezAi()}
                 title={plik.rodzaj !== 'pdf' ? t('Zdjęcie / skan nie ma warstwy tekstowej - tylko AI') : t('Z warstwy tekstowej PDF - bez kosztów; strony-skany zostaną wskazane do odczytu przez AI')}>
                 <FileText className="h-3 w-3" /> {t('Odczytaj bez AI')} ({zakresPrzycisku})
               </Button>
-              <Button rozmiar="maly" wariant="akcent" disabled={!!zajety || !wybraneStrony.length} onClick={() => void przygotujAi(tylkoZaznaczone ? [strona] : wybraneStrony, false)}
-                title={t('Każda strona osobno, koszt pokazany przed odczytem')}>
+              <Button rozmiar="maly" wariant="akcent" disabled={!!zajety || !wybraneStrony.length} onClick={() => void odczytajAutomatycznie()}
+                title={aiDlaTekstu ? t('Każda strona osobno, koszt pokazany przed odczytem') : t('Strony z warstwą tekstową - bez AI (dokładnie i bez kosztów), skany - przez AI z kosztem pokazanym przed odczytem')}>
                 <Sparkles className="h-3 w-3" /> {t('Odczytaj przez AI')} ({zakresPrzycisku})
               </Button>
             </div>

@@ -287,10 +287,10 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
         <Button wariant="glowny" disabled={!zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> {t('Zapisz zapytanie')}</Button>
       </section>
 
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+      <div className="pasek-zakladek">
         {([['dokumenty', t('Dokumenty')], ['rysunki', t('Tworzenie listy materiałowej')], ['analiza', t('Kooperacja')], ['wyceny', t('Wyceny ({0})', wersje.length)], ['dostawcy', t('Zapytania do dostawców')], ['oferty', t('Oferty dostawców')], ['historia', t('Historia zmian')]] as [Zakladka, string][]).map(([k, et]) => (
           <button key={k} onClick={() => { setZakladka(k); setGeneratorZAnalizy(false) }}
-            className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
+            className={cn('zakladka', (zakladka === k) && 'zakladka-aktywna')}>{et}</button>
         ))}
       </div>
 

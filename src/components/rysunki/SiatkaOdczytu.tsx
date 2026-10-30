@@ -83,10 +83,10 @@ export function SiatkaOdczytu({ wynik, zmien, kategorie, zakladka, setZakladka, 
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+      <div className="pasek-zakladek-jasny">
         {ZAKLADKI.map(([k, et, n, nie]) => (
           <button key={k} onClick={() => setZakladka(k)}
-            className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>
+            className={cn('zakladka', (zakladka === k) && 'zakladka-aktywna')}>
             {et} ({n}){nie > 0 && <span className="ml-1 rounded bg-amber-100 px-1 text-xs text-amber-800">{nie} {t('do sprawdzenia')}</span>}
           </button>
         ))}

@@ -12,6 +12,26 @@
 }
 
 @layer components {
+  /* Paski zakładek wewnątrz stron (karta zapytania, wycena, zakupy, ustawienia) - wyraźny kolorowy pasek, żeby
+     zakładki nie gubiły się na środku strony; aktywna zakładka na białym tle. Podzakładki - wariant jasny. */
+  .pasek-zakladek {
+    @apply flex flex-wrap gap-1 rounded-lg bg-blekit-ciemny p-1 shadow-sm;
+  }
+  .pasek-zakladek .zakladka {
+    @apply rounded-md px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20;
+  }
+  .pasek-zakladek .zakladka-aktywna {
+    @apply bg-white font-semibold text-slate-900 shadow hover:bg-white;
+  }
+  .pasek-zakladek-jasny {
+    @apply flex flex-wrap gap-1 rounded-lg bg-blekit-jasny p-1;
+  }
+  .pasek-zakladek-jasny .zakladka {
+    @apply rounded-md px-3 py-1 text-sm text-slate-700 hover:bg-white/70;
+  }
+  .pasek-zakladek-jasny .zakladka-aktywna {
+    @apply bg-white font-semibold text-slate-900 shadow-sm;
+  }
   /* Tabele w stylu arkusza - wspólny rytm dla nagłówka i wierszy. */
   .komorka {
     @apply border border-slate-300 px-2 py-1 text-sm align-middle;

@@ -296,10 +296,10 @@ export function EdytorWyceny({ id, profil, otworzWycene }: { id: string; profil:
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+      <div className="pasek-zakladek">
         {ZAKLADKI.map(([k, et]) => (
           <button key={k} onClick={() => setZakladka(k)}
-            className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
+            className={cn('zakladka', (zakladka === k) && 'zakladka-aktywna')}>{et}</button>
         ))}
       </div>
 

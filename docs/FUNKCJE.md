@@ -1,6 +1,6 @@
 # Funkcje aplikacji
 
-Jedna wersja aplikacji (od rundy 2). Nawigacja: dwa moduły - **Zapytania ofertowe i wyceny** oraz **Historyczny cennik**;
+Jedna wersja aplikacji (od rundy 2). Nawigacja: trzy moduły - **Zapytania ofertowe i wyceny**, **Historyczny cennik** i **Wersje edytowalne**; paski zakładek wewnątrz stron w kolorze (`.pasek-zakladek` w `index.css`);
 Ustawienia, Użytkownicy, Kosz i Instrukcja - ikony w prawym górnym rogu; przełącznik języka **PL / EN** (zapamiętany
 w profilu). Funkcje uśpione: `src/lib/funkcje.ts`. Plan i decyzje rundy 2: [`PLAN-runda2.md`](PLAN-runda2.md), założenia:
 [`PYTANIA.md`](PYTANIA.md) (sekcja „Runda 2”).
@@ -26,7 +26,7 @@ w profilu). Funkcje uśpione: `src/lib/funkcje.ts`. Plan i decyzje rundy 2: [`PL
 | Mail z ofertą: odczyt ceny bez AI (kwoty, waluta, termin, ważność, Incoterms, dostawca po domenie), AI jako druga opcja; porównanie ofert (najtańsza / najszybsza, przeterminowane), „Użyj w wycenie” | jw., Oferty dostawców | `oferty/DodajOferte.tsx`, `wycena/ZnajdzCene.tsx` |
 | Generator zapytań do dostawców i kooperantów (mailto, statusy odpowiedzi) | karta zapytania → Zapytania do dostawców | `zapytaniaDostawcow/*` |
 | Zatwierdzanie przez prezesa, korekta prezesa, marże | Do zatwierdzenia, wycena → Wycena / Podsumowanie | `wycena/KolejkaZatwierdzania.tsx`, migracja `0008` |
-| Wersje edytowalne: wybór stron (domyślnie cały dokument), odczyt bez AI albo przez AI, język, tłumaczenie z zachowaniem układu, Word w układzie oryginału (wymiary i marginesy strony, czcionki, wcięcia, odstępy, tabele z ramkami i szerokościami kolumn, obrazy, nagłówek / stopka; tryb „dokładne położenie” dla formularzy), dziennik kosztów | menu → Wersje edytowalne | `edytowalne/*`, `lib/wersjeEdytowalne*.ts` |
+| Wersje edytowalne: wybór stron (domyślnie cały dokument), odczyt bez AI albo przez AI, język, tłumaczenie z zachowaniem układu, Word w układzie oryginału (wymiary i marginesy strony, czcionki, wcięcia, odstępy, tabele z ramkami i szerokościami kolumn, obrazy, nagłówek / stopka; tryb „dokładne położenie” dla formularzy), dziennik kosztów | moduł Wersje edytowalne | `edytowalne/*`, `lib/wersjeEdytowalne*.ts` |
 
 ## Moduł 2: Historyczny cennik
 
@@ -34,7 +34,7 @@ w profilu). Funkcje uśpione: `src/lib/funkcje.ts`. Plan i decyzje rundy 2: [`PL
 |---|---|---|
 | Cennik roboczogodzin: stanowiska × przedziały czasu albo stawka stała, wersje stawek, wklejanie ze schowka; stawki poufne (prezes, administrator, flaga marż) | Cennik roboczogodzin | `cennik/CennikRobocizny.tsx`, `lib/cennikRobocizny.ts`, migracja `0030`, `npm run seed:stawki` |
 | Zakupy Optima w trzech rodzajach kosztu (materiały / kooperacja / transport, badania i inne), bufor „Do klasyfikacji”, przypisanie hurtowe z regułą, reguły słów kluczowych, „Przeklasyfikuj wszystko” | Zakupy Optima | `zakupy/Zakupy.tsx`, migracja `0031` |
-| Import karty dostawy: XLS albo wydruk PDF (warstwa tekstowa, bez AI), kontrola sumy ze stopką | Zakupy Optima → Import | `lib/importOptima.ts`, `lib/importOptimaPdf.ts` |
+| Import karty dostawy (pole nad tabelą zakupów, przeciągnij albo wybierz): XLS albo wydruk PDF (warstwa tekstowa, bez AI), kontrola sumy ze stopką | Zakupy Optima | `lib/importOptima.ts`, `lib/importOptimaPdf.ts` |
 | Ceny w wycenach tylko z zakupów „Materiały”; orientacyjna cena historyczna usług (Ustawienia, domyślnie wyłączona) | wycena → Znajdź cenę | `lib/bazaCen.ts` |
 | Usługi kooperacyjne (porównywarka), projekty zrealizowane (Registo) | Usługi kooperacyjne, Projekty zrealizowane | `oferty/Porownywarka.tsx`, `projekty/*` |
 

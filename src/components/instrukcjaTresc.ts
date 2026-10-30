@@ -13,7 +13,7 @@ const PL: RozdzialInstrukcji[] = [
   {
     tytul: 'Do czego służy aplikacja',
     tekst: [
-      'Jedno miejsce na cały proces ofertowy, w dwóch modułach: **Zapytania ofertowe i wyceny** (od zapytania klienta do oferty) i **Historyczny cennik** (cennik roboczogodzin, zakupy z Optimy, usługi kooperacyjne, projekty zrealizowane).',
+      'Jedno miejsce na cały proces ofertowy, w trzech modułach (przełącznik u góry): **Zapytania ofertowe i wyceny** (od zapytania klienta do oferty), **Historyczny cennik** (cennik roboczogodzin, zakupy z Optimy, usługi kooperacyjne, projekty zrealizowane) i **Wersje edytowalne** (odczyt i tłumaczenie dokumentów do Worda).',
       'Wycena przygotowana automatycznie jest zawsze **wstępna** - sprawdza ją technolog i dział handlowy, a cenę zatwierdza prezes.',
     ],
   },
@@ -25,6 +25,25 @@ const PL: RozdzialInstrukcji[] = [
       '**Tabele**: kliknięcie nagłówka sortuje (Shift + klik - kilka kolumn), ikona filtra przy nagłówku filtruje (tekst, zakres liczb lub dat, lista wartości). Ustawienia tabel zapamiętują się dla Ciebie.',
       '**Usuwanie** przenosi do Kosza razem z danymi zależnymi (np. zapytanie z dokumentami, wycenami i prośbami o oferty). Z Kosza przywrócisz całość; trwale usuwa tylko prezes albo administrator, a stare pozycje kosz usuwa sam po liczbie dni z ustawień.',
       'Ścieżka nad ekranem (np. Zapytania → ZO/… → Wycena) i przycisk **Wstecz do zapytania** prowadzą z powrotem. Otwarta zakładka jest w adresie strony - skopiowany link otwiera to samo miejsce.',
+    ],
+  },
+  {
+    tytul: 'Jak zrobić wycenę - krok po kroku',
+    kroki: [
+      '**Nowe zapytanie** (Zapytania → Nowe zapytanie): wybierz rodzaj aparatu i wpisz przedmiot. Na karcie zapytania wpisz klienta, osobę prowadzącą, termin złożenia oferty i numer zapytania klienta.',
+      '**Dokumenty**: przeciągnij wszystkie pliki zapytania (albo cały folder). Sprawdź typy (zapytanie, projekt / rysunek złożeniowy, lista materiałowa, wymagania, inne), obróć skany zapisane w poziomie, odznacz *istotny* przy dokumentach bez znaczenia dla ceny.',
+      '**Odczytaj wszystkie dane z dokumentów** (przycisk nad listą dokumentów): bez AI albo z AI aplikacja uzupełni kooperację, listę materiałową, wstępną wycenę i projekt oferty. Możesz też iść krokami 4-6 ręcznie.',
+      '**Tworzenie listy materiałowej**: z dokumentu listy materiałowej albo z rysunku złożeniowego utwórz jedną listę (bez AI albo przez AI, albo zaznaczając tabele). Sprawdź żółte wiersze „(?)”, zapisz zmiany.',
+      '**Kooperacja**: uzupełnij wymagania kosztotwórcze, usługi do zlecenia kooperantom i pytania do klienta (ręcznie albo *Analizuj zapytanie (AI)*). Przy usługach wyślij *prośbę o ofertę* do działu handlowego.',
+      '**Wyceny → Nowa wycena** (albo wersja z odczytu automatycznego). W liście materiałowej *Przenieś do wyceny* dopisuje materiały do zakładki Materiały.',
+      '**Materiały**: uzupełnij brakujące masy i ceny - *Znajdź cenę* pokazuje oferty do zapytania i zakupy z Optimy.',
+      '**Robocizna**: dodaj stanowiska z cennika roboczogodzin, przedziały czasu i liczby roboczogodzin (albo metodą wskaźnikową rbh/t).',
+      '**Kooperacja** i **Badania / odbiory / transport** w wycenie: usługi z karty Kooperacja są dodane same; ceny wstawiasz z ofert kooperantów (*Użyj w wycenie*).',
+      '**Wycena** (pierwsza zakładka): ocena działów - wpisz terminy zakupu materiałów (podpowiedź z ofert dostawców) i podpisz bloki oceny. **Podsumowanie**: sprawdź ostrzeżenia, narzuty i cenę.',
+      '**Oferta**: uzupełnij sekcje oferty, wybierz język, pobierz Word; **Excel** - kalkulacja. Złóż wersję **do zatwierdzenia** - prezes zatwierdza albo zwraca z komentarzem.',
+    ],
+    po: [
+      'Każdy krok można powtórzyć - zmiana w dokumentach albo liście materiałowej pokaże w wycenie pytanie, czy zaktualizować pozycje. Zatwierdzonej wersji się nie zmienia - *Kopiuj wersję* tworzy nową wersję roboczą.',
     ],
   },
   {
@@ -109,7 +128,7 @@ const PL: RozdzialInstrukcji[] = [
       '**Cennik roboczogodzin** (pierwsza zakładka modułu): stanowiska ze stawkami w przedziałach czasu (7:00-15:00, 15:00-19:00, 19:00-7:00, dni wolne) albo ze stawką stałą. Zmiana stawki tworzy wersję obowiązującą od dziś - historia wersji zostaje. Wiersze można wkleić z Excela. Stawki widzą prezes, administrator i osoby z flagą „widzi narzuty i marże”; pozostali widzą listę stanowisk, a stawki - w swoich wycenach.',
       '**Zakupy Optima** w trzech zakładkach: **Materiały**, **Kooperacja**, **Transport, badania i inne**. Rodzaj kosztu przypisuje się sam: typ zamówienia (ZM - materiał, ZJ - usługa) i **reguły słów kluczowych** (zakładka Reguły). Pozycje niepewne trafiają do **Do klasyfikacji** - zaznacz kilka i przypisz rodzaj hurtem, opcjonalnie z regułą dla tych nazw. Po zmianie reguł użyj *Przeklasyfikuj wszystko* (ręczne decyzje zostają).',
       'Ceny w wycenach pochodzą **tylko z zakupów „Materiały”**. Kooperacja i badania z Optimy są do przeglądu - ich ceny w wycenie biorą się z ofert pod zapytanie (w Ustawieniach można włączyć pokazywanie ich jako orientacyjnej podpowiedzi).',
-      { t: '**Import** karty dostawy: plik XLS albo wydruk PDF (bez AI). Aplikacja sprawdza, czy suma pozycji zgadza się ze stopką karty, a ponowny import tej samej karty aktualizuje dane zamiast je dublować.', gdy: 'importy' },
+      { t: '**Import karty dostawy** - pole nad tabelą zakupów: przeciągnij albo wybierz plik XLS lub wydruk PDF (bez AI). Aplikacja sprawdza, czy suma pozycji zgadza się ze stopką karty, a ponowny import tej samej karty aktualizuje dane zamiast je dublować.', gdy: 'importy' },
       { t: 'Karty dostawy importuje dział handlowy.', gdy: '!importy' },
       '**Uzupełnij masę** - pozycje bez masy, potrzebnej do ceny za kg.',
       '**Usługi kooperacyjne** - ceny kooperantów według kategorii. **Projekty zrealizowane** - zakupy i godziny pracy (import z Registo, tylko sumy według MPK i miesiąca, bez nazwisk) oraz wskaźniki rbh/t używane w nowych wycenach.',
@@ -174,7 +193,7 @@ const EN: RozdzialInstrukcji[] = [
   {
     tytul: 'What the application is for',
     tekst: [
-      'One place for the whole quotation process, in two modules: **Inquiries and quotes** (from the customer inquiry to the offer) and **Historical price list** (labour rates, Optima purchases, subcontracted services, completed projects).',
+      'One place for the whole quotation process, in three modules (switch at the top): **Inquiries and quotes** (from the customer inquiry to the offer), **Historical price list** (labour rates, Optima purchases, subcontracted services, completed projects) and **Editable versions** (reading and translating documents into Word).',
       'An automatically prepared quote is always **preliminary** - the technologist and the sales department check it, and the CEO approves the price.',
     ],
   },
@@ -186,6 +205,25 @@ const EN: RozdzialInstrukcji[] = [
       '**Tables**: clicking a header sorts (Shift + click - several columns), the filter icon next to a header filters (text, number or date range, list of values). Table settings are remembered for you.',
       '**Deleting** moves an item to the Trash together with its dependent data (e.g. an inquiry with its documents, quotes and offer requests). From the Trash you restore everything at once; only the CEO or the administrator deletes permanently, and the Trash removes old items by itself after the number of days set in the settings.',
       'The breadcrumb above the screen (e.g. Inquiries → ZO/… → Quote) and the **Back to inquiry** button lead back. The open tab is part of the page address - a copied link opens the same place.',
+    ],
+  },
+  {
+    tytul: 'How to prepare a quote - step by step',
+    kroki: [
+      '**New inquiry** (Inquiries → New inquiry): choose the equipment type and enter the subject. On the inquiry card enter the customer, the person in charge, the offer deadline and the customer inquiry number.',
+      '**Documents**: drag in all inquiry files (or a whole folder). Check the types (inquiry, design / assembly drawing, material list, requirements, other), rotate scans saved in landscape, untick *relevant* for documents that do not affect the price.',
+      '**Read all data from the documents** (button above the document list): without AI or with AI the application fills in the subcontracting card, the material list, a preliminary quote and a draft offer. You can also do steps 4-6 manually.',
+      '**Material list**: create one list from the material list document or from the assembly drawing (without AI, with AI, or by selecting tables). Check the yellow "(?)" rows and save the changes.',
+      '**Subcontracting**: complete the cost-driving requirements, the services to be ordered from subcontractors and the questions to the customer (manually or *Analyse inquiry (AI)*). Send an *offer request* to the sales department next to the services.',
+      '**Quotes → New quote** (or the version from the automatic reading). In the material list, *Transfer to quote* adds the materials to the Materials tab.',
+      '**Materials**: fill in missing weights and prices - *Find price* shows the offers for the inquiry and the Optima purchases.',
+      '**Labour**: add positions from the labour rates, time bands and man-hours (or use the indicative h/t method).',
+      '**Subcontracting** and **Tests / inspections / transport** in the quote: services from the Subcontracting card are added automatically; insert prices from subcontractor offers (*Use in quote*).',
+      '**Quote** (first tab): department review - enter the material purchase lead times (hint from supplier offers) and sign the review blocks. **Summary**: check the warnings, markups and price.',
+      '**Offer**: complete the offer sections, choose the language, download Word; **Excel** - the calculation. Submit the version **for approval** - the CEO approves it or returns it with a comment.',
+    ],
+    po: [
+      'Every step can be repeated - a change in the documents or the material list shows a question in the quote whether to update the items. An approved version is not changed - *Copy version* creates a new draft version.',
     ],
   },
   {
@@ -270,7 +308,7 @@ const EN: RozdzialInstrukcji[] = [
       '**Labour rates** (first tab of the module): positions with rates per time band (7:00-15:00, 15:00-19:00, 19:00-7:00, days off) or a flat rate. Changing a rate creates a version valid from today - the version history stays. Rows can be pasted from Excel. Rates are visible to the CEO, the administrator and users with the "sees markups and margins" flag; others see the list of positions, and the rates - in their quotes.',
       '**Optima purchases** in three tabs: **Materials**, **Subcontracting**, **Transport, tests and other**. The cost type is assigned automatically: the order type (ZM - material, ZJ - service) and **keyword rules** (Rules tab). Uncertain items go to **To classify** - select several and assign the type in bulk, optionally with a rule for these names. After changing the rules use *Reclassify all* (manual decisions stay).',
       'Prices in quotes come **only from "Materials" purchases**. Subcontracting and tests from Optima are for review - their prices in a quote come from offers for the inquiry (in the Settings you can show them as an indicative hint).',
-      { t: '**Import** of a delivery card: an XLS file or a PDF printout (no AI). The application checks that the item total matches the card footer, and importing the same card again updates the data instead of duplicating it.', gdy: 'importy' },
+      { t: '**Delivery card import** - the field above the purchases table: drag or choose an XLS file or a PDF printout (no AI). The application checks that the item total matches the card footer, and importing the same card again updates the data instead of duplicating it.', gdy: 'importy' },
       { t: 'Delivery cards are imported by the sales department.', gdy: '!importy' },
       '**Fill in weight** - items without a weight, needed for the price per kg.',
       '**Subcontracted services** - subcontractor prices by category. **Completed projects** - purchases and working hours (import from Registo, only totals per cost centre and month, no names) and the h/t ratios used in new quotes.',

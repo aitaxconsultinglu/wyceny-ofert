@@ -154,10 +154,10 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
     return () => { window.clearInterval(i); document.removeEventListener('visibilitychange', przy) }
   }, [profil, odswiezLicznik])
 
-  // Dwa moduły: proces od zapytania do wyceny i dane historyczne (cennik). Ustawienia, użytkownicy, instrukcja - osobno.
+  // Trzy moduły: proces od zapytania do wyceny, dane historyczne (cennik) i wersje edytowalne dokumentów.
+  // Ustawienia, użytkownicy, kosz i instrukcja - osobno (ikony w prawym górnym rogu).
   const modul1: { id: Widok; etykieta: string; licznik?: number }[] = [
     { id: 'zapytania', etykieta: t('Zapytania') },
-    { id: 'edytowalne', etykieta: t('Wersje edytowalne') },
     { id: 'prosby', etykieta: t('Prośby o oferty'), licznik: prosbyDoObslugi },
     { id: 'oferty', etykieta: t('Oferty dostawców') },
     ...(profil.rola === 'prezes' ? [{ id: 'zatwierdzanie' as Widok, etykieta: t('Do zatwierdzenia') }] : []),
@@ -176,10 +176,12 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
   ]
   // Widok niedostępny dla roli (np. technolog wpisał #/ustawienia) - pokazujemy start.
   // Edytor wyceny (#/wyceny/<id>) należy do modułu zapytań.
-  const wszystkie = [...modul1, ...modul2, ...poza]
+  const modul3: { id: Widok; etykieta: string; licznik?: number }[] = [{ id: 'edytowalne', etykieta: t('Wersje edytowalne') }]
+  const wszystkie = [...modul1, ...modul2, ...modul3, ...poza]
   const aktywny = widok === 'wyceny' ? 'wyceny' : wszystkie.some((z) => z.id === widok) ? widok : 'zapytania'
   const wModule2 = modul2.some((z) => z.id === aktywny)
-  const zakladki = poza.some((z) => z.id === aktywny) ? [] : wModule2 ? modul2 : modul1
+  const wModule3 = aktywny === 'edytowalne'
+  const zakladki = poza.some((z) => z.id === aktywny) || wModule3 ? [] : wModule2 ? modul2 : modul1
 
   return (
     <div className="min-h-screen">
@@ -195,7 +197,7 @@ function Aplikacja({ profil, zmienHaslo }: { profil: Profil; zmienHaslo: () => v
             </div>
           </div>
           <nav className="flex rounded-lg bg-slate-100 p-0.5" aria-label={t('Moduły')}>
-            {([['zapytania', t('Zapytania ofertowe i wyceny'), !wModule2 && zakladki.length > 0], ['cennik', t('Historyczny cennik'), wModule2]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
+            {([['zapytania', t('Zapytania ofertowe i wyceny'), !wModule2 && zakladki.length > 0], ['cennik', t('Historyczny cennik'), wModule2], ['edytowalne', t('Wersje edytowalne'), wModule3]] as [Widok, string, boolean][]).map(([cel, et, akt]) => (
               <button key={cel} onClick={() => ustawWidok(cel)}
                 className={cn('rounded-md px-3 py-1.5 text-sm font-semibold', akt ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
                 {et}

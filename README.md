@@ -9,7 +9,7 @@ Nazwa firmy, logo i dane do oferty są wyłącznie w bazie (Ustawienia → Dane 
 - **Frontend:** React 18 + Vite + TypeScript + Tailwind + Radix, GitHub Pages (`.github/workflows/deploy.yml`).
 - **Backend:** Supabase (projekt `zrwouorevhxdtvubniwg`, eu-west-1, plan Free) - Postgres + Auth + RLS + Storage + Edge Functions.
 
-## Dwa moduły (runda 2, od 2026-10-25)
+## Moduły (runda 2, od 2026-10-25; Wersje edytowalne jako trzeci moduł od 2026-10-30)
 
 Jedna wersja aplikacji (tryb „Etap 1” usunięty; plan rundy: [`docs/PLAN-runda2.md`](docs/PLAN-runda2.md)):
 

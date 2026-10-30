@@ -52,11 +52,10 @@ export function Ustawienia() {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">{t('Ustawienia i słowniki')}</h2>
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+      <div className="pasek-zakladek">
         {zakladki.map((z) => (
           <button key={z.id} onClick={() => setZakladka(z.id)}
-            className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm',
-              zakladka === z.id ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>
+            className={cn('zakladka', (zakladka === z.id) && 'zakladka-aktywna')}>
             {z.etykieta}
           </button>
         ))}

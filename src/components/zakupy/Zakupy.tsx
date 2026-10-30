@@ -34,7 +34,7 @@ interface ImportOptimy {
 }
 interface Regula { id: number; wzorzec: string; rodzaj_kosztu: RodzajKosztu; typ_zamowienia: string | null; priorytet: number; opis: string | null; aktywna: boolean }
 
-type Widok = RodzajKosztu | 'do_klasyfikacji' | 'masa' | 'reguly' | 'import' | 'historia'
+type Widok = RodzajKosztu | 'do_klasyfikacji' | 'masa' | 'reguly' | 'historia'
 
 /** Kolejka "uzupełnij masę": materiały bez masy, dla których porównanie zł/kg ma sens. */
 export const wymagaMasy = (z: Pick<Zakup, 'rodzaj' | 'masa_kg' | 'jm' | 'kategoria'>) =>
@@ -253,21 +253,15 @@ export function Zakupy({ profil }: { profil: Profil }) {
       </div>
       {blad && <Komunikat rodzaj="blad">{blad}</Komunikat>}
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {([...listy, ['reguly', t('Reguły klasyfikacji'), reguly.length], ...(edycja ? [['import', t('+ Import karty dostawy'), -1]] : []), ['historia', t('Historia importów'), -1]] as [Widok, string, number][]).map(([id, et, n]) => (
-          <button key={id} onClick={() => setWidok(id)}
-            className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', widok === id ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>
-            {et}{n >= 0 && <span className={cn('ml-1 rounded-full px-1.5 text-xs', id === 'do_klasyfikacji' && n > 0 ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600')}>{n}</span>}
-          </button>
-        ))}
-      </div>
-
-      {widok === 'import' && (
+      {edycja && (
         <div className="space-y-3">
-          <label className="flex max-w-xl cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-white p-5 hover:border-blekit">
-            <Upload className="h-6 w-6 text-slate-400" />
-            <span className="text-sm">{t('Wybierz plik „KARTA DOSTAWY” z Optimy: XLS albo wydruk PDF (warstwa tekstowa, bez AI). Ponowny import tej samej karty aktualizuje dane zamiast je dublować.')}</span>
-            <input type="file" accept=".xls,.xlsx,.pdf" className="hidden" onChange={(e) => void wczytajPlik(e.target.files)} />
+          {/* Import karty dostawy zawsze nad tabelą - plik wybrany albo przeciągnięty. */}
+          <label className="flex cursor-pointer flex-wrap items-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-3 hover:border-blekit"
+            onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void wczytajPlik(e.dataTransfer.files) }}>
+            <Upload className="h-5 w-5 text-slate-400" />
+            <span className="font-medium">{t('Import karty dostawy')}</span>
+            <span className="flex-1 text-sm text-slate-600">{t('Przeciągnij albo wybierz plik „KARTA DOSTAWY” z Optimy: XLS albo wydruk PDF (warstwa tekstowa, bez AI). Ponowny import tej samej karty aktualizuje dane zamiast je dublować.')}</span>
+            <input type="file" accept=".xls,.xlsx,.pdf" className="hidden" onChange={(e) => { void wczytajPlik(e.target.files); e.target.value = '' }} />
           </label>
           {podglad && (
             <section className="sekcja space-y-2">
@@ -287,6 +281,15 @@ export function Zakupy({ profil }: { profil: Profil }) {
           )}
         </div>
       )}
+
+      <div className="pasek-zakladek">
+        {([...listy, ['reguly', t('Reguły klasyfikacji'), reguly.length], ['historia', t('Historia importów'), -1]] as [Widok, string, number][]).map(([id, et, n]) => (
+          <button key={id} onClick={() => setWidok(id)}
+            className={cn('zakladka', (widok === id) && 'zakladka-aktywna')}>
+            {et}{n >= 0 && <span className={cn('ml-1 rounded-full px-1.5 text-xs', id === 'do_klasyfikacji' && n > 0 ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600')}>{n}</span>}
+          </button>
+        ))}
+      </div>
 
       {widok === 'historia' && (
         <Tabela id="importy-optima" wiersze={importy} klucz={(i) => i.id} pusto={t('Brak importów.')} kolumny={[

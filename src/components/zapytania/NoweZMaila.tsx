@@ -91,7 +91,7 @@ export function NoweZMaila({ otwarty, zamknij, utworzone }: { otwarty: boolean; 
       setZajety(t('Zapisywanie maila i załączników...'))
       // Treść maila klienta to zwykle główny opis zapytania - istotna dla analizy.
       const doZapisu: WczytanyPlik = { ...mail, zalaczniki }
-      const { ostrzezenia } = await zapiszDokument(doZapisu, { zapytanie_id: z.id }, { typ: 'korespondencja', istotny: true, limitMb: s.ustawienia.limity_planu.plik_mb })
+      const { ostrzezenia } = await zapiszDokument(doZapisu, { zapytanie_id: z.id }, { typ: 'zapytanie_ofertowe', istotny: true, limitMb: s.ustawienia.limity_planu.plik_mb })
       if (ostrzezenia.length) window.alert(t('Zapisano z uwagami: {0}', ostrzezenia.join('\n')))
       try { if (przygotuj) sessionStorage.setItem(FLAGA_PRZYGOTUJ, z.id) } catch { /* bez flagi - przycisk w karcie */ }
       wyczysc(); zamknij()

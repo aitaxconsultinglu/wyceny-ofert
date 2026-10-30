@@ -7,7 +7,7 @@ export interface DokumentDoPol { nazwa: string; typ: string; tekst: string | nul
 export interface PoleZDokumentu { pole: 'nr_zapytania_klienta' | 'termin_oferty' | 'klient_id'; wartosc: string; zrodlo: string }
 
 /** Kolejność szukania: zapytanie ofertowe, specyfikacja, korespondencja, opis techniczny, arkusz danych, reszta. */
-const PIERWSZENSTWO = ['zapytanie_ofertowe', 'specyfikacja', 'korespondencja', 'projekt', 'karta_danych', 'formularz_wymagan']
+const PIERWSZENSTWO = ['zapytanie_ofertowe', 'wymagania', 'projekt', 'lista_materialowa']
 const ranga = (typ: string) => { const i = PIERWSZENSTWO.indexOf(typ); return i < 0 ? PIERWSZENSTWO.length : i }
 
 /** Strona, na której jest fragment (tekst PDF ma znaczniki "--- strona N ---"). */

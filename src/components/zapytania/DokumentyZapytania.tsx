@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
-import { Archive, ChevronDown, ChevronRight, FileText, FolderUp, GripVertical, Mail, Paperclip, Trash2, Upload } from 'lucide-react'
+import { jestKartaDanych } from '@/lib/klasyfikacjaDokumentow'
+import { Archive, ChevronDown, ChevronRight, FileText, FolderUp, GripVertical, Mail, Paperclip, RotateCcw, RotateCw, Sparkles, Trash2, Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
 import { useSlowniki } from '@/lib/slowniki'
@@ -27,11 +28,10 @@ const STANY: Record<Dokument['stan'], string> = {
   zapisany: '', tylko_tekst: t('tylko tekst'), pominiety_limit: t('pominięty - limit pliku'), zarchiwizowany: t('zarchiwizowany (oryginał w ZIP)'),
 }
 
-/** Grupy w widoku dokumentów (kolejność jak w zapytaniu: od zapytania, przez rysunki, do korespondencji). */
+/** Grupy w widoku dokumentów = typy dokumentów (słownik typy_dokumentow, migracja 0033), w kolejności zapytania. */
 const GRUPY: [string, string][] = [
-  ['zapytanie', t('Zapytanie ofertowe')], ['projekt', t('Projekt / opis techniczny')], ['rysunki', t('Rysunki')],
-  ['wymagania', t('Wymagania techniczne / standardy')], ['karta_danych', t('Arkusz danych (datasheet)')], ['specyfikacja', t('Specyfikacja techniczna')],
-  ['obliczenia', t('Obliczenia')], ['korespondencja', t('Korespondencja / pytania i odpowiedzi')], ['oferty', t('Oferty / dokumenty od dostawców')], ['inne', t('Inne')],
+  ['zapytanie_ofertowe', t('Zapytanie ofertowe')], ['projekt', t('Projekt / rysunek złożeniowy')], ['lista_materialowa', t('Lista materiałowa')],
+  ['wymagania', t('Wymagania techniczne')], ['oferta_dostawcy', t('Oferta dostawcy')], ['inne', t('Inne')],
 ]
 const KOLUMNY = 'id, nazwa_pliku, typ, mime, rozmiar, sciezka, stan, istotny, nadrzedny_id, metadane, utworzono, utworzyl, rozmiar_oryginalny, rozmiar_zapisany, metoda_kompresji'
 
@@ -58,8 +58,10 @@ async function plikiZPrzeciagniecia(e: DragEvent): Promise<File[]> {
  * kompresja przed zapisem z testem czytelności, duplikaty po SHA-256, grupy wg typu (zwijane, przeciągnij dokument na
  * grupę, żeby zmienić typ). Po dodaniu: puste pola karty zapytania z treści dokumentów (ze źródłem) i dane projektowe z datasheet.
  */
-export function DokumentyZapytania({ zapytanieId, numer, profil, rodzajAparatu = null, poZmianieZapytania }: {
+export function DokumentyZapytania({ zapytanieId, numer, profil, rodzajAparatu = null, poZmianieZapytania, odczytajWszystko }: {
   zapytanieId: string; numer: string; profil: Profil; rodzajAparatu?: 'zbiornik' | 'wymiennik' | null; poZmianieZapytania?: () => void
+  /** Automatyczny odczyt wszystkich danych z dokumentów (kooperacja, lista materiałowa, wycena, oferta). */
+  odczytajWszystko?: () => void
 }) {
   const s = useSlowniki()
   const [dokumenty, setDokumenty] = useState<Dokument[]>([])
@@ -106,7 +108,7 @@ export function DokumentyZapytania({ zapytanieId, numer, profil, rodzajAparatu =
 
   /** Dane projektowe z arkusza danych PDF z warstwą tekstową - odczyt do sprawdzenia w zakładce Rysunki i listy materiałowe. */
   async function daneZDatasheet(w: WczytanyPlik, dokumentId: string | null): Promise<string | null> {
-    if (w.typSugerowany !== 'karta_danych' || w.rodzaj !== 'pdf' || w.metadane.skan) return null
+    if (!jestKartaDanych(w.nazwa, w.tekst) || w.rodzaj !== 'pdf' || w.metadane.skan) return null
     const [{ otworzRysunek, tekstStrony }, { odczytajArkuszZTekstu }] = await Promise.all([import('@/lib/rysunkiPdf'), import('@/lib/odczytTekstowy')])
     const pdf = await otworzRysunek(w.dane)
     const parametry = []
@@ -159,6 +161,17 @@ export function DokumentyZapytania({ zapytanieId, numer, profil, rodzajAparatu =
     const { error } = await supabase.from('dokumenty').update(zmiana).eq('id', d.id)
     if (error) setBlad(komunikatPL(error.message))
     else setDokumenty((l) => l.map((x) => (x.id === d.id ? { ...x, ...zmiana } : x)))
+  }
+
+  /** Obrót skanu / obrazu o 90° - plik w magazynie zastępowany obróconą wersją (PDF bez przekodowania). */
+  async function obroc(d: Dokument, kat: 90 | -90) {
+    if (!d.sciezka) return
+    setBlad(null)
+    try {
+      const { obrocDokument } = await import('@/lib/obrotDokumentu')
+      const metadane = await obrocDokument({ ...d, sciezka: d.sciezka }, kat)
+      setDokumenty((l) => l.map((x) => (x.id === d.id ? { ...x, metadane } : x)))
+    } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
   }
 
   async function usun(d: Dokument) {
@@ -255,8 +268,18 @@ export function DokumentyZapytania({ zapytanieId, numer, profil, rodzajAparatu =
     { id: 'dodano', naglowek: t('Dodano'), typ: 'data', wartosc: (d) => d.utworzono, komorka: (d) => dataGodzinaPL(d.utworzono), className: 'whitespace-nowrap text-xs text-slate-500' },
     {
       id: 'akcje', naglowek: '', typ: 'tekst', wartosc: () => '', bezFiltra: true, bezSortu: true, className: 'text-center',
-      komorka: (d) => (profil.rola === 'administrator' || d.utworzyl === profil.id) && (
-        <button className="text-slate-400 hover:text-red-600" title={t('Przenieś do kosza')} onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></button>
+      komorka: (d) => (
+        <span className="inline-flex items-center gap-1.5">
+          {d.sciezka && !d.sciezka.endsWith('.gz') && /\.(pdf|png|jpe?g|webp)$/i.test(d.nazwa_pliku) && (
+            <>
+              <button className="text-slate-400 hover:text-slate-800" title={t('Obróć w lewo o 90° (np. skan zapisany w poziomie)')} onClick={() => void obroc(d, -90)}><RotateCcw className="h-4 w-4" /></button>
+              <button className="text-slate-400 hover:text-slate-800" title={t('Obróć w prawo o 90°')} onClick={() => void obroc(d, 90)}><RotateCw className="h-4 w-4" /></button>
+            </>
+          )}
+          {(profil.rola === 'administrator' || d.utworzyl === profil.id) && (
+            <button className="text-slate-400 hover:text-red-600" title={t('Przenieś do kosza')} onClick={() => void usun(d)}><Trash2 className="h-4 w-4" /></button>
+          )}
+        </span>
       ),
     },
   ]
@@ -283,13 +306,20 @@ export function DokumentyZapytania({ zapytanieId, numer, profil, rodzajAparatu =
       >
         <Upload className="h-6 w-6 text-slate-400" />
         <span className="min-w-[16rem] flex-1 text-sm">
-          {t('Przeciągnij pliki albo cały folder (PDF, DOCX, XLSX, JPG, PNG, TIF, DWG/DXF, maile .msg / .eml, ZIP). Typ rozpoznajemy bez AI, pliki kompresujemy przed zapisem. Limit pliku:')}{' '}{s.ustawienia.limity_planu.plik_mb} {t('MB.')}
+          {t('Przeciągnij pliki albo cały folder (PDF, DOCX, XLSX, JPG, PNG, TIF, DWG/DXF, maile .msg / .eml, ZIP). Typ rozpoznajemy bez AI; pliki do 20 MB zapisujemy bez kompresji (pełna jakość). Limit pliku:')}{' '}{s.ustawienia.limity_planu.plik_mb} {t('MB.')}
         </span>
         <label className="cursor-pointer"><span className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"><Upload className="h-4 w-4" /> {t('Wybierz pliki')}</span>
           <input type="file" multiple className="hidden" onChange={(e) => e.target.files && void dodaj([...e.target.files])} /></label>
         <label className="cursor-pointer"><span className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"><FolderUp className="h-4 w-4" /> {t('Wybierz folder')}</span>
           <input type="file" multiple className="hidden" {...({ webkitdirectory: '' } as Record<string, string>)} onChange={(e) => e.target.files && void dodaj([...e.target.files])} /></label>
       </div>
+
+      {odczytajWszystko && dokumenty.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-blekit/40 bg-blekit-jasny/40 px-3 py-2 text-sm">
+          <span className="flex-1">{t('Wszystkie dokumenty dodane i typy sprawdzone? Aplikacja odczyta z nich dane i uzupełni kooperację (wymagania, usługi, pytania), listę materiałową, wstępną wycenę i projekt oferty - bez AI albo z AI (koszt pokazany przed odczytem).')}</span>
+          <Button wariant="akcent" onClick={odczytajWszystko}><Sparkles className="h-4 w-4" /> {t('Odczytaj wszystkie dane z dokumentów')}</Button>
+        </div>
+      )}
 
       {GRUPY.map(([g, nazwa]) => {
         const lista = wGrupie(g)

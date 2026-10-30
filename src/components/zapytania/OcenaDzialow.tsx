@@ -8,11 +8,13 @@ import { t, tDowolny } from '@/i18n'
  * Ten sam formularz w karcie analizy i w zakładce „Wycena” wyceny. `kto` - nazwa zalogowanej osoby do zatwierdzeń
  * bloków („data i podpis” jako zapis kto / kiedy); bez niej przyciski zatwierdzania są ukryte.
  */
-export function OcenaDzialow({ ocena, zmien, kto, tylkoOdczyt = false }: {
+export function OcenaDzialow({ ocena, zmien, kto, tylkoOdczyt = false, zOfert = {} }: {
   ocena: OcenaAnalizy
   zmien: (z: Partial<OcenaAnalizy>) => void
   kto?: string
   tylkoOdczyt?: boolean
+  /** Najdłuższy termin dostawy z ofert dostawców wg grupy materiałów - podpowiedź do wstawienia. */
+  zOfert?: Record<string, string>
 }) {
   const podpis = (blok: BlokOceny) => {
     const p = ocena.podpisy?.[blok]
@@ -60,8 +62,16 @@ export function OcenaDzialow({ ocena, zmien, kto, tylkoOdczyt = false }: {
             {ocena.terminy_materialow.map((tm, i) => (
               <tr key={tm.grupa}>
                 <td className="komorka w-48 text-xs">{tDowolny(tm.grupa)}</td>
-                <td className="komorka"><input className="pole-komorki w-full" disabled={tylkoOdczyt} placeholder={t('np. 8-10 tyg.')} value={tm.termin}
+                <td className="komorka"><input className="pole-komorki w-full" disabled={tylkoOdczyt} placeholder={zOfert[tm.grupa] ?? t('np. 8-10 tyg.')} value={tm.termin}
                   onChange={(e) => zmien({ terminy_materialow: ocena.terminy_materialow.map((x, j) => (j === i ? { ...x, termin: e.target.value } : x)) })} /></td>
+                <td className="komorka w-52 text-xs text-slate-500">
+                  {zOfert[tm.grupa] && (
+                    <button className="text-left text-blekit-ciemny hover:underline disabled:text-slate-400" disabled={tylkoOdczyt} title={t('Wstaw termin z oferty dostawcy')}
+                      onClick={() => zmien({ terminy_materialow: ocena.terminy_materialow.map((x, j) => (j === i ? { ...x, termin: zOfert[tm.grupa] } : x)) })}>
+                      {t('z ofert: {0}', zOfert[tm.grupa])}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

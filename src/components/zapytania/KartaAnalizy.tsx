@@ -14,6 +14,7 @@ import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
 import { KartaAnalizyWidok, type DokumentKarty } from './KartaAnalizyWidok'
 import { RaportWidok } from './PrzygotowanieAutomatyczne'
+import { ProsbaDialog, type NowaProsba } from '../prosby/ProsbaDialog'
 import { t } from '@/i18n'
 
 export interface ZapytanieKarty {
@@ -39,6 +40,7 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
   const [blad, setBlad] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [plan, setPlan] = useState<{ przygotowana: PrzygotowanaAnaliza; koszt: number | null; pozostalo: number | null; uwaga: string | null } | null>(null)
+  const [prosba, setProsba] = useState<NowaProsba | null>(null)
 
   const wczytaj = useCallback(async () => {
     const [{ data, error }, dok, od] = await Promise.all([
@@ -77,7 +79,7 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
   }
 
   async function przygotuj() {
-    setBlad(null); setInfo(null); setZajety(t('Przygotowanie dokumentów (teksty, pierwsze strony skanów)...'))
+    setBlad(null); setInfo(null); setZajety(t('Przygotowanie dokumentów (teksty i strony skanów)...'))
     try {
       const przygotowana = await przygotujAnalize(zapytanie)
       if (!przygotowana.znakow && !przygotowana.dane.obrazy?.length) throw new Error(t('Brak treści do analizy - oznacz dokumenty jako istotne w zakładce Dokumenty.'))
@@ -144,7 +146,7 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
   return (
     <div className="space-y-4">
       <div className="sekcja flex flex-wrap items-center gap-2">
-        <h3 className="font-semibold">{t('Karta analizy zapytania')}</h3>
+        <h3 className="font-semibold">{t('Kooperacja - wymagania, usługi, pytania do klienta')}</h3>
         <span className="znacznik bg-slate-100 text-slate-700">checklista {postep.sprawdzone}/{postep.razem}</span>
         {postep.wymagane > 0 && <span className="znacznik bg-sky-100 text-sky-800">{t('wymagań')}{' '}{postep.wymagane}</span>}
         {postep.doWyjasnienia > 0 && <span className="znacznik bg-amber-100 text-amber-800">{t('do wyjaśnienia')}{' '}{postep.doWyjasnienia}</span>}
@@ -178,10 +180,17 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
           <Button rozmiar="maly" onClick={() => void uzupelnijZapytanie()} title={t('Termin złożenia oferty i nr zapytania klienta - tylko puste pola')}><ClipboardCheck className="h-3 w-3" /> {t('Uzupełnij kartę zapytania')}</Button>
           <Button rozmiar="maly" disabled={!karta.aparaty.length || !!zajety} onClick={() => void szkicWyceny()}><FilePlus2 className="h-3 w-3" /> {t('Szkic wyceny z aparatami')}</Button>
         </>}
+        poprosOOferte={(u) => setProsba({
+          zapytanie_id: zapytanie.id, wycena_id: null, zakladka: 'kooperacja', kategoria_uslugi: u.kategoria, opis: u.opis,
+          parametry: u.ilosc !== null ? { ilosc: `${u.ilosc} ${u.jm}`.trim() } : undefined,
+        })}
         akcjeUslug={karta.uslugi.length > 0 && up.bazaOfert && (
           <Button rozmiar="maly" onClick={() => { if (zmieniona) void zapisz(); otworzZakladke('dostawcy') }}><ArrowRight className="h-3 w-3" /> {t('Zapytaj kooperantów')}</Button>
         )}
       />
+
+      <ProsbaDialog nowa={prosba} zamknij={() => setProsba(null)}
+        utworzona={() => { setProsba(null); setInfo(t('Prośba o ofertę trafiła do kolejki działu handlowego (menu „Prośby o oferty”).')) }} />
 
       <Dialog open={!!plan} onOpenChange={(o) => !o && setPlan(null)}>
         <DialogContent className="max-w-lg">
@@ -191,7 +200,7 @@ export function KartaAnalizy({ zapytanie, profil, otworzZakladke, otworzWycene, 
             <div className="mt-3 space-y-2 text-sm">
               <p>
                 {odmiana(plan.przygotowana.dokumentow, ['dokument istotny', 'dokumenty istotne', 'dokumentów istotnych'])}{t(': tekst')}{' '}{liczba(plan.przygotowana.znakow / 1000, 0)} {t('tys. znaków')}
-                {plan.przygotowana.skany.length > 0 && t(', pierwsze strony skanów: {0}', plan.przygotowana.skany.join(', '))}.
+                {plan.przygotowana.skany.length > 0 && t(', strony skanów: {0}', plan.przygotowana.skany.join(', '))}.
               </p>
               {plan.przygotowana.uciete.length > 0 && <p className="text-amber-800">{t('Ucięte (limit długości):')}{' '}{plan.przygotowana.uciete.join(', ')}.</p>}
               {plan.przygotowana.pominiete.length > 0 && <p className="text-amber-800">{t('Pominięte:')}{' '}{plan.przygotowana.pominiete.join(', ')}.</p>}

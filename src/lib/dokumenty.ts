@@ -10,11 +10,8 @@ export type TypDokumentu = string
 
 /** Nazwy typów bez słownika (zapasowo - gdy słownik nie jest wczytany); właściwe nazwy PL/EN są w typy_dokumentow. */
 export const ETYKIETY_TYPU: Record<string, string> = {
-  zapytanie_ofertowe: t('zapytanie ofertowe'), projekt: t('projekt / opis techniczny'),
-  rysunek: t('rysunek'), rysunek_zestawieniowy: t('rysunek zestawieniowy'), rysunek_wykonawczy: t('rysunek wykonawczy'), szkic: t('szkic'),
-  karta_danych: t('karta danych'), specyfikacja: t('specyfikacja'), formularz_wymagan: t('formularz wymagań'),
-  standard_klienta: t('standard klienta'), obliczenia: t('obliczenia'), korespondencja: t('korespondencja'),
-  oferta_dostawcy: t('oferta dostawcy'), karta_dostawy: t('karta dostawy'), raport_registo: t('raport Registo'), inne: t('inne'),
+  zapytanie_ofertowe: t('Zapytanie ofertowe'), projekt: t('Projekt / rysunek złożeniowy'), lista_materialowa: t('Lista materiałowa'),
+  wymagania: t('Wymagania techniczne'), oferta_dostawcy: t('Oferta dostawcy'), inne: t('Inne'),
 }
 
 export interface WczytanyPlik {
@@ -184,7 +181,7 @@ async function wczytajMsg(nazwa: string, dane: Uint8Array): Promise<WczytanyPlik
   const tekst = (d.body ?? '').replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim()
   return {
     nazwa, mime: 'application/vnd.ms-outlook', rozmiar: dane.byteLength, dane, rodzaj: 'mail', tekst, zalaczniki,
-    typSugerowany: 'korespondencja',
+    typSugerowany: 'zapytanie_ofertowe',
     metadane: {
       temat: d.subject ?? '', od: d.senderName ?? '', od_email: d.senderEmail ?? '',
       data: d.clientSubmitTime ?? d.messageDeliveryTime ?? null, message_id: messageIdZNaglowkow(d.headers),
@@ -209,7 +206,7 @@ async function wczytajEml(nazwa: string, dane: Uint8Array): Promise<WczytanyPlik
     .replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
   return {
     nazwa, mime: 'message/rfc822', rozmiar: dane.byteLength, dane, rodzaj: 'mail', tekst, zalaczniki,
-    typSugerowany: 'korespondencja',
+    typSugerowany: 'zapytanie_ofertowe',
     metadane: {
       temat: mail.subject ?? '', od: mail.from?.name ?? '', od_email: mail.from?.address ?? '',
       data: mail.date ?? null, message_id: mail.messageId ?? null,

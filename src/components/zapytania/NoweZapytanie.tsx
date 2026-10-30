@@ -8,19 +8,16 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dia
 import { PoleRodzajuAparatu, type WyborRodzaju } from './RodzajAparatu'
 import { t } from '@/i18n'
 
-/** Nowe zapytanie: najpierw (obowiązkowo) rodzaj aparatu, potem przedmiot i klient; numer ZO nadaje baza. */
+/** Nowe zapytanie: rodzaj aparatu (obowiązkowo) i przedmiot; numer ZO nadaje baza. Klienta i osobę prowadzącą wpisuje się na karcie zapytania. */
 export function NoweZapytanie({ otwarty, zamknij, utworzone }: { otwarty: boolean; zamknij: () => void; utworzone: (id: string) => void }) {
   const [rodzaj, setRodzaj] = useState<WyborRodzaju>({ rodzaj: null, zakres: null, opis: '' })
   const [przedmiot, setPrzedmiot] = useState('')
-  const [klient, setKlient] = useState('')
-  const [klienci, setKlienci] = useState<{ id: string; nazwa: string }[]>([])
   const [blad, setBlad] = useState<string | null>(null)
   const [zajety, setZajety] = useState(false)
 
   useEffect(() => {
     if (!otwarty) return
-    setRodzaj({ rodzaj: null, zakres: null, opis: '' }); setPrzedmiot(''); setKlient(''); setBlad(null)
-    void supabase.from('klienci').select('id, nazwa').order('nazwa').then(({ data }) => setKlienci(data ?? []))
+    setRodzaj({ rodzaj: null, zakres: null, opis: '' }); setPrzedmiot(''); setBlad(null)
   }, [otwarty])
 
   async function utworz() {
@@ -28,7 +25,7 @@ export function NoweZapytanie({ otwarty, zamknij, utworzone }: { otwarty: boolea
     setZajety(true); setBlad(null)
     const { data, error } = await supabase.from('zapytania').insert({
       numer: '', status: 'nowe', przedmiot: przedmiot.trim() || (rodzaj.rodzaj === 'zbiornik' ? 'Zbiornik' : 'Wymiennik ciepła'),
-      klient_id: klient || null, rodzaj_aparatu: rodzaj.rodzaj,
+      rodzaj_aparatu: rodzaj.rodzaj,
       zakres_wymiennika: rodzaj.rodzaj === 'wymiennik' ? rodzaj.zakres ?? 'kompletny' : null,
       zakres_opis: rodzaj.rodzaj === 'wymiennik' && rodzaj.zakres === 'czesc' ? rodzaj.opis.trim() || null : null,
     }).select('id').single()
@@ -48,10 +45,6 @@ export function NoweZapytanie({ otwarty, zamknij, utworzone }: { otwarty: boolea
           <div><span className="etykieta">{t('Rodzaj aparatu *')}</span><PoleRodzajuAparatu wartosc={rodzaj} zmien={setRodzaj} /></div>
           <label className="block"><span className="etykieta">{t('Przedmiot zapytania')}</span>
             <input className="pole" value={przedmiot} onChange={(e) => setPrzedmiot(e.target.value)} placeholder={t('np. Zbiornik buforowy wody procesowej')} /></label>
-          <label className="block"><span className="etykieta">{t('Klient')}</span>
-            <select className="pole" value={klient} onChange={(e) => setKlient(e.target.value)}>
-              <option value="">-</option>{klienci.map((k) => <option key={k.id} value={k.id}>{k.nazwa}</option>)}
-            </select></label>
           <div className="flex justify-end gap-2">
             <Button onClick={zamknij}>{t('Anuluj')}</Button>
             <Button wariant="glowny" disabled={zajety || !rodzaj.rodzaj} onClick={() => void utworz()}><Plus className="h-4 w-4" /> {t('Utwórz zapytanie')}</Button>

@@ -192,3 +192,15 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     zamazany) jest pomijany; napisy narysowane krzywymi trafiają jako obraz. Kursywa fontów bez nazwy nie jest rozpoznawana.
 72. **Strony czytane przez AI** mają układ płynny z położeniem bloków podanym przez model (przybliżone); układ dokładny
     jest tylko dla odczytu bez AI (wymaga warstwy tekstowej do wycięcia tekstu z tła).
+73. **Lista materiałowa zapytania** (2026-10-30): jedna lista na zapytanie (odczyt o rodzaju „lista_materialowa”), złożona
+    z dokumentu listy albo rysunku złożeniowego; kolejne odczyty dopisują się (pozycje o tym samym numerze są scalane, np.
+    wykaz części i tabela U-rur) albo zastępują listę. Wycena automatyczna i „Przenieś do wyceny” biorą materiały z tej listy.
+74. **Typy dokumentów** uproszczone do sześciu; stare typy zostały w słowniku jako nieaktywne (kosz i historia), dokumenty
+    dostały nowe typy (rysunki → projekt, specyfikacje / standardy / karty danych → wymagania, korespondencja → zapytanie,
+    obliczenia → inne). Arkusz danych rozpoznawany po nazwie / treści - dane projektowe czytane z niego jak dotąd.
+75. **Kompresja** tylko dla plików powyżej 20 MB; mniejsze zapisywane bez zmian.
+76. **Kooperacja**: ocena działów, podsumowanie i aparaty z analizy zostają w danych karty (wycena, wycena automatyczna),
+    ale nie są pokazywane w zakładce. Maile wysłane z generatora zapytań nie trafiają do aplikacji (brak skrzynki) - prośbę
+    do działu handlowego tworzy przycisk przy usłudze w Kooperacji albo w wycenie.
+77. **Terminy zakupu materiałów**: grupy z kategorii materiałów wyceny (bez materiałów - wg rodzaju aparatu), podpowiedź
+    z najdłuższego terminu dostawy w ofertach do zapytania.

@@ -123,7 +123,7 @@ describe.skipIf(!serwis || !ZAPYTANIA.length)('odbiór: trzy zapytania testowe z
       const po = (dok ?? []).filter((d) => d.stan === 'zapisany').reduce((s, d) => s + Number(d.rozmiar_zapisany ?? 0), 0)
       raport.push(`${zap!.numer} (${z.rodzaj}${z.zakres ? `, ${z.zakres}` : ''}): dokumentów ${dok?.length}${pominieteMaile ? ` (maili już w bazie: ${pominieteMaile})` : ''}; typy: ${typy}; pliki ${(przed / 1024).toFixed(0)} KB -> ${(po / 1024).toFixed(0)} KB; pola: ${pola.map((p) => `${p.pole} = ${p.pole === 'klient_id' ? '(klient)' : p.wartosc} [${p.zrodlo}]`).join('; ') || 'brak'}`)
       expect(dok!.length).toBeGreaterThan(0)
-      expect(dok!.some((d) => ['rysunek', 'rysunek_zestawieniowy', 'rysunek_wykonawczy', 'karta_danych'].includes(d.typ)), z.folder).toBe(true)
+      expect(dok!.some((d) => ['projekt', 'lista_materialowa', 'wymagania'].includes(d.typ)), z.folder).toBe(true)
     }
     // Limit pliku: plik po kompresji większy niż 50 MB nie trafia do Storage (zostaje informacja / tekst).
     const duzy = new Uint8Array(51 * 1024 * 1024)

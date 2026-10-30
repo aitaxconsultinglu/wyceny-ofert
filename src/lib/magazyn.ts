@@ -56,7 +56,7 @@ export async function zapiszDokument(
     if (dup?.length) return { dokument: null, ostrzezenia: [t('{0}: ten sam plik jest już w dokumentach ({1}) - nie zapisano drugi raz.', plik.nazwa, dup[0].nazwa_pliku)] }
   }
   const zaDuzy = k.rozmiar_zapisany > opcje.limitMb * 1024 * 1024
-  const istotny = opcje.istotny ?? plik.istotny ?? !['standard_klienta', 'korespondencja'].includes(opcje.typ ?? plik.typSugerowany)
+  const istotny = opcje.istotny ?? plik.istotny ?? (opcje.typ ?? plik.typSugerowany) !== 'inne'
   const duzyNieistotny = !mail && !istotny && !!plik.tekst.trim() && plik.rozmiar > NIEISTOTNY_TYLKO_TEKST_MB * 1024 * 1024
   const stan = mail ? 'tylko_tekst' : opcje.pominPlik || duzyNieistotny ? 'tylko_tekst' : zaDuzy ? 'pominiety_limit' : 'zapisany'
   if (zaDuzy && !mail) ostrzezenia.push(t('{0}: plik ma {1} MB (po kompresji) - powyżej limitu {2} MB na jeden plik. Zapisano tylko wyciągnięty tekst; zmniejsz plik albo podziel go.', plik.nazwa, (k.rozmiar_zapisany / 1024 / 1024).toFixed(1), opcje.limitMb))

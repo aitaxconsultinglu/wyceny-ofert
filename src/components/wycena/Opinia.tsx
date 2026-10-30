@@ -9,6 +9,7 @@ import type { WynikWyceny } from '@/lib/kalkulacja'
 import { ETYKIETY_STATUSU_WYCENY, type StanWyceny } from '@/lib/wyceny'
 import type { Profil } from '@/lib/types'
 import { OcenaDzialow } from '../zapytania/OcenaDzialow'
+import { grupyTerminow, terminyZOfert, wyrownajTerminy, type TerminZOferty } from '@/lib/terminyMaterialow'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { TabelaCeny, TabelaKosztow } from './Podsumowanie'
@@ -49,21 +50,34 @@ export function Opinia({ stan, wynik, profil, widziMarze, zmienStatus, zajety }:
   const [wplyniecie, setWplyniecie] = useState<string | null>(null)
   const [karta, setKarta] = useState<KartaAnalizy | null>(null)
   const [zmieniona, setZmieniona] = useState(false)
+  const [zOfert, setZOfert] = useState<Record<string, string>>({})
   const [blad, setBlad] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
 
   const wczytaj = useCallback(async () => {
-    const [zap, an, wpl] = await Promise.all([
+    const [zap, an, wpl, of] = await Promise.all([
       supabase.from('zapytania').select('numer, przedmiot, nr_zapytania_klienta, termin_oferty, utworzono, klienci(nazwa)').eq('id', stan.zapytanie.id).single(),
       supabase.from('analizy_zapytan').select('dane').eq('zapytanie_id', stan.zapytanie.id).maybeSingle(),
       dataWplyniecia(stan.zapytanie.id),
+      // Terminy dostaw z ofert dostawców do tego zapytania (pozycja albo cała oferta).
+      supabase.from('pozycje_ofert').select('kategoria_materialu, termin_dni, oferty_dostawcow!inner(zapytanie_id, termin_dni, dostawcy(nazwa))').eq('oferty_dostawcow.zapytanie_id', stan.zapytanie.id),
     ])
     if (zap.error) setBlad(komunikatPL(zap.error.message))
     setZ(zap.data as unknown as DaneZapytania)
-    setKarta(uzupelnijKarte(an.data?.dane as Partial<KartaAnalizy> | undefined))
+    // Grupy terminów zakupu z materiałów tej wyceny (bez materiałów - wg rodzaju aparatu).
+    const k = uzupelnijKarte(an.data?.dane as Partial<KartaAnalizy> | undefined)
+    const sekcje = stan.aparaty.flatMap((a) => a.pozycje.filter((x) => x.zakladka === 'materialy').map((x) => x.sekcja ?? 'inne'))
+    const grupy = grupyTerminow(sekcje, stan.zapytanie.rodzaj_aparatu, s.kategorieMaterialow)
+    setKarta({ ...k, ocena: { ...k.ocena, terminy_materialow: wyrownajTerminy(k.ocena.terminy_materialow.filter((x) => x.termin.trim() || grupy.includes(x.grupa)), grupy) } })
+    type WierszOferty = { kategoria_materialu: string | null; termin_dni: number | null; oferty_dostawcow: { termin_dni: number | null; dostawcy: { nazwa: string } | null } }
+    setZOfert(terminyZOfert(((of.data ?? []) as unknown as WierszOferty[]).map((x): TerminZOferty => ({
+      kategoria: x.kategoria_materialu, termin_dni: x.termin_dni ?? x.oferty_dostawcow?.termin_dni ?? null, dostawca: x.oferty_dostawcow?.dostawcy?.nazwa ?? null,
+    })), s.kategorieMaterialow))
     setWplyniecie(wpl)
     setZmieniona(false)
-  }, [stan.zapytanie.id])
+    // Materiały i słownik czytane przy otwarciu zakładki; zmiana materiałów odświeża grupy przy kolejnym wejściu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stan.zapytanie.id, s.kategorieMaterialow])
   useEffect(() => { void wczytaj() }, [wczytaj])
 
   async function zapiszOcene() {
@@ -124,7 +138,7 @@ export function Opinia({ stan, wynik, profil, widziMarze, zmienStatus, zajety }:
           {karta && <Button rozmiar="maly" wariant="glowny" disabled={!zmieniona} onClick={() => void zapiszOcene()}><Save className="h-3 w-3" /> {t('Zapisz ocenę')}</Button>}
         </div>
         {karta
-          ? <OcenaDzialow ocena={karta.ocena} kto={profil.nazwa ?? profil.email}
+          ? <OcenaDzialow ocena={karta.ocena} kto={profil.nazwa ?? profil.email} zOfert={zOfert}
               zmien={(zm: Partial<OcenaAnalizy>) => { setKarta({ ...karta, ocena: { ...karta.ocena, ...zm } }); setZmieniona(true); setInfo(null) }} />
           : <p className="text-sm text-slate-500">{t('Wczytywanie...')}</p>}
         <p className="text-xs text-slate-500">{t('To ta sama ocena co w karcie analizy zapytania (jedno źródło danych).')}</p>

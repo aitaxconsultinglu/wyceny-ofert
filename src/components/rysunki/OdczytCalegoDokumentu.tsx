@@ -9,6 +9,7 @@ import { szacujAi, wywolajAi, type RysunekAi } from '@/lib/ai'
 import { PROG_PEWNOSCI, polaczWyniki, zWynikuAi, type WynikRysunku } from '@/lib/rysunki'
 import { bajtyRysunku, otworzRysunek } from '@/lib/rysunkiPdf'
 import { MAKS_STRON_DOKUMENTU, opisRodzajowDlaAi, rozdzielNaOdczyty, zadaniaStrony, type ZadanieStrony } from '@/lib/odczytDokumentu'
+import { OBSZAR_LISTY, zlozListe } from '@/lib/listaMaterialowa'
 import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog'
@@ -22,12 +23,17 @@ interface Plan { zadania: ZadanieStrony[]; stron: number; pominiete: number; kos
  * najpierw szacunek kosztu i potwierdzenie, potem osobne odczyty wg rodzaju tabeli (wykaz części, króćce, dane projektowe,
  * uwagi, tabele własne) zapisane od razu jako odczyt AI do sprawdzenia (niepewne wiersze wyróżnione).
  */
-export function OdczytCalegoDokumentu({ dokument, zapytanieId, rodzajAparatu, zamknij, poZapisie }: {
+export function OdczytCalegoDokumentu({ dokument, zapytanieId, rodzajAparatu, zamknij, poZapisie, doListy }: {
   dokument: DokumentRysunku | null
   zapytanieId: string
   rodzajAparatu: 'zbiornik' | 'wymiennik' | null
   zamknij: () => void
   poZapisie: (komunikat: string) => void
+  /**
+   * Tryb listy materiałowej: wszystkie strony składają się w jedną listę (pozycje scalone po numerze, uporządkowane) -
+   * zamiast osobnych odczytów wg rodzaju tabeli. Zwraca komunikat po zapisie listy.
+   */
+  doListy?: (w: WynikRysunku, koszt: number, model: string | null) => Promise<string>
 }) {
   const s = useSlowniki()
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -47,7 +53,7 @@ export function OdczytCalegoDokumentu({ dokument, zapytanieId, rodzajAparatu, za
         const zadania: ZadanieStrony[] = []
         for (let nr = 1; nr <= stron && !anuluj; nr++) {
           setZajety(t('Strona {0} z {1}...', nr, stron))
-          zadania.push(...await zadaniaStrony(pdf, nr, { zapytanie_id: zapytanieId, dokument_id: dokument.id }, dokument.nazwa_pliku, opisRodzajowDlaAi(rodzaje)))
+          zadania.push(...await zadaniaStrony(pdf, nr, { zapytanie_id: zapytanieId, dokument_id: dokument.id }, dokument.nazwa_pliku, doListy ? OBSZAR_LISTY : opisRodzajowDlaAi(rodzaje)))
         }
         setZajety(t('Szacowanie kosztu...'))
         let suma = 0
@@ -74,6 +80,24 @@ export function OdczytCalegoDokumentu({ dokument, zapytanieId, rodzajAparatu, za
     let odczytow = 0
     let niepewnych = 0
     let koszt = 0
+    if (doListy) {
+      // Lista materiałowa: wyniki wszystkich stron i kafli -> jedna lista.
+      try {
+        const wyniki: WynikRysunku[] = []
+        let model: string | null = null
+        for (const [i, z] of plan.zadania.entries()) {
+          setZajety(t('Odczyt AI: {0} ({1}/{2})...', z.opis, i + 1, plan.zadania.length))
+          const { odp, blad: b } = await wywolajAi<RysunekAi>('wyciagnij_liste_z_rysunku', z.dane)
+          if (b || !odp) throw new Error(b ?? t('Brak odpowiedzi.'))
+          koszt += odp.koszt_pln; model = odp.model
+          wyniki.push(zWynikuAi(odp.wynik, z.kafleNaStronie, kody))
+        }
+        setZajety(t('Składanie listy materiałowej...'))
+        poZapisie(await doListy(zlozListe(...wyniki), koszt, model))
+      } catch (e) { setBlad(e instanceof Error ? e.message : String(e)) }
+      setZajety(null)
+      return
+    }
     try {
       const strony = [...new Set(plan.zadania.map((z) => z.strona))]
       for (const nr of strony) {
@@ -121,7 +145,9 @@ export function OdczytCalegoDokumentu({ dokument, zapytanieId, rodzajAparatu, za
           {zajety && <Komunikat rodzaj="info">{zajety}</Komunikat>}
           {plan && !zajety && (
             <>
-              <p>{t('AI odczyta {0} str. i sam utworzy osobne odczyty: wykaz części, króćce, dane projektowe, uwagi oraz tabele wg rodzaju aparatu. Strony z warstwą tekstową idą jako tekst (taniej), skany jako kafle ~300 DPI.', plan.stron)}</p>
+              <p>{doListy
+                ? t('AI odczyta {0} str. i złoży jedną listę materiałową: wszystkie tabele materiałowe (wykaz części, U-rury, blachy, śruby...) jako pozycje uporządkowane po numerze, tabelę króćców i dane projektowe. Strony z warstwą tekstową idą jako tekst (taniej), skany jako kafle ~300 DPI.', plan.stron)
+                : t('AI odczyta {0} str. i sam utworzy osobne odczyty: wykaz części, króćce, dane projektowe, uwagi oraz tabele wg rodzaju aparatu. Strony z warstwą tekstową idą jako tekst (taniej), skany jako kafle ~300 DPI.', plan.stron)}</p>
               {plan.pominiete > 0 && <Komunikat rodzaj="ostrzezenie">{t('Dokument ma więcej stron - odczytanych zostanie pierwszych {0}. Pozostałe strony odczytaj zaznaczeniem.', MAKS_STRON_DOKUMENTU)}</Komunikat>}
               <ul className="max-h-40 list-disc overflow-auto pl-5 text-xs">{plan.zadania.map((z, i) => <li key={i}>{z.opis}</li>)}</ul>
               {plan.uwaga

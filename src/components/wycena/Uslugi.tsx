@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ListPlus, Plus, Trash2 } from 'lucide-react'
 import { useSlowniki } from '@/lib/slowniki'
 import { zl } from '@/lib/format'
@@ -123,13 +123,26 @@ function useOknaOfert(props: Props) {
 }
 
 /** Pozycje wymagane z karty analizy (usługi i wymagania kosztotwórcze) dla zakładek tej grupy. */
+/**
+ * Usługi z karty Kooperacja zapytania, których brakuje w tej zakładce wyceny - dodawane same po otwarciu zakładki
+ * (wycena robocza), z informacją; ręcznie usunięta pozycja wraca dopiero po ponownym otwarciu wyceny.
+ */
 function WymaganeZKarty({ props, karta, zakladki }: { props: Props; karta: ReturnType<typeof useOfertyUslug>['karta']; zakladki: Zakladka[] }) {
   const s = useSlowniki()
   const propozycje = wymaganePozycje(karta, props.aparat.pozycje, s.kategorieUslug).filter((x) => zakladki.includes(x.zakladka))
+  const dodane = useRef<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
+  useEffect(() => {
+    if (props.tylkoOdczyt || !propozycje.length || dodane.current === props.aparat.klucz) return
+    dodane.current = props.aparat.klucz
+    props.zmien((a) => ({ ...a, pozycje: [...a.pozycje, ...propozycje.map((x) => ({ ...nowa(x.zakladka, x.nazwa, x.sekcja), ilosc: x.ilosc, jm: x.jm, uwagi: x.uwagi }))] }))
+    setInfo(t('Dodano z karty Kooperacja zapytania: {0}.', propozycje.map((x) => x.nazwa).join('; ')))
+  }, [propozycje, props])
+  if (info) return <div className="rounded-md border border-blekit/40 bg-blekit-jasny/40 px-3 py-2 text-sm">{info}</div>
   if (props.tylkoOdczyt || !propozycje.length) return null
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-blekit/40 bg-blekit-jasny/40 px-3 py-2 text-sm">
-      <span>{t('Karta analizy wymaga: {0}.', propozycje.map((x) => x.nazwa).join('; '))}</span>
+      <span>{t('Kooperacja zapytania wymaga: {0}.', propozycje.map((x) => x.nazwa).join('; '))}</span>
       <Button rozmiar="maly" onClick={() => props.zmien((a) => ({ ...a, pozycje: [...a.pozycje, ...propozycje.map((x) => ({ ...nowa(x.zakladka, x.nazwa, x.sekcja), ilosc: x.ilosc, jm: x.jm, uwagi: x.uwagi }))] }))}>
         <ListPlus className="h-3 w-3" /> {t('Dodaj wymagane pozycje ({0})', propozycje.length)}
       </Button>

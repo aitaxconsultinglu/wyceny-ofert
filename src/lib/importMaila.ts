@@ -2,11 +2,11 @@
 // temat, klient (po domenie nadawcy albo nazwie w treści), termin składania ofert, numer zapytania klienta.
 // Dokładniej dane wyciąga analiza AI (karta analizy). Część czysta - testy na danych fikcyjnych.
 
-/** Długie obliczenia i standardy domyślnie nie idą do analizy AI (koszt, mało wymagań kosztotwórczych). */
+/** Długie dokumenty (standardy, obliczenia) domyślnie nie idą do analizy AI (koszt, mało wymagań kosztotwórczych). */
 export const STRON_DLUGI_DOKUMENT = 30
 export function domyslnieIstotny(z: { typSugerowany: string; metadane?: Record<string, unknown> }) {
-  if (['standard_klienta', 'korespondencja'].includes(z.typSugerowany)) return false
-  return !(z.typSugerowany === 'obliczenia' && Number(z.metadane?.stron ?? 0) > STRON_DLUGI_DOKUMENT)
+  if (z.typSugerowany === 'inne') return false
+  return !(z.typSugerowany === 'wymagania' && Number(z.metadane?.stron ?? 0) > STRON_DLUGI_DOKUMENT)
 }
 
 export interface KlientImportu { id: string; nazwa: string; skrot: string | null; domeny: string[] }

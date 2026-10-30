@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { PoleZPodpowiedziami } from '../ui/PoleZPodpowiedziami'
 import { ArrowLeft, Copy, Plus, Save, Sparkles, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { komunikatPL } from '@/lib/config'
@@ -16,7 +17,7 @@ import { Komunikat } from '../ui/komunikat'
 import { DokumentyZapytania } from './DokumentyZapytania'
 import { OfertyDoZapytania } from '../oferty/OfertyDoZapytania'
 import { KartaAnalizy } from './KartaAnalizy'
-import { RysunkiZapytania } from '../rysunki/RysunkiZapytania'
+import { ListaMaterialowa } from '../rysunki/ListaMaterialowa'
 import { ZapytaniaDoDostawcow } from '../zapytaniaDostawcow/ZapytaniaDoDostawcow'
 import { PrzygotowanieAutomatyczne } from './PrzygotowanieAutomatyczne'
 import { FLAGA_PRZYGOTUJ } from './NoweZMaila'
@@ -28,7 +29,7 @@ import { t } from '@/i18n'
 interface Zapytanie {
   id: string; numer: string; klient_id: string | null; przedmiot: string; nr_zapytania_klienta: string | null
   nr_zapotrzebowania: string | null; zrodlo: string; link_platformy: string | null; termin_oferty: string | null
-  termin_pytan: string | null; prowadzacy: string | null; status: StatusZapytania; uwagi: string | null; zmodyfikowano: string
+  termin_pytan: string | null; prowadzacy: string | null; prowadzacy_nazwa: string | null; status: StatusZapytania; uwagi: string | null; zmodyfikowano: string
   /** Źródło pól uzupełnionych automatycznie z dokumentów: {pole: 'plik.pdf, str. 2'}. */
   zrodla_pol?: Record<string, string>
   rodzaj_aparatu: RodzajAparatu | null; zakres_wymiennika: ZakresWymiennika | null; zakres_opis: string | null
@@ -52,7 +53,7 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
   const [automat, setAutomat] = useState(false)
   const [z, setZ] = useState<Zapytanie | null>(null)
   const [klienci, setKlienci] = useState<{ id: string; nazwa: string }[]>([])
-  const [ludzie, setLudzie] = useState<{ id: string; nazwa: string }[]>([])
+  const [ludzie, setLudzie] = useState<string[]>([])
   const [wersje, setWersje] = useState<WersjaWyceny[]>([])
   const [ceny, setCeny] = useState<Record<string, number | null>>({})
   const [zakladka, setZakladka] = useZakladkaWAdresie<Zakladka>(ZAKLADKI_ZAPYTANIA, 'dokumenty')
@@ -75,12 +76,12 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     const [{ data, error }, kl, lu, wy] = await Promise.all([
       supabase.from('zapytania').select('*').eq('id', id).single(),
       supabase.from('klienci').select('id, nazwa').order('nazwa'),
-      supabase.rpc('lista_pracownikow'),
+      supabase.from('osoby_prowadzace').select('nazwa').eq('aktywny', true).order('nazwa'),
       supabase.from('wyceny').select('id, wersja, nazwa, status, utworzono, zatwierdzono, skopiowana_z').eq('zapytanie_id', id).order('wersja', { ascending: false }),
     ])
     if (error) { setBlad(komunikatPL(error.message)); return }
     setZ(data as Zapytanie); setZmieniony(false)
-    setKlienci(kl.data ?? []); setLudzie((lu.data ?? []) as { id: string; nazwa: string }[])
+    setKlienci(kl.data ?? []); setLudzie(((lu.data ?? []) as { nazwa: string }[]).map((x) => x.nazwa))
     const w = (wy.data ?? []) as WersjaWyceny[]
     setWersje(w)
     const c: Record<string, number | null> = {}
@@ -119,13 +120,24 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
     setInfo(t('Zapisano.')); await wczytaj()
   }
 
-  async function dodajKlienta() {
-    const nazwa = window.prompt(t('Nazwa nowego klienta:'))
-    if (!nazwa?.trim()) return
-    const { data, error } = await supabase.from('klienci').insert({ nazwa: nazwa.trim() }).select('id, nazwa').single()
+  /** Klient wpisany dowolnie: istniejący (bez względu na wielkość liter) albo nowy - zapisany w bazie klientów. */
+  async function ustawKlienta(nazwa: string) {
+    if (!nazwa) { ust({ klient_id: null }); return }
+    const istniejacy = klienci.find((k) => k.nazwa.trim().toLowerCase() === nazwa.toLowerCase())
+    if (istniejacy) { ust({ klient_id: istniejacy.id }); return }
+    const { data, error } = await supabase.from('klienci').insert({ nazwa }).select('id, nazwa').single()
     if (error) { setBlad(komunikatPL(error.message)); return }
     setKlienci([...klienci, data].sort((a, b) => a.nazwa.localeCompare(b.nazwa)))
     ust({ klient_id: data.id })
+  }
+
+  /** Osoba prowadząca wpisana dowolnie - nowa trafia na listę podpowiedzi. */
+  async function ustawProwadzacego(nazwa: string) {
+    ust({ prowadzacy_nazwa: nazwa || null })
+    if (nazwa && !ludzie.some((l) => l.toLowerCase() === nazwa.toLowerCase())) {
+      await supabase.from('osoby_prowadzace').insert({ nazwa })
+      setLudzie([...ludzie, nazwa].sort((a, b) => a.localeCompare(b)))
+    }
   }
 
   async function nowaWycena() {
@@ -248,12 +260,8 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
           <label className="w-40"><span className="etykieta">{t('Numer ZO')}</span><input className={pole} value={z.numer} onChange={(e) => ust({ numer: e.target.value })} /></label>
           <label className="min-w-[20rem] flex-1"><span className="etykieta">{t('Przedmiot zapytania')}</span><input className={pole} value={z.przedmiot} onChange={(e) => ust({ przedmiot: e.target.value })} /></label>
           <label className="w-64"><span className="etykieta">{t('Klient')}</span>
-            <div className="flex gap-1">
-              <select className={pole} value={z.klient_id ?? ''} onChange={(e) => ust({ klient_id: e.target.value || null })}>
-                <option value="">-</option>{klienci.map((k) => <option key={k.id} value={k.id}>{k.nazwa}</option>)}
-              </select>
-              <Button rozmiar="maly" title={t('Nowy klient')} onClick={() => void dodajKlienta()}><Plus className="h-3 w-3" /></Button>
-            </div>{zrodloPola('klient_id')}</label>
+            <PoleZPodpowiedziami className={pole} wartosc={klienci.find((k) => k.id === z.klient_id)?.nazwa ?? ''} podpowiedzi={klienci.map((k) => k.nazwa)}
+              placeholder={t('wpisz albo wybierz')} zatwierdz={(n) => void ustawKlienta(n)} />{zrodloPola('klient_id')}</label>
           <label className="w-48"><span className="etykieta">{t('Status')}</span>
             <select className={pole} value={z.status} onChange={(e) => ust({ status: e.target.value as StatusZapytania })}>
               {STATUSY_ZAPYTANIA.map((s) => <option key={s.id} value={s.id}>{s.etykieta}</option>)}
@@ -272,23 +280,22 @@ export function KartaZapytania({ id, profil, zamknij, otworzWycene }: { id: stri
           <label className="w-56"><span className="etykieta">{t('Termin złożenia oferty')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_oferty)} onChange={(e) => ust({ termin_oferty: zPola(e.target.value) })} />{zrodloPola('termin_oferty')}</label>
           <label className="w-56"><span className="etykieta">{t('Termin zadawania pytań')}</span><input type="datetime-local" className={pole} value={doPola(z.termin_pytan)} onChange={(e) => ust({ termin_pytan: zPola(e.target.value) })} /></label>
           <label className="w-56"><span className="etykieta">{t('Osoba prowadząca')}</span>
-            <select className={pole} value={z.prowadzacy ?? ''} onChange={(e) => ust({ prowadzacy: e.target.value || null })}>
-              <option value="">-</option>{ludzie.map((l) => <option key={l.id} value={l.id}>{l.nazwa}</option>)}
-            </select></label>
+            <PoleZPodpowiedziami className={pole} wartosc={z.prowadzacy_nazwa ?? ''} podpowiedzi={ludzie} placeholder={t('wpisz albo wybierz')}
+              zatwierdz={(n) => void ustawProwadzacego(n)} /></label>
         </div>
         <label className="block"><span className="etykieta">{t('Uwagi')}</span><textarea className="pole h-16" value={z.uwagi ?? ''} onChange={(e) => ust({ uwagi: e.target.value || null })} /></label>
         <Button wariant="glowny" disabled={!zmieniony} onClick={() => void zapisz()}><Save className="h-4 w-4" /> {t('Zapisz zapytanie')}</Button>
       </section>
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {([['dokumenty', t('Dokumenty')], ['rysunki', t('Rysunki i listy materiałowe')], ['analiza', t('Karta analizy')], ['wyceny', t('Wyceny ({0})', wersje.length)], ['dostawcy', t('Zapytania do dostawców')], ['oferty', t('Oferty dostawców')], ['historia', t('Historia zmian')]] as [Zakladka, string][]).map(([k, et]) => (
+        {([['dokumenty', t('Dokumenty')], ['rysunki', t('Tworzenie listy materiałowej')], ['analiza', t('Kooperacja')], ['wyceny', t('Wyceny ({0})', wersje.length)], ['dostawcy', t('Zapytania do dostawców')], ['oferty', t('Oferty dostawców')], ['historia', t('Historia zmian')]] as [Zakladka, string][]).map(([k, et]) => (
           <button key={k} onClick={() => { setZakladka(k); setGeneratorZAnalizy(false) }}
             className={cn('-mb-px rounded-t-md border px-3 py-1.5 text-sm', zakladka === k ? 'border-slate-200 border-b-white bg-white font-medium' : 'border-transparent text-slate-600 hover:bg-slate-100')}>{et}</button>
         ))}
       </div>
 
-      {zakladka === 'dokumenty' && <DokumentyZapytania zapytanieId={id} numer={z.numer} profil={profil} rodzajAparatu={z.rodzaj_aparatu} poZmianieZapytania={() => void wczytaj()} />}
-      {zakladka === 'rysunki' && <RysunkiZapytania zapytanieId={id} numer={z.numer} profil={profil} otworzWycene={otworzWycene} rodzajAparatu={z.rodzaj_aparatu} />}
+      {zakladka === 'dokumenty' && <DokumentyZapytania zapytanieId={id} numer={z.numer} profil={profil} rodzajAparatu={z.rodzaj_aparatu} poZmianieZapytania={() => void wczytaj()} odczytajWszystko={() => setAutomat(true)} />}
+      {zakladka === 'rysunki' && <ListaMaterialowa zapytanieId={id} numer={z.numer} profil={profil} otworzWycene={otworzWycene} rodzajAparatu={z.rodzaj_aparatu} />}
       {zakladka === 'analiza' && (
         <KartaAnalizy
           zapytanie={{ id, numer: z.numer, przedmiot: z.przedmiot, klient: klienci.find((k) => k.id === z.klient_id)?.nazwa ?? null, nr_zapytania_klienta: z.nr_zapytania_klienta, termin_oferty: z.termin_oferty, status: z.status }}

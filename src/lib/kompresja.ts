@@ -127,10 +127,14 @@ async function kompresujObraz(dane: Uint8Array, ext: string): Promise<Kandydat[]
  * Najmniejsza wersja pliku, która przeszła test czytelności (albo oryginał). `mime` - typ zapisu (obraz może zmienić
  * format na WebP). Maile (.msg / .eml) nie są zapisywane jako pliki - tu nie trafiają.
  */
-export async function kompresujPlik(nazwa: string, mime: string, dane: Uint8Array): Promise<WynikKompresji> {
+/** Plik do tylu MB zapisujemy bez kompresji - przekodowanie skanów i obrazów obniża jakość, a z nią czytelność drobnego pisma. */
+export const KOMPRESJA_OD_MB = 20
+
+export async function kompresujPlik(nazwa: string, mime: string, dane: Uint8Array, odMb = KOMPRESJA_OD_MB): Promise<WynikKompresji> {
   const hash = await sha256(dane)
   const ext = rozszerzenie(nazwa)
   const oryginal: WynikKompresji = { dane, mime, metoda: 'brak', rozmiar_oryginalny: dane.byteLength, rozmiar_zapisany: dane.byteLength, hash, test: 'oryginał' }
+  if (dane.byteLength <= odMb * 1024 * 1024) return { ...oryginal, test: `oryginał (do ${odMb} MB bez kompresji)` }
   let kandydaci: Kandydat[] = []
   try {
     if (ext === 'pdf') kandydaci = await kompresujPdf(dane)

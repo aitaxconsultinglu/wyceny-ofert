@@ -30,8 +30,8 @@ const AI: AnalizaAi = {
 function Podglad() {
   const [karta, setKarta] = useState(pustaKarta())
   const [dokumenty, setDokumenty] = useState<DokumentKarty[]>([
-    { id: '1', nazwa: 'Specyfikacja.docx', typ: 'specyfikacja', istotny: true },
-    { id: '2', nazwa: 'Standard.pdf', typ: 'standard_klienta', istotny: true },
+    { id: '1', nazwa: 'Specyfikacja.docx', typ: 'wymagania', istotny: true },
+    { id: '2', nazwa: 'Standard.pdf', typ: 'wymagania', istotny: true },
   ])
   const p = postepKarty(karta)
   return (

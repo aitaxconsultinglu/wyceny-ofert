@@ -262,6 +262,13 @@ Rysunki są często skanami z drobnym pismem, po polsku, po angielsku albo dwuj�
 6. tabele_wlasne - TYLKO dla obszaru opisanego jako "własna tabela: <nazwa>" (opis kafla albo nagłówek tekstu): cała tabela
    z obszaru - nazwa jak w opisie, kolumny jak w nagłówku tabeli (gdy podano kolumny w opisie - w tej kolejności), wiersze jako
    teksty komórek jak w źródle (niepewne z "(?)"). Takiego obszaru nie rozkładaj na pozycje / króćce / parametry. W innych obszarach: [].
+7. Obszar "cała lista materiałowa" (cały arkusz / strona listy materiałowej albo rysunku złożeniowego) - celem jest JEDNA
+   kompletna lista materiałowa: KAŻDA tabela materiałowa na arkuszu (wykaz części, zestawienie materiałów, tabela U-rur /
+   rurek z długościami i masami, tabele blach, śrub, uszczelek) idzie do pozycji. Wiersz tabeli szczegółowej, który odnosi
+   się do numeru pozycji z wykazu (np. tabela U-rur: poz. 7-12, ilość, długość L, masa), zwróć jako TĘ pozycję z tym samym
+   numerem i uzupełnij jej wymiary (np. "ø25x2,6, L=4518"), ilość i masy. Tabela króćców - krocce, dane projektowe i
+   ruchowe - parametry, tabele_wlasne puste. Strona bywa skanem obróconym o 90° (tekst pionowo) - czytaj tekst w jego
+   kierunku. Lista ciągnie się na kolejne strony - na każdej stronie zwróć wszystkie widoczne wiersze z ich numerami.
 
 Zasady odczytu:
 - Zwróć KAŻDY wiersz widocznych tabel, po kolei, także przy słabym skanie - nie pomijaj wierszy i nie streszczaj tabeli.

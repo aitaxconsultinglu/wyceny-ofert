@@ -20,6 +20,7 @@ import type { Gatunek, KategoriaMaterialu, KategoriaUslugi, RodzajStali, StawkaR
 import { dataPL, dzisiajISO } from './format'
 import { typAparatuZRodzaju } from './zapytania'
 import { jestRysunkiem } from './klasyfikacjaDokumentow'
+import { OBSZAR_LISTY, RODZAJ_LISTY, utworzListeGdyBrak, zlozListe } from './listaMaterialowa'
 import { t } from '@/i18n'
 
 export const MAKS_STRON_RYSUNKOW = 8
@@ -75,7 +76,7 @@ export async function zaplanujPrzygotowanie(z: ZapytanieDoPrzygotowania, opcje: 
       if (error || !plik) { pominiete.push(`Rysunek ${d.nazwa_pliku}: nie udało się pobrać`); continue }
       const pdf = await otworzRysunek(new Uint8Array(await plik.arrayBuffer()))
       for (let nr = 1; nr <= Math.min(pdf.numPages, STRON_NA_RYSUNEK) && stron < MAKS_STRON_RYSUNKOW; nr++, stron++) {
-        const strona = await zadaniaStrony(pdf, nr, { zapytanie_id: z.id, dokument_id: d.id }, d.nazwa_pliku)
+        const strona = await zadaniaStrony(pdf, nr, { zapytanie_id: z.id, dokument_id: d.id }, d.nazwa_pliku, OBSZAR_LISTY)
         // Ten sam rysunek w kilku plikach (np. z zaznaczoną antykorozją / izolacją) - lista raz, inaczej pozycje by się powieliły.
         const tresc = strona[0]?.tresc
         if (tresc) {
@@ -164,6 +165,8 @@ export async function wykonajPrzygotowanie(
     for (const t of rysunki) strony.set(`${t.dokument!.id}:${t.strona}`, [...(strony.get(`${t.dokument!.id}:${t.strona}`) ?? []), t])
     let pozycji = 0
     let bledy = 0
+    const doListy: WynikRysunku[] = []
+    const plikiListy: string[] = []
     for (const [, zad] of strony) {
       const wyniki: WynikRysunku[] = []
       const surowe: RysunekAi[] = []
@@ -183,7 +186,12 @@ export async function wykonajPrzygotowanie(
           wynik: w, ekstrakcja_ai: surowe, zrodlo: 'ai', model: 'automatycznie', koszt_pln: null,
         })
         pozycji += w.pozycje.length
+        doListy.push(w); plikiListy.push(dokument!.nazwa)
       }
+    }
+    // Jedna lista materiałowa zapytania ze wszystkich stron (gdy technolog jeszcze jej nie utworzył).
+    if (await utworzListeGdyBrak(db, z.id, zlozListe(...doListy), { pliki: plikiListy, rodzaj: 'ai', dokument_id: null })) {
+      kroki.push({ nazwa: 'Lista materiałowa', stan: 'ok', opis: t('utworzona z {0} str. - zakładka „Tworzenie listy materiałowej”', doListy.length) })
     }
     kroki.push({ nazwa: 'Listy materiałów z rysunków', stan: bledy && !pozycji ? 'blad' : 'ok', opis: t('{0} str., {1} pozycji{2}', strony.size, pozycji, bledy ? `, błędów: ${bledy}` : '') })
   } else kroki.push({ nazwa: 'Listy materiałów z rysunków', stan: 'pominiety', opis: rysunki.length ? t('AI niedostępne - użyto zapisanych odczytów') : t('brak rysunków PDF oznaczonych jako istotne') })
@@ -208,7 +216,10 @@ export async function wykonajPrzygotowanie(
     }))
 
     // Materiały z odczytów rysunków (najnowszy odczyt każdej strony).
-    const { data: od } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, nazwa, wynik, zmodyfikowano').eq('zapytanie_id', z.id).order('zmodyfikowano', { ascending: false })
+    const { data: odWszystkie } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, nazwa, rodzaj_tabeli, wynik, zmodyfikowano').eq('zapytanie_id', z.id).order('zmodyfikowano', { ascending: false })
+    // Lista materiałowa zapytania (gdy jest) zastępuje pozostałe odczyty.
+    const listaZap = (odWszystkie ?? []).find((o) => o.rodzaj_tabeli === RODZAJ_LISTY)
+    const od = listaZap ? [listaZap] : odWszystkie
     const widziane = new Set<string>()
     const podpisy = new Set<string>()
     const odczyty = (od ?? []).filter((o) => {

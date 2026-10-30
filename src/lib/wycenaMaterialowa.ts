@@ -17,6 +17,7 @@ import { elementPozycji, szablonDlaTypu, ulozWgSzablonu, wierszElementu, type Sz
 import type { Gatunek } from './types'
 import { jestRysunkiem } from './klasyfikacjaDokumentow'
 import { t } from '@/i18n'
+import { RODZAJ_LISTY, utworzListeGdyBrak, zlozListe } from './listaMaterialowa'
 
 const STRON_NA_RYSUNEK = 3
 const MIN_ELEMENTOW_TEKSTU = 30
@@ -46,6 +47,8 @@ async function odczytajRysunkiTekstowo(zapytanieId: string, postep: Postep, db: 
   const rysunki = (await dokumentyZapytania(zapytanieId, db)).filter((d) => jestRysunkiem(d.typ) && d.sciezka && d.stan === 'zapisany' && /\.pdf$/i.test(d.nazwa_pliku))
   let stron = 0
   const skany: string[] = []
+  const doListy: WynikRysunku[] = []
+  const pliki: string[] = []
   for (const d of rysunki) {
     postep(t('Rysunek {0}...', d.nazwa_pliku))
     const { data: plik } = await db.storage.from(BUCKET).download(d.sciezka!)
@@ -57,6 +60,7 @@ async function odczytajRysunkiTekstowo(zapytanieId: string, postep: Postep, db: 
       const w = odczytajArkuszZTekstu(await tekstStrony(pdf, nr))
       if (!w.pozycje.length && !w.krocce.length && !w.parametry.length) continue
       stron++
+      doListy.push(w); pliki.push(d.nazwa_pliku)
       const wiersz = {
         zapytanie_id: zapytanieId, dokument_id: d.id, nazwa_pliku: d.nazwa_pliku, strona: nr, obszary: [{ id: 'caly', rodzaj: 'czesci', x: 0, y: 0, w: 1, h: 1 }],
         wynik: w, zrodlo: 'tekst', model: 'arkusz z warstwy tekstowej',
@@ -66,13 +70,19 @@ async function odczytajRysunkiTekstowo(zapytanieId: string, postep: Postep, db: 
       else await db.from('odczyty_rysunkow').insert(wiersz)
     }
   }
+  await utworzListeGdyBrak(db, zapytanieId, zlozListe(...doListy), { pliki, rodzaj: 'tekst', dokument_id: null })
   return { stron, skany }
 }
 
-/** Wszystkie odczyty zapytania połączone: wykaz części z ilościami (najnowszy odczyt strony, który go ma), tabela materiałów, króćce, parametry. */
+/**
+ * Odczyty zapytania połączone: wykaz części z ilościami (najnowszy odczyt strony, który go ma), tabela materiałów, króćce,
+ * parametry. Gdy zapytanie ma listę materiałową (zakładka „Tworzenie listy materiałowej”), liczy się tylko ona.
+ */
 export async function zebraneOdczyty(zapytanieId: string, db: SupabaseClient = supabase) {
-  const { data } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, nazwa, wynik, zmodyfikowano').eq('zapytanie_id', zapytanieId).order('zmodyfikowano', { ascending: false })
-  const odczyty = (data ?? []) as { nazwa_pliku: string; strona: number; nazwa: string | null; wynik: WynikRysunku }[]
+  const { data } = await db.from('odczyty_rysunkow').select('nazwa_pliku, strona, nazwa, rodzaj_tabeli, wynik, zmodyfikowano').eq('zapytanie_id', zapytanieId).order('zmodyfikowano', { ascending: false })
+  const wszystkie = (data ?? []) as { nazwa_pliku: string; strona: number; nazwa: string | null; rodzaj_tabeli: string | null; wynik: WynikRysunku }[]
+  const lista = wszystkie.find((o) => o.rodzaj_tabeli === RODZAJ_LISTY)
+  const odczyty = lista ? [lista] : wszystkie
   const czesci: { plik: string; pozycje: PozycjaRysunku[] }[] = []
   const materialy: PozycjaRysunku[] = []
   const krocce: KrociecRysunku[] = []

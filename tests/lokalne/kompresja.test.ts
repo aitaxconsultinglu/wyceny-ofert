@@ -26,7 +26,8 @@ describe.skipIf(!maMaterialy || !FOLDERY.length)('kompresja plików - raport na 
       for (const p of pliki(plikMaterialow(folder)).filter((x) => /\.(pdf|docx|xlsx)$/i.test(x))) {
         const dane = new Uint8Array(readFileSync(p))
         const ext = p.split('.').pop()!.toLowerCase()
-        const w = await kompresujPlik(p, MIME[ext], dane)
+        // Próg 0 MB - sprawdzamy samą kompresję i odczyt po niej (w aplikacji pliki do 20 MB zostają bez kompresji).
+        const w = await kompresujPlik(p, MIME[ext], dane, 0)
         przed += w.rozmiar_oryginalny
         po += w.rozmiar_zapisany
         let odczyt = '-'

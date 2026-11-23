@@ -182,6 +182,24 @@ export async function kursNaDzien(waluta: string, data: string, db: SupabaseClie
 }
 
 /** Zapis (nowej albo poprawionej) oferty z pozycjami. Zwraca id oferty. */
+/** Zapisana oferta jako formularz do poprawy (lista ofert, katalog ofert). */
+export async function wczytajFormularzOferty(id: string, db: SupabaseClient = supabase): Promise<FormularzOferty | null> {
+  const [{ data: o }, { data: p }] = await Promise.all([
+    db.from('oferty_dostawcow').select('*').eq('id', id).single(),
+    db.from('pozycje_ofert').select('*').eq('oferta_id', id).order('lp'),
+  ])
+  if (!o) return null
+  return {
+    id: o.id, dostawca_id: o.dostawca_id, dostawca_nowy: null, zapytanie_id: o.zapytanie_id, nr_zo: o.nr_zo ?? '',
+    numer_oferty: o.numer_oferty ?? '', data_oferty: o.data_oferty ?? '', waluta: o.waluta, kurs: Number(o.kurs),
+    kurs_data: o.kurs_data, kurs_zrodlo: o.kurs_zrodlo ?? 'ręcznie', warunki_dostawy: o.warunki_dostawy ?? '', miejsce_dostawy: o.miejsce_dostawy ?? '',
+    platnosc: o.platnosc ?? '', waznosc_do: o.waznosc_do ?? '', waznosc_opis: o.waznosc_opis ?? '', termin_realizacji: o.termin_realizacji ?? '',
+    termin_dni: o.termin_dni, doplaty: o.doplaty ?? [], wymagania: o.wymagania ?? {}, zrodlo: o.zrodlo, czy_zakupiono: o.czy_zakupiono,
+    uwagi: o.uwagi ?? '', ekstrakcja_ai: null, dokument_id: o.dokument_id,
+    pozycje: (p ?? []).map((x) => ({ ...x, klucz: nowyKlucz(), ilosc: Number(x.ilosc), cena_jedn: Number(x.cena_jedn), pewnosc: null })),
+  }
+}
+
 export async function zapiszOferte(f: FormularzOferty, s: Slowniki, status: 'zatwierdzona' | 'do_przejrzenia', db: SupabaseClient = supabase): Promise<string> {
   let dostawcaId = f.dostawca_id
   if (!dostawcaId) {

@@ -8,16 +8,18 @@ import { ListaOfert } from './ListaOfert'
 import { DodajOferte } from './DodajOferte'
 import { OfertyDoZapytania } from './OfertyDoZapytania'
 import { Dostawcy } from './Dostawcy'
+import { KatalogOfert } from './KatalogOfert'
 import { ListaZapytanDostawcow } from '../zapytaniaDostawcow/ListaZapytanDostawcow'
 import { t } from '@/i18n'
 
-type Zakladka = 'porownywarka' | 'zapytanie' | 'lista' | 'dodaj' | 'wyslane' | 'dostawcy'
+type Zakladka = 'katalog' | 'porownywarka' | 'zapytanie' | 'lista' | 'dodaj' | 'wyslane' | 'dostawcy'
 
 export function OfertyDostawcow({ profil }: { profil: Profil }) {
   const up = uprawnienia(profil)
-  const [zakladka, setZakladka] = useState<Zakladka>('porownywarka')
+  const [zakladka, setZakladka] = useState<Zakladka>('katalog')
   const [komunikat, setKomunikat] = useState<string | null>(null)
   const zakladki: { id: Zakladka; etykieta: string }[] = [
+    { id: 'katalog', etykieta: t('Katalog ofert') },
     { id: 'porownywarka', etykieta: t('Porównywarka cen') },
     { id: 'zapytanie', etykieta: t('Oferty do zapytania ZO') },
     { id: 'lista', etykieta: t('Lista ofert') },
@@ -37,6 +39,7 @@ export function OfertyDostawcow({ profil }: { profil: Profil }) {
         ))}
       </div>
       {komunikat && <Komunikat rodzaj="sukces">{komunikat}</Komunikat>}
+      {zakladka === 'katalog' && <KatalogOfert mozeEdytowac={up.bazaOfert} />}
       {zakladka === 'porownywarka' && <Porownywarka />}
       {zakladka === 'zapytanie' && <OfertyDoZapytania />}
       {zakladka === 'lista' && <ListaOfert mozeEdytowac={up.bazaOfert} />}

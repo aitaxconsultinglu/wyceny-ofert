@@ -209,3 +209,10 @@ Repozytorium jest publiczne: pytania nie zawierają nazw firmy, klientów, dosta
     skany. Akapity: wcięcie wiszące / pierwszego wiersza i wyrównanie liczone z całego akapitu, twarde złamania tylko tam,
     gdzie są w oryginale. Tłumaczenie zachowuje pogrubienia wewnątrz akapitów (znaczniki [b] / [i]) i podział stron
     (dłuższy tekst - czcionka i odstępy strony mniejsze, najwyżej o 20%). Wcześniejsze odczyty trzeba powtórzyć.
+79. **Katalog ofert materiałowych** (2026-11-23): Oferty dostawców → Katalog ofert. Zaopatrzenie wrzuca oferty do folderu
+    firmowego, podłączonego w Chrome / Edge (dostęp „Zezwalaj przy każdej wizycie”; zgodę przeglądarka pamięta na danym
+    komputerze), albo przeciąga pliki / folder. Odczyt bez AI przy imporcie, AI na życzenie (koszt przed odczytem);
+    oferta powstaje jako *do przejrzenia*, ceny w wycenach - dopiero po zatwierdzeniu. *Założenia: aplikacja w przeglądarce
+    nie widzi folderu, gdy jest zamknięta - nowe pliki zaciąga przy otwarciu katalogu; ten sam plik (SHA-256) nie doda
+    się drugi raz; zatwierdza zaopatrzenie / dział handlowy (uprawnienie bazy ofert).* Do omówienia na spotkaniu: zapisy
+    „co oferta obejmuje / nie obejmuje”.

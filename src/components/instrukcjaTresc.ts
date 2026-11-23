@@ -116,6 +116,18 @@ const PL: RozdzialInstrukcji[] = [
     ],
   },
   {
+    tytul: 'Katalog ofert materiałowych',
+    tekst: [
+      'Miejsce, do którego zaopatrzenie wrzuca oferty materiałowe, a aplikacja zaciąga z nich ceny (menu *Oferty dostawców* → **Katalog ofert**). Ceny trafiają do wycen dopiero po **zatwierdzeniu** oferty.',
+    ],
+    kroki: [
+      '**Podłącz folder ofert** (Chrome / Edge): wskaż folder na dysku albo serwerze firmy, do którego zaopatrzenie zapisuje oferty (PDF, skany, maile .msg / .eml, Excel, Word). Przeglądarka zapyta o dostęp - wybierz *Zezwalaj przy każdej wizycie*, wtedy nowe pliki sprawdzają się same przy otwarciu katalogu. W innej przeglądarce przeciągnij pliki albo cały folder na pole obok.',
+      'Każdy nowy plik trafia do katalogu raz (ten sam plik drugi raz się nie doda). Aplikacja bez AI odczyta dostawcę (po domenie maila albo nazwie), numer ZO, datę, ceny, termin i ważność - jeśli znajdzie dostawcę i ceny, od razu powstaje **oferta do przejrzenia**.',
+      'Skany i pliki, których nie da się odczytać bez AI, mają stan *czeka na odczyt*. Zaznacz je i kliknij **Odczytaj przez AI** - najpierw zobaczysz szacunek kosztu.',
+      'Sprawdź oferty ikoną ołówka (pozycje, gatunki, wymiary, ceny, waluta) i zaznaczone **Zatwierdź**. Od tej chwili ich ceny są w *Znajdź cenę* i w wycenie automatycznej. Pliki niebędące ofertami oznacz **Pomiń**.',
+    ],
+  },
+  {
     tytul: 'Zatwierdzanie (prezes)',
     gdy: 'zatwierdzanie',
     tekst: [
@@ -293,6 +305,18 @@ const EN: RozdzialInstrukcji[] = [
       'Offers for an item are compared: the **cheapest** and the **fastest** are marked, expired ones are greyed out. **Use in quote** inserts the price with the offer as its source and closes the request.',
       { t: '**Supplier offers** (database): you can also add an offer from a file (PDF, scan, e-mail, Excel) manually. Prices in foreign currencies are converted to PLN at the NBP rate of the offer date. The **Comparison** view lists offers for the same item.', gdy: 'bazaOfert' },
       '**Supplier requests** (inquiry card): a generator of e-mails to suppliers assigned to a category, with requirements for the category. *Send* opens Outlook with a ready e-mail (a separate one for each supplier); the *offer received* status appears by itself when that supplier\'s offer for this ZO is in the database, and you mark a refusal with the ⊘ icon.',
+    ],
+  },
+  {
+    tytul: 'Material offer catalogue',
+    tekst: [
+      'The place where purchasing puts material offers and the application pulls prices from them (menu *Supplier offers* → **Offer catalogue**). Prices reach quotes only after the offer is **approved**.',
+    ],
+    kroki: [
+      '**Connect offer folder** (Chrome / Edge): choose the folder on the company drive or server where purchasing saves offers (PDF, scans, .msg / .eml e-mails, Excel, Word). The browser asks for access - choose *Allow on every visit*, then new files are checked automatically when the catalogue opens. In another browser drag files or a whole folder into the box next to it.',
+      'Each new file enters the catalogue once (the same file is not added twice). Without AI the application reads the supplier (by e-mail domain or name), ZO number, date, prices, lead time and validity - if it finds the supplier and prices, an **offer to review** is created right away.',
+      'Scans and files that cannot be read without AI are *waiting for reading*. Select them and click **Read with AI** - you see the cost estimate first.',
+      'Check the offers with the pencil icon (items, grades, dimensions, prices, currency) and **Approve** the selected ones. From then on their prices are in *Find price* and in the automatic quote. Mark files that are not offers with **Skip**.',
     ],
   },
   {

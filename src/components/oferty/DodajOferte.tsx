@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { useSlowniki } from '@/lib/slowniki'
 import { liczba } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { base64ZBajtow, przeskalujObraz, renderujStrone, wczytajPlik, wczytajDane, type PominietyZalacznik, type WczytanyPlik } from '@/lib/dokumenty'
+import { wczytajPlik, wczytajDane, type PominietyZalacznik, type WczytanyPlik } from '@/lib/dokumenty'
+import { przygotujTresc } from '@/lib/trescOferty'
 import { szacujAi, wywolajAi, type KlasyfikacjaMaila, type OfertaAi, type SzacunekAi } from '@/lib/ai'
 import { zapiszDokument } from '@/lib/magazyn'
 import { dostawcaPoDomenie, formularzZAi, nowyKlucz, pustaPozycja, pustyFormularz, znajdzDostawce, zapiszOferte, type FormularzOferty as Formularz } from '@/lib/oferty'
@@ -13,39 +14,6 @@ import { Button } from '../ui/button'
 import { Komunikat } from '../ui/komunikat'
 import { FormularzOferty } from './FormularzOferty'
 import { t } from '@/i18n'
-
-const MAKS_STRON_SKANU = 4
-
-/** Treść do AI: tekst maila / PDF i teksty załączników PDF z warstwą tekstową; skany jako obrazy. */
-async function przygotujTresc(plik: WczytanyPlik, wybrane: Set<string>) {
-  const czesci: string[] = []
-  const obrazy: { media_type: 'image/jpeg'; dane: string }[] = []
-  const dodaj = async (p: WczytanyPlik, naglowek: string) => {
-    if (p.rodzaj === 'pdf' && p.metadane.skan) {
-      const stron = Math.min(Number(p.metadane.stron ?? 1), MAKS_STRON_SKANU)
-      for (let i = 1; i <= stron; i++) {
-        const r = await renderujStrone(p.dane, i, 150)
-        const m = await przeskalujObraz(r.dataUrl, 1568)
-        obrazy.push({ media_type: 'image/jpeg', dane: m.base64 })
-      }
-      czesci.push(`${naglowek}: skan (${stron} str.) - treść na obrazach.`)
-    } else if (p.rodzaj === 'obraz') {
-      const url = `data:${p.mime};base64,${base64ZBajtow(p.dane)}`
-      const m = await przeskalujObraz(url, 1568)
-      obrazy.push({ media_type: 'image/jpeg', dane: m.base64 })
-    } else if (p.tekst) {
-      czesci.push(`${naglowek}:\n${p.tekst}`)
-    }
-  }
-  if (plik.rodzaj === 'mail') {
-    const m = plik.metadane
-    czesci.push(`MAIL - temat: ${m.temat}\nod: ${m.od} ${m.od_email ? `<${m.od_email}>` : ''}\ndata: ${m.data ?? ''}\n\n${plik.tekst}`)
-    for (const z of plik.zalaczniki) if (wybrane.has(z.nazwa)) await dodaj(z, `ZAŁĄCZNIK ${z.nazwa}`)
-  } else {
-    await dodaj(plik, `PLIK ${plik.nazwa}`)
-  }
-  return { tekst: czesci.join('\n\n==========\n\n'), obrazy }
-}
 
 /** Kontekst oferty dodawanej z wyceny albo z kolejki próśb: zapytanie, prośba, kategoria usługi. */
 export interface KontekstOferty { zapytanie_id: string; nr_zo: string; prosba_id?: string | null; kategoria_uslugi?: string | null; opis?: string }

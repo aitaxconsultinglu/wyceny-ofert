@@ -19,6 +19,7 @@ export interface Powiazanie {
   zapytanie_id?: string | null
   oferta_id?: string | null
   projekt_id?: string | null
+  katalog_id?: string | null
   nadrzedny_id?: string | null
 }
 
